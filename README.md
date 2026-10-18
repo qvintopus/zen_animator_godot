@@ -11,11 +11,15 @@ so `crumble` and the cursor-anchored ripple are reachable for the first time.
 **F5 opens a gallery.** `zen_gallery.tscn` is the project's main scene: it lists every
 animation in `anims/`, shows what each one actually contains (clock, elements, tracks,
 easings, signals - all read off the scene, so it cannot drift from the data), and plays
-them in place. Hotkeys: **ENTER** or **double-click** plays, **UP/DOWN** selects,
-**R** restarts (re-scans in the list), **ESC** backs out then quits, **1-9** fire a
-signal while playing - the only interactive way to see one, since an export never fires
-one. Clicking another row while playing switches straight to it, and a finished one-shot
-replays after holding its last frame, so the gallery always shows motion.
+them in place. Hotkeys are named `InputMap` actions (**zen_play**: ENTER/KP_ENTER/SPACE,
+**zen_back**: ESC, **zen_restart**: R, **zen_prev/zen_next**: UP/DOWN,
+**zen_signal_1..9**: 1-9), rebindable in Project Settings > Input Map rather than
+hard-coded keycodes. **zen_play** or double-click plays, **zen_prev/zen_next** selects,
+**zen_restart** restarts (re-scans in the list), **zen_back** backs out then quits, and
+**zen_signal_1..9** fire a signal while playing - the only interactive way to see one,
+since an export never fires one. Clicking another row while playing switches straight to
+it, and a finished one-shot replays after holding its last frame, so the gallery always
+shows motion.
 
 Before this, F5 ran `tools/export_scene.tscn`, a batch tool that reads `--anim=` off the
 command line - so pressing F5 in the editor started an exporter with no arguments.

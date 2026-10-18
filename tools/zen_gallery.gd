@@ -390,29 +390,30 @@ func _update_status() -> void:
 
 
 func _unhandled_input(ev: InputEvent) -> void:
-    if not (ev is InputEventKey) or not ev.pressed or ev.echo: return
-    var k := ev as InputEventKey
-    match k.keycode:
-        KEY_ESCAPE:
-            _back()
+    if ev.is_echo(): return
+    if ev.is_action_pressed("zen_back"):
+        _back()
+        get_viewport().set_input_as_handled()
+    elif ev.is_action_pressed("zen_restart"):
+        _restart()
+        get_viewport().set_input_as_handled()
+    elif ev.is_action_pressed("zen_play"):
+        if _view == View.GALLERY:
+            _play(_sel)
             get_viewport().set_input_as_handled()
-        KEY_R:
-            _restart()
+    elif ev.is_action_pressed("zen_prev"):
+        if _view == View.GALLERY:
+            _select(_sel - 1)
             get_viewport().set_input_as_handled()
-        KEY_ENTER, KEY_KP_ENTER, KEY_SPACE:
-            if _view == View.GALLERY:
-                _play(_sel)
-                get_viewport().set_input_as_handled()
-        KEY_UP:
-            if _view == View.GALLERY:
-                _select(_sel - 1)
-                get_viewport().set_input_as_handled()
-        KEY_DOWN:
-            if _view == View.GALLERY:
-                _select(_sel + 1)
-                get_viewport().set_input_as_handled()
-        _:
-            # 1-9 fire the nth signal of the playing document.
-            if _view == View.PLAYING and k.keycode >= KEY_1 and k.keycode <= KEY_9:
-                _fire(k.keycode - KEY_1)
-                get_viewport().set_input_as_handled()
+    elif ev.is_action_pressed("zen_next"):
+        if _view == View.GALLERY:
+            _select(_sel + 1)
+            get_viewport().set_input_as_handled()
+    else:
+        # zen_signal_1..9 fire the nth signal of the playing document.
+        for i in range(9):
+            if ev.is_action_pressed("zen_signal_%d" % (i + 1)):
+                if _view == View.PLAYING:
+                    _fire(i)
+                    get_viewport().set_input_as_handled()
+                break
