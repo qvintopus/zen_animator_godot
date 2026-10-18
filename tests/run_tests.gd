@@ -41,7 +41,7 @@ func _run() -> void:
     test_export_plan()
     test_cfg_parse()
     test_real_cfgs()
-    test_text_metrics()
+    test_text_layout()
     test_crumble_hash()
     test_canvas_size()
     test_blend_weight()
@@ -593,40 +593,48 @@ func test_real_cfgs() -> void:
             check(is_finite(c.sample(float(i) / 20.0)), "%s finite" % n)
 
 
-## Text layout must match raylib's default font exactly: position is the text
-## CENTRE, so a wrong box width moves every text element. Reference values come
-## from the real MeasureTextEx(GetFontDefault()) - see tests/text_ref.txt.
-func test_text_metrics() -> void:
-    var f := FileAccess.open("res://tests/text_ref.txt", FileAccess.READ)
-    check(f != null, "text_ref.txt present")
-    if f == null: return
-    var rows := 0
-    while not f.eof_reached():
-        var line := f.get_line()
-        if line.strip_edges().is_empty(): continue
-        var parts := line.split("|")
-        if parts.size() < 4: continue
-        # the reference file escapes a real newline as a literal \n
-        var txt := String(parts[0]).replace("\\n", "\n")
-        var size_px := float(parts[1])
-        var got := ZenTextMetrics.measure(txt, size_px)
-        check_near(got.x, float(parts[2]), "measure width \"%s\"" % txt, 0.01)
-        check_near(got.y, float(parts[3]), "measure height \"%s\"" % txt, 0.01)
-        rows += 1
-    check(rows == 8, "all 8 text samples compared (got %d)" % rows)
+## Text layout against a real Godot font. Property-based rather than pinned to
+## magic numbers, so it survives a font swap (unlike the old raylib-table
+## comparison this replaces - see docs/plans/godot-integration.md Task 2).
+func test_text_layout() -> void:
+    var fnt := ZenText.default_font()
 
-    # The table itself: a few glyphs whose widths differ, so a mis-indexed
-    # table would show up rather than averaging out.
-    check(ZenTextMetrics.glyph_width(32) == 3, "space width")
-    check(ZenTextMetrics.glyph_width(65) == 6, "'A' width")
-    check(ZenTextMetrics.glyph_width(77) == 7, "'M' width")
-    check(ZenTextMetrics.glyph_width(105) == 1, "'i' width")
-    check(ZenTextMetrics.WIDTHS.size() == 224, "224 glyph widths")
-    # Out of range is 0, never a crash or a wrapped index.
-    check(ZenTextMetrics.glyph_width(31) == 0, "below range -> 0")
-    check(ZenTextMetrics.glyph_width(9999) == 0, "above range -> 0")
-    # Zen's spacing rule.
+    check(ZenTextMetrics.measure("", 32.0, fnt) == Vector2.ZERO,
+          "empty text measures zero - raylib's early-out, still right")
+
+    check_near(ZenTextMetrics.measure("A", 72.0, fnt).y, 72.0,
+                "single line height is exactly size_px")
+    # THE \n REGRESSION GUARD: Font.get_string_size() ignores "\n" entirely
+    # (measured on 4.7.2) - a naive drop-in would report one line's height.
+    check_near(ZenTextMetrics.measure("two\nlines", 72.0, fnt).y,
+                2.0 * 72.0 + ZenTextMetrics.LINE_SPACING,
+                "two lines measure 2*size_px + LINE_SPACING, not one line's height")
+
+    var two := ZenTextMetrics.measure("two", 40.0, fnt)
+    var lines := ZenTextMetrics.measure("lines", 40.0, fnt)
+    var both := ZenTextMetrics.measure("two\nlines", 40.0, fnt)
+    check_near(both.x, maxf(two.x, lines.x), "block width is the widest LINE, not the sum")
+
+    check(ZenTextMetrics.measure("MM", 40.0, fnt).x > ZenTextMetrics.measure("ii", 40.0, fnt).x,
+          "proportional metrics are actually in use (M is wider than i)")
+
     check_near(ZenTextMetrics.spacing_for(72.0), 7.2, "spacing = size/baseSize")
+
+    # The centring invariant: a ZenText at pos_frac (0.5,0.5) on a 320x180
+    # canvas centres on (160,90) - calling the SAME center_px() _draw() calls,
+    # per the project's own "a test that calls the renderer's function is not
+    # the same as a test that looks at a pixel" lesson, applied the other way:
+    # here the function IS what's under test, so calling it directly is right.
+    var c := ZenCanvas.new()
+    c.design_size = Vector2(320, 180)
+    var tx := ZenText.new()
+    tx.set_script(load("res://addons/zen/runtime/zen_text.gd"))
+    tx.elem_name = "t"
+    tx.pos_frac = Vector2(0.5, 0.5)
+    c.add_child(tx)
+    check(tx.center_px(0.0).is_equal_approx(Vector2(160, 90)),
+          "pos_frac (0.5,0.5) centres on the canvas midpoint")
+    c.free()
 
 
 ## Crumble scatter must hash the GLYPH INDEX, never the clock - that is what

@@ -30,7 +30,7 @@ func _init() -> void:
             for frac in [0.0, 0.25, 0.5, 0.75, 1.0]:
                 var tt: float = c.play_start() + (c.play_end() - c.play_start()) * frac
                 var sz := tx._size_px(tt)
-                var box := ZenTextMetrics.measure(tx.text, sz)
+                var box := ZenTextMetrics.measure(tx.text, sz, tx.effective_font())
                 var ctr := tx.center_px(tt)
                 print("    t=%6.3f  centre=(%7.1f,%7.1f)  box=(%6.1f,%5.1f)px  size=%5.1fpx  alpha=%.3f crumble=%.3f"
                     % [tt, ctr.x, ctr.y, box.x, box.y, sz,

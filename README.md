@@ -207,17 +207,20 @@ the Zen tracks onto the timeline as real draggable keys for authoring, and
 render path. The intro-skip-on-loop rule stays hand-written: Godot's looping always
 restarts at 0, Zen's restarts at `intro_end`.
 
-**Text layout is raylib's, text glyphs are Godot's.** Zen measured with raylib's built-in
-10px bitmap font - a fixed per-glyph width table, not a real typeface - and a text
-element's position is its CENTRE, so the measured box decides where the text lands.
-`zen_text_metrics.gd` reproduces that table and `MeasureTextEx` exactly (verified against
-the compiled raylib, `tests/text_ref.txt`), while the glyphs themselves are drawn with a
-Godot font, each glyph scaled horizontally into the advance the layout reserved for it
-(without that, the fallback font's glyphs run up to 39% wider or 35% narrower than the
-cell and the text reads with ragged gaps). Centring, line widths, line breaks, letter
-rhythm and crumble pen positions therefore match the original; only letterforms differ.
-Embedding raylib's 128x128 atlas would close that last gap - worth doing only if the
-drift proves objectionable.
+**Text is drawn through a real Godot font**, bundled at `addons/zen/fonts/` (Source Sans 3
+Regular, SIL OFL 1.1, the raylib template's own default - see `LICENSES.md` there).
+`ZenText.font` is a per-element override; null falls back to the project default. A text
+element's position is its CENTRE, so `ZenTextMetrics.measure()` decides where the box
+lands - and that box is a LAYOUT rule (`size_px * lines + LINE_SPACING * (lines-1)`), not a
+font metric: `Font.get_string_size()` ignores `\n` entirely (measured on 4.7.2) and a real
+font's ascent+descent does not equal `size_px` the way a fixed-size bitmap font's does, so
+deriving the box from the font would move every text element on every font swap, defeating
+the point of making the font a choice. Each line's own baseline is placed proportionally
+inside its slot instead (`ZenText._baseline_offset`), so swapping fonts changes letterforms
+without moving anything. The old approach - reproducing raylib's bitmap-font width table
+exactly and squeezing each Godot glyph into its cell - is gone; a pixel-exact raylib bitmap
+font remains a possible future per-animation font choice, not built in this pass (see
+`docs/plans/session-2026-10-19-log.md`).
 
 **The clock is Zen's, not `AnimationPlayer`'s.** A Zen document is
 `[0,intro_end)` + `[intro_end,outro_start)` + a trimmed outro. The intro is a one-shot

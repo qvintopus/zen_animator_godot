@@ -11,6 +11,15 @@ pixel-only bug (the crumble transform, below). Final sign-off is the user's.
 easings now come from Godot's `Tween` family rather than the raylib port, and scenes
 build a real `AnimationPlayer` so they play on F6. See sections 6 and 7.
 
+**Text rendering changed (2026-10-19, docs/plans/godot-integration.md Task 2):** glyphs now
+draw through a real Godot font (Source Sans 3) instead of raylib's bitmap-font metrics
+squeezed into Godot glyphs. Any PNG/webm exported before this date is NOT byte-comparable
+against a fresh export - letterforms differ even though layout (centring, line breaks,
+crumble rhythm) is unchanged. `pause_menu` also changed its LIVE loop behaviour the same
+day (Task 1): it now loops back into its body instead of freezing at its outro, per a
+user-approved plan decision. Neither is yet confirmed by eye - see
+`docs/plans/session-2026-10-19-log.md`.
+
 Keep this list for re-checking after changes that touch rendering.
 
 Every command here needs a real display: `--headless` cannot render at all
