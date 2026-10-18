@@ -159,12 +159,10 @@ func _on_fire(params: Dictionary, index: int) -> void:
     # captured was read at the OLD doc time, so a posAnchor stays correct and
     # only the timeline is rewound (anim_stage.c:215-223).
     #
-    # rewind(), NOT play(): play() would call set_process(true) and start the
-    # live clock even during an export or a render test, re-posing the canvas
-    # mid-await. See ZenPlayer.rewind.
-    if bool(sig.get("replay", false)):
-        var p := _zen_player()
-        if p != null: p.rewind()
+    # rewind_timeline(), NOT a fresh play(): a player ticking mid-await would
+    # re-pose the canvas to its own clock during an export or a render test.
+    if bool(sig.get("replay", false)) and canvas != null:
+        canvas.rewind_timeline()
 
     signal_fired.emit(String(sig.get("name", "")), params)
     # Re-pose immediately so the override is visible on THIS frame rather than
@@ -204,8 +202,7 @@ func advance(delta: float) -> void:
         if terminal:
             # The instance stops here, having played the authored transition
             # through, rather than being cut off.
-            var p := _zen_player()
-            if p != null: p.stop()
+            if canvas != null: canvas.stop_timeline()
             terminal_finished.emit(nm)
 
 
@@ -281,19 +278,8 @@ func _seq_index() -> int:
 @export var seq := 0
 
 
-func _zen_player() -> ZenPlayer:
-    if canvas == null: return null
-    for c in canvas.get_children():
-        if c is ZenPlayer: return c
-    return null
-
-
 ## Re-pose so the override reaches the screen. Uses the LIVE doc time, which is
 ## the live path only - the exporter never fires a signal and never gets here.
 func _repose() -> void:
     if canvas == null: return
-    var p := _zen_player()
-    if p != null and p.playing:
-        p.apply()
-    else:
-        canvas.pose_looping(canvas.pose_time, canvas.pose_looping_flag)
+    canvas.pose_looping(canvas.pose_time, canvas.pose_looping_flag)

@@ -24,22 +24,15 @@ static func build(doc: Dictionary) -> Dictionary:
     canvas.outro_start = float(doc["outro_start"])
     canvas.loop_blend = float(doc["loop_blend"])
     canvas.loop_smooth = bool(doc["loop_smooth"])
-    # A document carries no backdrop of its own unless it has a `global`
-    # element; the preview grey keeps an exported clip from being pure black.
-    canvas.clear_color = Color(0.1, 0.12, 0.16, 1.0)
-
-    # The clock lives in a ZenPlayer child rather than on the canvas, so the
-    # canvas stays a pure pose(t) function and the exporter can ignore the
-    # player entirely while still reading its pause markers.
-    var player := ZenPlayer.new()
-    player.set_script(load("res://addons/zen/runtime/zen_player.gd"))
-    player.name = "Player"
     # Ascending in t: next_pause() short-circuits on the first hit and so needs
     # the earliest marker first (anim.h:536).
     var marks: Array = (doc["pauses"] as Array).duplicate()
     marks.sort_custom(func(a, b): return float(a["t"]) < float(b["t"]))
-    player.pauses = marks
-    player.looping = bool(doc["loop_smooth"]) or float(doc["intro_end"]) > 0.0
+    canvas.pauses = marks
+    canvas.loop_play = bool(doc["loop_smooth"]) or float(doc["intro_end"]) > 0.0
+    # A document carries no backdrop of its own unless it has a `global`
+    # element; the preview grey keeps an exported clip from being pure black.
+    canvas.clear_color = Color(0.1, 0.12, 0.16, 1.0)
 
     var skipped: Array = []
     for e in doc["elems"]:
@@ -64,15 +57,10 @@ static func build(doc: Dictionary) -> Dictionary:
     var z := 0
     for c in canvas.get_children():
         var n := c as Node2D
-        if n == null: continue              # the player is a plain Node
+        if n == null: continue              # the bus is a plain Node
         if n.z_index < 0: continue
         n.z_index = z
         z += 1
-
-    # Added AFTER the z-order pass: neither the player nor the bus carries any
-    # depth, and must not consume an index.
-    canvas.add_child(player)
-    player.owner = canvas
 
     var bus := _build_bus(doc)
     if bus != null:

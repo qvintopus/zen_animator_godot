@@ -299,10 +299,16 @@ func _process(_delta: float) -> void:
     var raw := _anim_time()
 
     if not pauses.is_empty():
+        var was_held := held_pause >= 0
         advance_pauses(pose_time, raw)
         if held_pause >= 0:
+            if not was_held:
+                # Pin exactly to the marker's own instant, not wherever the
+                # frame delta happened to land - a pause freezes the picture
+                # AT the marker, matching the old ZenPlayer's clamp.
+                raw = float(pauses[held_pause]["t"])
+                _seek_safe(raw)
             _ap.pause()
-            return
 
     # Narrow to the body on the first wrap: the intro is a one-shot lead-in,
     # played once and skipped on every pass after it. Flipping loop_mode to

@@ -123,18 +123,15 @@ static func _args(s: Settings, w: int, h: int, out_path: String) -> PackedString
     return a
 
 
-## Pause marker times from the scene's ZenPlayer, ascending.
+## Pause marker times from the canvas's own `pauses`, ascending.
 ##
 ## `once` is deliberately ignored: an export is a SINGLE forward pass, so every
 ## marker is on its first pass and `once` could never suppress anything
 ## (zen_export.c:323-325).
 static func pause_times(canvas: ZenCanvas) -> Array:
     var out: Array = []
-    for c in canvas.get_children():
-        if c is ZenPlayer:
-            for p in (c as ZenPlayer).pauses:
-                out.append(float(p["t"]))
-            break
+    for p in canvas.pauses:
+        out.append(float(p["t"]))
     out.sort()
     return out
 

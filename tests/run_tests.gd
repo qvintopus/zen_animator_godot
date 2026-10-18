@@ -49,11 +49,11 @@ func _run() -> void:
     test_loop_seam_closes()
     test_seam_open_without_blend()
     test_stepped_never_blends()
-    test_player_clock()
-    test_player_pauses()
+    await test_canvas_clock()
+    test_canvas_pauses()
     test_pause_across_wrap()
     test_export_pause_source()
-    test_player_idle_until_played()
+    await test_canvas_idle_until_played()
     test_imported_players_inert()
     test_export_pause_holds()
     test_props_registry_agrees()
@@ -871,109 +871,114 @@ func test_stepped_never_blends() -> void:
 
 
 ## The live clock: the intro plays ONCE, then every cycle restarts at intro_end
-## (anim.c:1847-1869). This is why Godot's own looping cannot be used.
-func test_player_clock() -> void:
+## (anim.c:1847-1869). This is why Godot's own looping cannot be used directly
+## - it must be driven through a section, narrowed to the body at the wrap.
+func test_canvas_clock() -> void:
+    # No intro: loop_play wraps the whole body, starting right back at 0 -
+    # the intro-handover shape (wrap to intro_end, never 0) is pinned
+    # separately by test_section_loops_into_body, on pause_menu.
     var c := ZenCanvas.new()
-    c.duration = 4.0
-    c.intro_end = 1.0
-    c.outro_start = 3.0
+    c.duration = 2.0
+    c.outro_start = 2.0
+    c.loop_play = true
+    root.add_child(c)
+    await process_frame
+    var ap := c.animation_player()
+    ap.seek(c.play_end() - 0.01, true)
+    for _i in 5: await process_frame
+    check(ap.is_playing(), "a no-intro loop keeps playing past its own end")
+    check(ap.current_animation_position < c.play_end() - 0.001,
+          "and wraps back inside the body (%.4f < %.4f)" % [ap.current_animation_position, c.play_end()])
+    c.queue_free()
 
-    var p := ZenPlayer.new()
-    p.canvas = c
-    p.looping = true
-    c.add_child(p)
-
-    check_near(p.section_len(), 3.0, "section is [0, outro_start)")
-    check_near(p.loop_start(), 1.0, "cycle restarts at intro_end")
-
-    p.play()
-    check_near(p.advance(0.5), 0.5, "first pass runs through the intro")
-    check(not p.intro_done, "intro not yet spent")
-    # Step past the section end: wraps to intro_end + the overshoot, NOT to 0.
-    check_near(p.advance(2.75), 1.25, "wrap lands past intro_end, carrying overshoot")
-    check(p.intro_done, "intro spent after the first wrap")
-    # The outro is never played, on any pass.
-    for _i in 40:
-        var t := p.advance(0.1)
-        check(t < 3.0001, "clock never enters the outro")
-        check(t >= 1.0 - 0.0001 or not p.intro_done, "later cycles skip the intro")
-
-    # A non-looping play stops at the section end and reports it.
+    # One-shot: stops at the end and reports it via the AP's own signal -
+    # replacing ZenPlayer's `finished`.
+    var c2 := ZenCanvas.new()
+    c2.duration = 2.0
+    c2.outro_start = 2.0
+    c2.loop_play = false
+    root.add_child(c2)
+    await process_frame
+    var ap2 := c2.animation_player()
     var done := [false]
-    p.looping = false
-    p.finished.connect(func(): done[0] = true)
-    p.play()
-    for _i in 50: p.advance(0.1)
-    check(not p.playing, "one-shot stops at the end")
-    check(done[0], "one-shot emits finished")
-    check_near(p.sample_time(), 3.0, "one-shot ends at outro_start")
-
-    # play_loop_body skips the run-in for a re-entered menu.
-    p.looping = true
-    p.play_loop_body()
-    check_near(p.sample_time(), 1.0, "play_loop_body starts at intro_end")
-    check(p.intro_done, "play_loop_body marks the intro spent")
-    c.free()
+    ap2.animation_finished.connect(func(_n): done[0] = true)
+    ap2.seek(c2.play_end() - 0.01, true)
+    for _i in 5: await process_frame
+    check(not ap2.is_playing(), "a one-shot stops at the end")
+    check(done[0], "and the AP's own animation_finished fires")
+    check_near(c2.pose_time, c2.play_end(), "the pose holds at play_end, the outro never shown", 0.02)
+    c2.queue_free()
 
 
 ## Pause markers hold the clock until released. Containment is (from, to] so a
-## released marker does not instantly re-fire (anim.c:1073-1084).
-func test_player_pauses() -> void:
+## released marker does not instantly re-fire (anim.c:1073-1084). Driven
+## through advance_pauses(t0,t1) directly - the pure helper the old
+## ZenPlayer.advance() folded the same check into, now unit-testable without a
+## live clock.
+func test_canvas_pauses() -> void:
     var c := ZenCanvas.new()
     c.duration = 3.0
     c.outro_start = 3.0
-
-    var p := ZenPlayer.new()
-    p.canvas = c
-    p.looping = true
-    p.pauses = [{"t": 1.0, "once": false}]
-    c.add_child(p)
+    c.loop_play = true
+    c.pauses = [{"t": 1.0, "once": false}]
 
     var fired := [0]
-    p.paused.connect(func(_i): fired[0] += 1)
+    c.paused.connect(func(_i): fired[0] += 1)
 
-    p.play()
+    var t := 0.0
     for _i in 20:
-        p.advance(0.1)
-        if p.held_pause >= 0: break
-    check(p.held_pause == 0, "clock stops at the marker")
-    check_near(p.sample_time(), 1.0, "clock parks exactly on the marker")
+        t = _wrap_step(c, t, 0.1)
+        if c.held_pause >= 0: break
+    check(c.held_pause == 0, "clock stops at the marker")
+    check_near(t, 1.0, "clock parks exactly on the marker")
     check(fired[0] == 1, "paused emitted once")
 
-    # Held: the clock does not move, however much time passes.
-    p.advance(5.0)
-    check_near(p.sample_time(), 1.0, "a held clock does not advance")
+    # Held: repeated steps do not move past it.
+    var before := c.held_pause
+    c.advance_pauses(t, t + 5.0)
+    check(c.held_pause == before, "a held clock stays held")
 
     # Released, it resumes WITHOUT re-firing the marker it just served.
-    p.release_pause()
-    p.advance(0.1)
-    check(p.held_pause < 0, "resumes past the marker")
+    c.release_pause()
+    t = _wrap_step(c, t, 0.1)
+    check(c.held_pause < 0, "resumes past the marker")
     check(fired[0] == 1, "marker does not re-fire on resume")
 
     # ...but it fires again on the NEXT cycle, because `once` is false.
     for _i in 60:
-        p.advance(0.1)
-        if p.held_pause >= 0: break
+        t = _wrap_step(c, t, 0.1)
+        if c.held_pause >= 0: break
     check(fired[0] == 2, "non-once marker fires again next cycle")
+    c.free()
 
     # `once` fires exactly once, ever.
     var c2 := ZenCanvas.new()
     c2.duration = 2.0
     c2.outro_start = 2.0
-    var p2 := ZenPlayer.new()
-    p2.canvas = c2
-    p2.looping = true
-    p2.pauses = [{"t": 0.5, "once": true}]
-    c2.add_child(p2)
+    c2.loop_play = true
+    c2.pauses = [{"t": 0.5, "once": true}]
     var n := [0]
-    p2.paused.connect(func(_i): n[0] += 1)
-    p2.play()
+    c2.paused.connect(func(_i): n[0] += 1)
+    var t2 := 0.0
     for _i in 200:
-        p2.advance(0.05)
-        if p2.held_pause >= 0: p2.release_pause()
+        t2 = _wrap_step(c2, t2, 0.05)
+        if c2.held_pause >= 0: c2.release_pause()
     check(n[0] == 1, "`once` marker fires exactly once (got %d)" % n[0])
-    c.free()
     c2.free()
+
+
+## One doc-time step, wrapping at play_end() back to play_start() the way the
+## section API wraps live, and checking pauses over the step taken. A test
+## helper, not runtime code - advance_pauses() itself has no clock.
+func _wrap_step(c: ZenCanvas, t: float, dt: float) -> float:
+    var raw := t + dt
+    if raw >= c.play_end():
+        raw = c.play_start() + fmod(raw - c.play_end(), c.cycle_length())
+    c.advance_pauses(t, raw)
+    # Mirrors ZenCanvas._process's own clamp: a pause pins to the marker's
+    # exact instant, not wherever the step happened to land.
+    if c.held_pause >= 0: return float(c.pauses[c.held_pause]["t"])
+    return raw
 
 
 ## A marker near the loop end must not be swallowed by the wrap: a wrapping
@@ -983,39 +988,32 @@ func test_pause_across_wrap() -> void:
     c.duration = 2.0
     c.intro_end = 0.5
     c.outro_start = 2.0
-
-    var p := ZenPlayer.new()
-    p.canvas = c
-    p.looping = true
+    c.loop_play = true
     # One marker just before the loop end, one exactly AT the loop point -
     # both are the cases a naive (t0,t1] test drops.
-    p.pauses = [{"t": 0.5, "once": false}, {"t": 1.98, "once": false}]
-    c.add_child(p)
+    c.pauses = [{"t": 0.5, "once": false}, {"t": 1.98, "once": false}]
 
     var hits: Array = []
-    p.paused.connect(func(i): hits.append(float(p.pauses[i]["t"])))
-    p.play()
+    c.paused.connect(func(i): hits.append(float(c.pauses[i]["t"])))
+    var t := 0.0
     for _i in 400:
-        p.advance(0.05)
-        if p.held_pause >= 0: p.release_pause()
+        t = _wrap_step(c, t, 0.05)
+        if c.held_pause >= 0: c.release_pause()
 
     check(hits.has(1.98), "marker just before the loop end fires")
     check(hits.has(0.5), "marker exactly at the loop point fires")
     c.free()
 
 
-## The exporter reads markers off the scene's player, and ignores `once` - a
-## file has nobody to press a key, and one pass means `once` can never
+## The exporter reads markers off the canvas directly now, and ignores `once` -
+## a file has nobody to press a key, and one pass means `once` can never
 ## suppress anything (zen_export.c:317-334).
 func test_export_pause_source() -> void:
     var c := ZenCanvas.new()
     c.duration = 2.0
     c.outro_start = 2.0
-    var p := ZenPlayer.new()
-    p.canvas = c
     # Deliberately out of order, and one `once`.
-    p.pauses = [{"t": 1.5, "once": true}, {"t": 0.5, "once": false}]
-    c.add_child(p)
+    c.pauses = [{"t": 1.5, "once": true}, {"t": 0.5, "once": false}]
 
     var marks := ZenExport.pause_times(c)
     check(marks.size() == 2, "both markers reach the exporter")
@@ -1024,34 +1022,26 @@ func test_export_pause_source() -> void:
     c.free()
 
 
-## A player must NOT touch the clock until something plays it.
+## A live canvas must NOT touch the clock until something plays it.
 ##
 ## REGRESSION: adding a ZenPlayer to every imported scene broke the exporter
 ## outright. The exporter poses the canvas at an explicit t and then awaits a
 ## frame; a player ticking inside that await re-posed everything to its own
 ## clock, so all 78 exported frames rendered t=0 and came out byte-identical.
 ## Nothing in the numeric suite could see it - the poses were all correct, they
-## were just overwritten before the pixels were read.
-func test_player_idle_until_played() -> void:
+## were just overwritten before the pixels were read. live_playback=false is
+## what the exporter now relies on instead.
+func test_canvas_idle_until_played() -> void:
     var c := ZenCanvas.new()
     c.duration = 2.0
     c.outro_start = 2.0
-    var p := ZenPlayer.new()
-    p.canvas = c
-    c.add_child(p)
-    # _ready has not run outside the tree, so assert the contract that matters:
-    # a fresh player is not playing and advancing it is a no-op.
-    check(not p.playing, "a fresh player is not playing")
-    check_near(p.advance(1.0), 0.0, "advancing an unplayed player does nothing")
-    check(not p.autoplay, "autoplay is off by default (exporter depends on it)")
-
-    p.play()
-    check(p.playing, "play() starts it")
-    check(p.advance(0.5) > 0.0, "a played player advances")
-    p.stop()
-    var t := p.sample_time()
-    check_near(p.advance(1.0), t, "a stopped player does not advance")
-    c.free()
+    c.live_playback = false
+    root.add_child(c)
+    await process_frame
+    check(c.animation_player() == null, "live_playback=false builds no AnimationPlayer")
+    check_near(c.pose_time, 0.0, "and the pose stays at 0")
+    check(not c.is_processing(), "and the canvas is not processing")
+    c.queue_free()
 
 
 ## Every imported scene carries a player, and it must be inert.
