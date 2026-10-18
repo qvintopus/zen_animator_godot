@@ -54,7 +54,7 @@ func _run() -> void:
     test_pause_across_wrap()
     test_export_pause_source()
     await test_canvas_idle_until_played()
-    test_imported_players_inert()
+    test_imported_scenes_inert()
     test_export_pause_holds()
     test_props_registry_agrees()
     test_blend_keyed()
@@ -1044,17 +1044,15 @@ func test_canvas_idle_until_played() -> void:
     c.queue_free()
 
 
-## Every imported scene carries a player, and it must be inert.
-func test_imported_players_inert() -> void:
+## No imported scene carries a Player node any more - the clock is the
+## canvas's own, and live_playback=false is what keeps it inert for a test.
+func test_imported_scenes_inert() -> void:
     for nm in ["main_menu", "pause_menu", "mouse_ripple", "zooming_box", "game_start"]:
         var path := "res://anims/%s.tscn" % nm
         if not ResourceLoader.exists(path): continue
         var canvas: ZenCanvas = (load(path) as PackedScene).instantiate()
+        check(canvas.get_node_or_null("Player") == null, "%s has no Player" % nm)
         canvas.live_playback = false   # tests pose by hand; no live clock
-        var pl := canvas.get_node_or_null("Player") as ZenPlayer
-        check(pl != null, "%s has a Player" % nm)
-        if pl != null:
-            check(not pl.autoplay, "%s player does not autoplay" % nm)
         canvas.free()
 
 

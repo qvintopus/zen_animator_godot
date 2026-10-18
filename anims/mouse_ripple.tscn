@@ -1,18 +1,17 @@
 [gd_scene format=3]
 
-[ext_resource type="Script" path="res://addons/zen/runtime/zen_canvas.gd" id="1_vl4oy"]
-[ext_resource type="Script" path="res://addons/zen/runtime/zen_shape.gd" id="2_hfn6v"]
-[ext_resource type="Script" path="res://addons/zen/runtime/zen_player.gd" id="3_3lhce"]
-[ext_resource type="Script" path="res://addons/zen/runtime/zen_signal_bus.gd" id="4_5c7n0"]
+[ext_resource type="Script" path="res://addons/zen/runtime/zen_canvas.gd" id="1_nx2l5"]
+[ext_resource type="Script" path="res://addons/zen/runtime/zen_shape.gd" id="2_vl4oy"]
+[ext_resource type="Script" path="res://addons/zen/runtime/zen_signal_bus.gd" id="3_hfn6v"]
 
-[node name="mouse_ripple" type="Node2D" unique_id=748819278]
-script = ExtResource("1_vl4oy")
+[node name="mouse_ripple" type="Node2D" unique_id=1942259969]
+script = ExtResource("1_nx2l5")
 outro_start = 2.0
 loop_blend = 0.0
 clear_color = Color(0.1, 0.12, 0.16, 1)
 
-[node name="shape" type="Node2D" parent="." unique_id=254172160]
-script = ExtResource("2_hfn6v")
+[node name="shape" type="Node2D" parent="." unique_id=1677406506]
+script = ExtResource("2_vl4oy")
 shape_kind = 1
 size_frac = Vector2(32, 32)
 scale_base = 0.01
@@ -130,12 +129,8 @@ tracks = {
 }]
 }
 
-[node name="Player" type="Node" parent="." unique_id=1636509725]
-script = ExtResource("3_3lhce")
-looping = false
-
-[node name="Signals" type="Node" parent="." unique_id=1857677296]
-script = ExtResource("4_5c7n0")
+[node name="Signals" type="Node" parent="." unique_id=507839285]
+script = ExtResource("3_hfn6v")
 signals_data = [{
 "length": 1.0,
 "name": "enter",

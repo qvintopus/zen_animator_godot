@@ -1,21 +1,21 @@
 [gd_scene format=3]
 
-[ext_resource type="Script" path="res://addons/zen/runtime/zen_canvas.gd" id="1_e2ouy"]
-[ext_resource type="Script" path="res://addons/zen/runtime/zen_shape.gd" id="2_7c3yj"]
-[ext_resource type="Script" path="res://addons/zen/runtime/zen_text.gd" id="3_6ls04"]
-[ext_resource type="Script" path="res://addons/zen/runtime/zen_player.gd" id="4_dwjjn"]
-[ext_resource type="Script" path="res://addons/zen/runtime/zen_signal_bus.gd" id="5_07rg1"]
+[ext_resource type="Script" path="res://addons/zen/runtime/zen_canvas.gd" id="1_jitd1"]
+[ext_resource type="Script" path="res://addons/zen/runtime/zen_shape.gd" id="2_e2ouy"]
+[ext_resource type="Script" path="res://addons/zen/runtime/zen_text.gd" id="3_7c3yj"]
+[ext_resource type="Script" path="res://addons/zen/runtime/zen_signal_bus.gd" id="4_6ls04"]
 
-[node name="MAIN_MENU" type="Node2D" unique_id=1131516453]
-script = ExtResource("1_e2ouy")
+[node name="MAIN_MENU" type="Node2D" unique_id=1798823644]
+script = ExtResource("1_jitd1")
 duration = 3.3455
 intro_end = 0.619826
 outro_start = 3.210659
 loop_smooth = true
 clear_color = Color(0.1, 0.12, 0.16, 1)
+loop_play = true
 
-[node name="line_diag_bottleft" type="Node2D" parent="." unique_id=732115277]
-script = ExtResource("2_7c3yj")
+[node name="line_diag_bottleft" type="Node2D" parent="." unique_id=490375071]
+script = ExtResource("2_e2ouy")
 shape_kind = 5
 size_frac = Vector2(1.887022, 0)
 scale_base = 0.748031
@@ -26,9 +26,9 @@ pos_frac = Vector2(0.499449, 0.5)
 rot_base = -45.10817
 corner_mode = true
 
-[node name="line_diag_topleft" type="Node2D" parent="." unique_id=2088485805]
+[node name="line_diag_topleft" type="Node2D" parent="." unique_id=516030244]
 z_index = 1
-script = ExtResource("2_7c3yj")
+script = ExtResource("2_e2ouy")
 shape_kind = 5
 size_frac = Vector2(1.890582, 0)
 scale_base = 0.748031
@@ -38,9 +38,9 @@ elem_name = "line_diag_topleft"
 rot_base = 44.999992
 corner_mode = true
 
-[node name="title" type="Node2D" parent="." unique_id=2078878400]
+[node name="title" type="Node2D" parent="." unique_id=170592748]
 z_index = 2
-script = ExtResource("3_6ls04")
+script = ExtResource("3_7c3yj")
 text = "MAIN MENU"
 size_frac = Vector2(0.170103, 0.1)
 color_base = Color(0.9607843, 0.9607843, 0.9607843, 0)
@@ -76,9 +76,9 @@ tracks = {
 "rot": []
 }
 
-[node name="subtitle" type="Node2D" parent="." unique_id=1436178917]
+[node name="subtitle" type="Node2D" parent="." unique_id=1748373796]
 z_index = 3
-script = ExtResource("3_6ls04")
+script = ExtResource("3_7c3yj")
 text = "all the buttons"
 size_frac = Vector2(0.108247, 0.1)
 color_base = Color(0.9607843, 0.9607843, 0.9607843, 0)
@@ -114,9 +114,9 @@ tracks = {
 "rot": []
 }
 
-[node name="line_sub_title" type="Node2D" parent="." unique_id=1733674231]
+[node name="line_sub_title" type="Node2D" parent="." unique_id=258615173]
 z_index = 4
-script = ExtResource("2_7c3yj")
+script = ExtResource("2_e2ouy")
 size_frac = Vector2(1.716495, 0.015464)
 color_base = Color(1, 1, 1, 0.8901961)
 outline_color_base = Color(0.9607843, 0.9607843, 0.9607843, 1)
@@ -168,9 +168,9 @@ tracks = {
 }]
 }
 
-[node name="the_ball" type="Node2D" parent="." unique_id=432022192]
+[node name="the_ball" type="Node2D" parent="." unique_id=1448014784]
 z_index = 5
-script = ExtResource("2_7c3yj")
+script = ExtResource("2_e2ouy")
 shape_kind = 1
 size_frac = Vector2(16, 16)
 color_base = Color(0.9019608, 0.8980392, 0.36862746, 1)
@@ -225,11 +225,8 @@ tracks = {
 }]
 }
 
-[node name="Player" type="Node" parent="." unique_id=366919076]
-script = ExtResource("4_dwjjn")
-
-[node name="Signals" type="Node" parent="." unique_id=70490145]
-script = ExtResource("5_07rg1")
+[node name="Signals" type="Node" parent="." unique_id=939712398]
+script = ExtResource("4_6ls04")
 signals_data = [{
 "length": 3.031496,
 "name": "TV-out",

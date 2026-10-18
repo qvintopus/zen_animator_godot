@@ -1,19 +1,19 @@
 [gd_scene format=3]
 
-[ext_resource type="Script" path="res://addons/zen/runtime/zen_canvas.gd" id="1_eun84"]
-[ext_resource type="Script" path="res://addons/zen/runtime/zen_text.gd" id="2_ifp6d"]
-[ext_resource type="Script" path="res://addons/zen/runtime/zen_player.gd" id="3_4skjw"]
-[ext_resource type="Script" path="res://addons/zen/runtime/zen_signal_bus.gd" id="4_m5ssp"]
+[ext_resource type="Script" path="res://addons/zen/runtime/zen_canvas.gd" id="1_isakd"]
+[ext_resource type="Script" path="res://addons/zen/runtime/zen_text.gd" id="2_eun84"]
+[ext_resource type="Script" path="res://addons/zen/runtime/zen_signal_bus.gd" id="3_ifp6d"]
 
-[node name="PAUSE_MENU" type="Node2D" unique_id=2038440173]
-script = ExtResource("1_eun84")
+[node name="PAUSE_MENU" type="Node2D" unique_id=1166649179]
+script = ExtResource("1_isakd")
 duration = 2.1
 intro_end = 1.513235
 outro_start = 1.986574
 clear_color = Color(0.1, 0.12, 0.16, 1)
+loop_play = true
 
-[node name="title" type="Node2D" parent="." unique_id=1166584045]
-script = ExtResource("2_ifp6d")
+[node name="title" type="Node2D" parent="." unique_id=1694912313]
+script = ExtResource("2_eun84")
 text = "PAUSE MENU"
 color_base = Color(0.9607843, 0.9607843, 0.9607843, 0)
 elem_name = "title"
@@ -48,9 +48,9 @@ tracks = {
 "rot": []
 }
 
-[node name="subtitle" type="Node2D" parent="." unique_id=952556126]
+[node name="subtitle" type="Node2D" parent="." unique_id=1781547030]
 z_index = 1
-script = ExtResource("2_ifp6d")
+script = ExtResource("2_eun84")
 text = "still, all the buttons"
 size_frac = Vector2(0.06, 0.1)
 color_base = Color(0.9607843, 0.9607843, 0.9607843, 0)
@@ -86,11 +86,8 @@ tracks = {
 "rot": []
 }
 
-[node name="Player" type="Node" parent="." unique_id=208263903]
-script = ExtResource("3_4skjw")
-
-[node name="Signals" type="Node" parent="." unique_id=1341997776]
-script = ExtResource("4_m5ssp")
+[node name="Signals" type="Node" parent="." unique_id=382781998]
+script = ExtResource("3_ifp6d")
 signals_data = [{
 "length": 0.866142,
 "name": "exit",
