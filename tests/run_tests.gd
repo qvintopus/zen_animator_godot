@@ -84,6 +84,9 @@ func _run() -> void:
     test_anim_player_markers()
     test_anim_player_mirrors_keys()
     test_input_actions_declared()
+    await test_section_loops_into_body()
+    test_seek_stays_in_section()
+    await test_loop_play_separate_from_smooth()
     print("\n%d checks, %d failures" % [checks, fails])
     quit(1 if fails > 0 else 0)
 
@@ -1904,3 +1907,71 @@ func test_input_actions_declared() -> void:
     ev.pressed = true
     check(ev.is_action_pressed("zen_restart"),
           "a synthetic physical_keycode=KEY_R event reports zen_restart pressed")
+
+
+## pause_menu is the discriminator: its intro (1.513) is longer than its body
+## (0.473), the one shape where "restart at intro_end" and "restart at 0"
+## actually differ. Proves the section API replaced the hand-rolled wrap.
+func test_section_loops_into_body() -> void:
+    var pm: ZenCanvas = (load("res://anims/pause_menu.tscn") as PackedScene).instantiate()
+    pm.loop_play = true   # not yet authored on the scene - Task 1c re-import sets this
+    root.add_child(pm)
+    await process_frame
+    var ap := pm.animation_player()
+    check(ap != null, "pause_menu builds an AnimationPlayer")
+    if ap == null:
+        pm.queue_free()
+        return
+    ap.seek(pm.play_end() - 0.01, true)
+    for _i in 6: await process_frame
+    check(is_equal_approx(ap.get_section_start_time(), pm.intro_end),
+          "after the wrap the section starts at intro_end, not 0 (got %.4f, want %.4f)"
+          % [ap.get_section_start_time(), pm.intro_end])
+    check(ap.current_animation_position >= pm.play_start() - 0.001,
+          "and playback position stays in the body (%.4f >= %.4f)"
+          % [ap.current_animation_position, pm.play_start()])
+    pm.queue_free()
+
+
+## The measured pitfall this plan exists to pin: AnimationPlayer.seek() does
+## NOT clamp into the active section, so a caller must widen the section first
+## (the ZenCanvas._seek_safe chokepoint) rather than seek() directly.
+func test_seek_stays_in_section() -> void:
+    var c := ZenCanvas.new()
+    c.duration = 3.0
+    c.intro_end = 0.5
+    c.outro_start = 2.0
+    c.loop_play = true
+    root.add_child(c)
+    for _i in 2: await process_frame
+    var ap := c.animation_player()
+    ap.set_section(c.play_start(), c.play_end())
+    ap.seek(0.1, true)
+    check(not is_equal_approx(ap.current_animation_position, 0.1),
+          "bare AnimationPlayer.seek() does not land where asked, outside the active section (landed at %.4f)"
+          % ap.current_animation_position)
+    c._seek_safe(0.1)
+    check(is_equal_approx(ap.current_animation_position, 0.1),
+          "but _seek_safe widens the section first, landing at the requested time (%.4f)"
+          % ap.current_animation_position)
+    c.queue_free()
+
+
+## loop_play decides whether playback WRAPS; loop_smooth decides whether the
+## wrap is BLENDED. They must vary independently.
+func test_loop_play_separate_from_smooth() -> void:
+    var c := ZenCanvas.new()
+    c.duration = 2.0
+    c.outro_start = 2.0
+    c.loop_play = true
+    c.loop_smooth = false
+    c.loop_blend = 0.5
+    root.add_child(c)
+    await process_frame
+    var ap := c.animation_player()
+    ap.seek(c.play_end() - 0.01, true)
+    for _i in 5: await process_frame
+    check(ap.is_playing(), "loop_play wraps instead of stopping")
+    check(c.pose_looping_flag == false,
+          "the live pose still carries loop_smooth=false even while loop_play wraps - the two vary independently")
+    c.queue_free()

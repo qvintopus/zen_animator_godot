@@ -28,6 +28,14 @@ extends Node2D
 @export var loop_smooth := false
 @export var loop_blend := 0.3
 
+## Pause markers, ASCENDING in t - next_pause() relies on that order. Each is
+## {"t": float, "once": bool}. Doc metadata, like duration/intro_end.
+@export var pauses: Array = []
+
+## Emitted when the clock reaches a pause marker and stops. `index` indexes
+## `pauses`. Release it with release_pause().
+signal paused(index: int)
+
 ## Background colour painted before any element. Alpha 0 means "draw nothing",
 ## letting whatever is behind show through (anim_stage.h:20-27).
 @export var clear_color := Color(0, 0, 0, 0)
@@ -146,6 +154,13 @@ func pose(t: float) -> void:
 ## instant - the Phase 4 regression that blanked all 78 frames of a render.
 @export var live_playback := true
 
+## Does playback WRAP at play_end(), or hold the last pose? Separate from
+## loop_smooth, which only decides whether the wrap is BLENDED - a document can
+## wrap hard (loop_smooth=false) or hold without wrapping at all. Explicit, not
+## derived: the importer (zen_cfg_build.gd) sets it from `loop_smooth or
+## intro_end > 0.0`, matching the rule the old ZenPlayer.looping used.
+@export var loop_play := false
+
 ## Mirror the Zen tracks onto the AnimationPlayer as real Godot tracks.
 ##
 ## OFF by default: they are an EDITING surface, not the render path (see
@@ -156,6 +171,15 @@ func pose(t: float) -> void:
 
 ## The AnimationPlayer this canvas drives itself with, created on demand.
 var _ap: AnimationPlayer = null
+
+## True once the first cycle has completed, i.e. the intro is spent.
+var _intro_done := false
+
+## Index into `pauses` of the marker currently holding playback, or -1.
+var held_pause := -1
+
+## Markers whose `once` is set and which have already fired this playthrough.
+var _spent: Dictionary = {}
 
 
 ## Build (or rebuild) the Godot AnimationPlayer for this canvas and start it.
@@ -199,7 +223,23 @@ func setup_animation_player(autostart := true) -> AnimationPlayer:
     _ap.current_animation = ZenAnimBuilder.ANIM
 
     if autostart and not Engine.is_editor_hint():
-        _ap.play(ZenAnimBuilder.ANIM)
+        _intro_done = false
+        held_pause = -1
+        _spent.clear()
+        # Godot's native section-loop only engages with LOOP_LINEAR (measured:
+        # with LOOP_NONE a section plays once and holds at its end, regardless
+        # of play_section vs play_section_with_markers). LOOP_NONE is what one
+        # intro pass needs - looping into it would replay the lead-in.
+        if loop_play and has_intro():
+            anim.loop_mode = Animation.LOOP_NONE
+            _ap.play_section(ZenAnimBuilder.ANIM, 0.0, play_end())
+        elif loop_play:
+            anim.loop_mode = Animation.LOOP_LINEAR
+            _ap.play_section(ZenAnimBuilder.ANIM, play_start(), play_end())
+            _intro_done = true
+        else:
+            anim.loop_mode = Animation.LOOP_NONE
+            _ap.play_section(ZenAnimBuilder.ANIM, 0.0, play_end())   # one-shot, outro trimmed
     return _ap
 
 
@@ -246,16 +286,50 @@ func _anim_time_for(raw: float) -> float:
 
 func _process(_delta: float) -> void:
     if Engine.is_editor_hint(): return
-    if _ap == null or not _ap.is_playing(): return
+    if _ap == null: return
+    # The handover below is NOT gated on is_playing(): measured on 4.7.2, a
+    # LOOP_NONE section playing to its own end already reports is_playing() ==
+    # false on the very frame current_animation_position reaches that end -
+    # not one frame later. Bailing out here, as a plain "still playing" guard
+    # would, means the intro->body handover (and the final pause-hold) never
+    # runs at all.
+    var pending_handover := loop_play and has_intro() and not _intro_done
+    if not _ap.is_playing() and not pending_handover and held_pause < 0:
+        return
+    var raw := _anim_time()
+
+    if not pauses.is_empty():
+        advance_pauses(pose_time, raw)
+        if held_pause >= 0:
+            _ap.pause()
+            return
+
+    # Narrow to the body on the first wrap: the intro is a one-shot lead-in,
+    # played once and skipped on every pass after it. Flipping loop_mode to
+    # LOOP_LINEAR here (not at setup) is deliberate - looping before this point
+    # would replay the intro, since the section still spans [0, play_end()].
+    if pending_handover and raw >= play_end() - 0.0001:
+        _intro_done = true
+        var anim := _ap.get_animation(ZenAnimBuilder.ANIM)
+        anim.loop_mode = Animation.LOOP_LINEAR
+        var names: PackedStringArray = anim.get_marker_names() if anim.has_method("get_marker_names") else PackedStringArray()
+        # play_section[_with_markers], not a bare set_section() + play(): the
+        # section already auto-stopped this frame (is_playing() == false, see
+        # above), and plain play() resets the section to the full animation -
+        # measured, it silently undid set_section() when called after it.
+        # A fresh play_section[_with_markers] restarts AT the section start -
+        # intro_end - which is exactly the wrap target: every cycle after the
+        # first restarts the body, never the lead-in, and never 0.
+        if names.has(ZenAnimBuilder.M_INTRO) and names.has(ZenAnimBuilder.M_OUTRO):
+            _ap.play_section_with_markers(ZenAnimBuilder.ANIM, ZenAnimBuilder.M_INTRO, ZenAnimBuilder.M_OUTRO)
+        else:
+            _ap.play_section(ZenAnimBuilder.ANIM, play_start(), play_end())
+        raw = _anim_time()
+
     # Re-pose every frame from the AnimationPlayer's clock. The AP owns TIME;
     # this owns the resolve. Deliberately not a method key per frame - that
     # would be thousands of keys for no gain.
-    pose_looping(_anim_time(), loop_smooth)
-    # A loop must restart from the body, not from 0, which Godot's own looping
-    # cannot express (it always restarts at 0). So the wrap is done by hand.
-    if _ap.current_animation_position >= duration - 0.0001:
-        if loop_smooth: _ap.seek(play_start(), true)
-        else: _ap.pause()
+    pose_looping(raw, loop_smooth)
 
 
 ## Pose at `t` with the smooth-loop blend armed iff `looping`.
@@ -271,3 +345,80 @@ func pose_looping(t: float, looping: bool) -> void:
     for e in elements():
         (e as ZenElement).pose(t)
     ZenElement.blend_end()
+
+
+## First marker in (from, to], or -1. `pauses` is ascending, so the first hit
+## is the earliest.
+func next_pause(from: float, to: float) -> int:
+    if to <= from: return -1
+    for i in pauses.size():
+        if _spent.has(i): continue
+        var t := float(pauses[i]["t"])
+        if t > from and t <= to: return i
+    return -1
+
+
+## Which pause marker does the step t0 -> t1 cross, if any? -1 for none.
+##
+## Containment is (t0, t1]: a marker exactly AT t0 was served by the frame that
+## stopped there and must not re-fire the instant it resumes. A wrapping step
+## (t1 < t0) is TWO ranges - the tail of this cycle and the head of the next -
+## because checking only (t0,t1] would silently skip a marker near the loop end.
+func _crossed_pause(t0: float, t1: float) -> int:
+    if t1 >= t0: return next_pause(t0, t1)
+    var idx := next_pause(t0, play_end())
+    if idx >= 0: return idx
+    # The new cycle's head starts just BEFORE the loop point, so a marker
+    # exactly at play_start() is not missed.
+    return next_pause(play_start() - 1e-4, t1)
+
+
+## Advance the pause state over a step [t0, t1) of doc time, without a clock of
+## its own - the AnimationPlayer owns time, this only tracks the hold.
+## Unit-testable without a live clock, which is how pause behaviour is tested.
+## Returns the index now held, or -1.
+func advance_pauses(t0: float, t1: float) -> int:
+    if held_pause >= 0: return held_pause
+    var pi := _crossed_pause(t0, t1)
+    if pi >= 0:
+        held_pause = pi
+        if bool(pauses[pi].get("once", false)): _spent[pi] = true
+        paused.emit(pi)
+    return held_pause
+
+
+## Release a held pause and resume. The marker is not re-fired on resume: the
+## crossing test is half-open at the start for exactly that reason.
+func release_pause() -> void:
+    held_pause = -1
+    if _ap != null: _ap.play()
+
+
+## Restart the timeline from the beginning WITHOUT changing whether playback is
+## ticking - what a signal's `replay` flag does (anim_stage.c:215-223). Must
+## NOT start processing: a player ticking during the exporter's await re-poses
+## the canvas to its own t, which is the regression that blanked a whole render
+## (every frame landed on the same instant).
+func rewind_timeline() -> void:
+    _intro_done = false
+    held_pause = -1
+    _spent.clear()
+    _seek_safe(0.0)
+
+
+## Stop live playback outright, holding the current pose.
+func stop_timeline() -> void:
+    if _ap != null: _ap.pause()
+    set_process(false)
+
+
+## seek() does NOT clamp into the active section: with a section [0.5,1.5],
+## seek(0.1) lands at 1.10, not 0.5 (measured on 4.7.2). So widen the section
+## first whenever the target falls outside it - this is the ONLY chokepoint
+## that may call `_ap.seek()` in the whole project.
+func _seek_safe(t: float) -> void:
+    if _ap == null: return
+    if t < play_start() - 0.0001:
+        _ap.set_section(0.0, play_end())
+        _intro_done = false
+    _ap.seek(clampf(t, 0.0, play_end()), true)
