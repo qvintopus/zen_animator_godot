@@ -1,0 +1,129 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://addons/zen/runtime/zen_canvas.gd" id="1_ldpq5"]
+[ext_resource type="Script" path="res://addons/zen/runtime/zen_shape.gd" id="2_kebyd"]
+
+[node name="MouseRippleHand" type="Node2D" unique_id=2117387512]
+script = ExtResource("1_ldpq5")
+outro_start = 2.0
+loop_blend = 0.0
+clear_color = Color(0.1, 0.12, 0.16, 1)
+
+[node name="shape" type="Node2D" parent="." unique_id=2008555714]
+script = ExtResource("2_kebyd")
+shape_kind = 1
+size_frac = Vector2(32, 32)
+scale_base = 0.01
+color_base = Color(0.9607843, 0.9607843, 0.9607843, 0)
+outline_color_base = Color(0.9607843, 0.9607843, 0.9607843, 1)
+outline_base = 9.0
+elem_name = "shape"
+unit_abs = true
+tracks = {
+"h": [{
+"ease": "linear",
+"t": 0.0,
+"v": 32.0
+}, {
+"ease": "linear",
+"t": 0.563181,
+"v": 32.0
+}, {
+"ease": "sineIn",
+"t": 0.641612,
+"v": 48.0
+}],
+"outline": [{
+"ease": "linear",
+"t": 0.0,
+"v": 9.0
+}, {
+"ease": "linear",
+"t": 0.236383,
+"v": 9.0
+}, {
+"ease": "linear",
+"t": 0.562092,
+"v": 1.417323
+}, {
+"ease": "linear",
+"t": 1.082789,
+"v": 1.201656
+}, {
+"ease": "quadIn",
+"t": 1.988017,
+"v": 0.885827
+}],
+"outline_alpha": [{
+"ease": "linear",
+"t": 0.0,
+"v": 1.0
+}, {
+"ease": "linear",
+"t": 0.236383,
+"v": 1.0
+}, {
+"ease": "linear",
+"t": 0.562092,
+"v": 1.0
+}, {
+"ease": "linear",
+"t": 1.082789,
+"v": 1.0
+}, {
+"ease": "quadIn",
+"t": 1.988017,
+"v": 0.0
+}],
+"outline_color": [{
+"c": Color(0.15294118, 0.29803923, 0.57254905, 1),
+"ease": "linear",
+"t": 0.0
+}, {
+"c": Color(0.13725491, 0.3647059, 0.654902, 1),
+"ease": "linear",
+"t": 0.236383
+}, {
+"c": Color(0.050980393, 0.10980392, 0.25490198, 1),
+"ease": "linear",
+"t": 0.562092
+}, {
+"c": Color(0.2627451, 0.3529412, 0.4862745, 1),
+"ease": "linear",
+"t": 1.082789
+}, {
+"c": Color(0.5686275, 0.7137255, 0.827451, 1),
+"ease": "quadIn",
+"t": 1.988017
+}],
+"scale": [{
+"ease": "linear",
+"t": 0.0,
+"v": 0.01
+}, {
+"ease": "cubicIn",
+"t": 0.563181,
+"v": 1.0
+}, {
+"ease": "bounceOut",
+"t": 0.641612,
+"v": 1.0
+}, {
+"ease": "sineIn",
+"t": 2.0,
+"v": 10.0
+}],
+"w": [{
+"ease": "linear",
+"t": 0.0,
+"v": 32.0
+}, {
+"ease": "linear",
+"t": 0.563181,
+"v": 32.0
+}, {
+"ease": "sineIn",
+"t": 0.641612,
+"v": 48.0
+}]
+}

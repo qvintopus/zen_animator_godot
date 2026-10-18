@@ -1,0 +1,234 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://addons/zen/runtime/zen_canvas.gd" id="1_80x76"]
+[ext_resource type="Script" path="res://addons/zen/runtime/zen_shape.gd" id="2_dkaw2"]
+[ext_resource type="Script" path="res://addons/zen/runtime/zen_player.gd" id="3_xkbb1"]
+[ext_resource type="Script" path="res://addons/zen/runtime/zen_signal_bus.gd" id="4_0t61d"]
+
+[node name="zooming_box" type="Node2D" unique_id=1894524081]
+script = ExtResource("1_80x76")
+duration = 5.0498
+outro_start = 5.008544
+loop_smooth = true
+clear_color = Color(0.1, 0.12, 0.16, 1)
+
+[node name="shape" type="Node2D" parent="." unique_id=1149957038]
+script = ExtResource("2_dkaw2")
+size_frac = Vector2(0.06, 0.06)
+color_base = Color(0.8509804, 1, 0.9607843, 0)
+outline_color_base = Color(0.49411765, 0.5058824, 0.5019608, 1)
+outline_base = 0.005412
+elem_name = "shape"
+tracks = {
+"h": [{
+"ease": "linear",
+"t": 0.233787,
+"v": 0.06
+}, {
+"ease": "linear",
+"t": 0.37681,
+"v": 0.06
+}, {
+"ease": "linear",
+"t": 4.964537,
+"v": 1.6
+}],
+"outline": [{
+"ease": "linear",
+"t": 0.0,
+"v": 0.005412
+}],
+"outline_alpha": [{
+"ease": "linear",
+"t": 0.0,
+"v": 0.0
+}, {
+"ease": "sineIn",
+"t": 0.217284,
+"v": 1.0
+}, {
+"ease": "linear",
+"t": 0.764621,
+"v": 1.0
+}, {
+"ease": "sineOut",
+"t": 4.964537,
+"v": 0.0
+}],
+"outline_color": [{
+"c": Color(0.49411765, 0.5058824, 0.5019608, 1),
+"ease": "linear",
+"t": 0.0
+}],
+"w": [{
+"ease": "linear",
+"t": 0.233787,
+"v": 0.06
+}, {
+"ease": "linear",
+"t": 0.37681,
+"v": 0.06
+}, {
+"ease": "linear",
+"t": 4.964537,
+"v": 1.6
+}]
+}
+
+[node name="Player" type="Node" parent="." unique_id=975482665]
+script = ExtResource("3_xkbb1")
+
+[node name="Signals" type="Node" parent="." unique_id=1297766833]
+script = ExtResource("4_0t61d")
+signals_data = [{
+"length": 0.866142,
+"name": "ripple_old",
+"pos_anchor": false,
+"pos_params": [{
+"elem": "shape",
+"keys": [{
+"ease": "sineOut",
+"off": Vector2(0, 0),
+"t": 1.0
+}],
+"slot": 0
+}],
+"replay": false,
+"seq_keys": [{
+"ease": "quadIn",
+"t": 0.207792,
+"v": 1.0
+}],
+"seq_mult": 0.394735,
+"seq_targets": [{
+"elem": "shape",
+"prop": "scale"
+}],
+"targets": [{
+"elem": "shape",
+"keys": [{
+"ease": "linear",
+"t": 0.0,
+"v": 0.06
+}, {
+"ease": "sineOut",
+"t": 0.4,
+"v": 0.7
+}, {
+"ease": "sineIn",
+"t": 1.0,
+"v": 0.0
+}],
+"prop": "w"
+}, {
+"elem": "shape",
+"keys": [{
+"ease": "linear",
+"t": 0.0,
+"v": 0.06
+}, {
+"ease": "sineOut",
+"t": 0.4,
+"v": 0.7
+}, {
+"ease": "sineIn",
+"t": 1.0,
+"v": 0.0
+}],
+"prop": "h"
+}],
+"terminal": false,
+"uses_pos": true,
+"uses_seq": true
+}, {
+"length": 1.2,
+"name": "TV-out",
+"pos_anchor": false,
+"pos_params": [],
+"replay": false,
+"seq_keys": [{
+"ease": "sineOut",
+"t": 0.502164,
+"v": 1.0
+}, {
+"ease": "sineIn",
+"t": 1.0,
+"v": 0.0
+}],
+"seq_mult": 0.06,
+"seq_targets": [{
+"elem": "shape",
+"prop": "w"
+}, {
+"elem": "shape",
+"prop": "h"
+}],
+"targets": [{
+"elem": "shape",
+"keys": [{
+"ease": "sineOut",
+"t": 0.39823,
+"v": 0.5
+}, {
+"ease": "sineIn",
+"t": 0.457965,
+"v": 0.5
+}, {
+"ease": "sineOut",
+"t": 0.457965,
+"v": 0.5
+}, {
+"ease": "sineIn",
+"t": 0.55,
+"v": 0.5
+}, {
+"ease": "sineIn",
+"t": 1.0,
+"v": 0.0
+}],
+"prop": "w"
+}, {
+"elem": "shape",
+"keys": [{
+"ease": "sineOut",
+"t": 0.39823,
+"v": 0.5
+}, {
+"ease": "sineIn",
+"t": 0.457965,
+"v": 0.5
+}, {
+"ease": "sineOut",
+"t": 0.457965,
+"v": 0.5
+}, {
+"ease": "sineIn",
+"t": 0.55,
+"v": 0.5
+}, {
+"ease": "sineIn",
+"t": 1.0,
+"v": 0.0
+}],
+"prop": "h"
+}, {
+"elem": "shape",
+"keys": [{
+"ease": "sineInOut",
+"t": 1.0,
+"v": 0.5
+}],
+"prop": "pos_x"
+}, {
+"elem": "shape",
+"keys": [{
+"ease": "sineInOut",
+"t": 1.0,
+"v": 0.5
+}],
+"prop": "pos_y"
+}],
+"terminal": true,
+"uses_pos": false,
+"uses_seq": true
+}]

@@ -1,0 +1,87 @@
+# ---------------------------------------------------------------------------
+# Godot 4
+# ---------------------------------------------------------------------------
+# The import/shader/script caches. Fully regenerated on first open, machine-
+# specific, and huge - this is the one rule Godot 4 itself ships.
+.godot/
+
+# Exported game builds (Godot's own template ignores this for the Android
+# build template; kept for any future export preset too).
+/android/
+/build/
+
+# Script UID sidecars. One per .gd, regenerated on open. Ignored by project
+# decision: nothing here references uid:// (every .tscn ext_resource uses
+# path="res://..."), so they are pure noise in a diff - 28 files that change
+# for no reviewable reason.
+# If a uid:// reference is ever introduced, this rule must go: a regenerated
+# UID would silently repoint it.
+*.uid
+
+# NOTE: *.import is deliberately NOT ignored.
+# That rule is Godot 3 advice and is wrong here: a .import file holds the
+# asset's stable uid:// AND its per-asset import settings, while only the
+# generated .ctex goes to .godot/imported/. Ignoring them means every clone
+# gets fresh UIDs (breaking any uid:// reference) and loses every import
+# tweak.
+
+# ---------------------------------------------------------------------------
+# Engine binary - downloaded, not source (decision 7)
+# ---------------------------------------------------------------------------
+Godot_v*_linux.x86_64
+Godot_v*_linux.x86_64.zip
+Godot_v*.zip
+Godot_v*.app/
+Godot_v*.exe
+
+# ---------------------------------------------------------------------------
+# Render output - every file here is reproducible from a scene + tools/
+# ---------------------------------------------------------------------------
+# Regenerate: Godot --path . --rendering-driver opengl3 tools/export_scene.tscn \
+#               -- --anim=<name> --fps=60 --fmt=webm
+exports/
+
+# Scratch renders that land outside exports/ (a probe run with a stray -o).
+# Narrow on purpose: the raylib reference videos live in the C project, not
+# here, so there is nothing in-tree these could swallow.
+/*.webm
+/*.mp4
+/*.gif
+/*.apng
+
+# ---------------------------------------------------------------------------
+# Test and tooling artifacts
+# ---------------------------------------------------------------------------
+# Generated reference data stays TRACKED on purpose: tests/ease_ref.txt and
+# tests/text_ref.txt are the baselines a regression is measured against, so
+# a diff in them must show up in review. Regenerate with tools/gen_ease_ref.gd.
+/tmp_*
+*.log
+*.tmp
+*.bak
+*.orig
+*.rej
+core
+core.*
+*.stackdump
+
+# ---------------------------------------------------------------------------
+# Editor / OS noise
+# ---------------------------------------------------------------------------
+.vscode/
+.idea/
+*.code-workspace
+*.sublime-project
+*.sublime-workspace
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+Thumbs.db
+Desktop.ini
+*~
+.*.swp
+.*.swo
+.netrwhist
+.directory

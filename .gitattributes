@@ -1,0 +1,12 @@
+# Godot's own VCS template. Scenes, scripts and .cfg are line-based text;
+# normalizing to LF keeps a .tscn diff reviewable (Godot always writes LF).
+* text=auto eol=lf
+
+# Reference baselines for the test suite - diffing these is the point.
+tests/*.txt text eol=lf
+
+# Binary, so git never tries to merge or normalize them.
+*.png  binary
+*.webm binary
+*.mp4  binary
+*.gif  binary

@@ -1,0 +1,132 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://addons/zen/runtime/zen_canvas.gd" id="1_skbh4"]
+[ext_resource type="Script" path="res://addons/zen/runtime/zen_text.gd" id="2_mfiq6"]
+[ext_resource type="Script" path="res://addons/zen/runtime/zen_global.gd" id="3_o8i5a"]
+[ext_resource type="Script" path="res://addons/zen/runtime/zen_player.gd" id="4_k41ly"]
+
+[node name="GAME_START" type="Node2D" unique_id=2099367661]
+script = ExtResource("1_skbh4")
+duration = 4.0
+outro_start = 4.0
+clear_color = Color(0.1, 0.12, 0.16, 1)
+
+[node name="title" type="Node2D" parent="." unique_id=100750125]
+script = ExtResource("2_mfiq6")
+text = "GAME ON"
+size_frac = Vector2(0.295276, 0.12)
+color_base = Color(0.9607843, 0.9607843, 0.9607843, 1)
+elem_name = "title"
+tracks = {
+"alpha": [{
+"ease": "linear",
+"t": 0.0,
+"v": 0.0
+}, {
+"ease": "linear",
+"t": 0.705882,
+"v": 0.0
+}, {
+"ease": "quadIn",
+"t": 1.814815,
+"v": 1.0
+}, {
+"ease": "linear",
+"t": 2.995643,
+"v": 1.0
+}, {
+"ease": "sineIn",
+"t": 4.0,
+"v": 0.0
+}],
+"color": [{
+"c": Color(0.9607843, 0.9607843, 0.9607843, 1),
+"ease": "linear",
+"t": 0.0
+}, {
+"c": Color(0.9607843, 0.9607843, 0.9607843, 1),
+"ease": "linear",
+"t": 0.705882
+}, {
+"c": Color(0.9607843, 0.9607843, 0.9607843, 1),
+"ease": "linear",
+"t": 2.995643
+}, {
+"c": Color(0.9607843, 0.9607843, 0.9607843, 1),
+"ease": "sineIn",
+"t": 4.0
+}]
+}
+
+[node name="global_bg" type="Node2D" parent="." unique_id=1941553227]
+z_index = -1
+script = ExtResource("3_o8i5a")
+bg_color_base = Color(0, 0, 0, 1)
+is_background = true
+elem_name = "global"
+tracks = {
+"bg_alpha": [{
+"ease": "linear",
+"t": 0.0,
+"v": 1.0
+}, {
+"ease": "sineIn",
+"t": 1.498911,
+"v": 0.704724
+}, {
+"ease": "sineIn",
+"t": 2.169935,
+"v": 0.0
+}],
+"bg_color": [{
+"c": Color(0, 0, 0, 1),
+"ease": "linear",
+"t": 0.0
+}, {
+"c": Color(0, 0, 0, 1),
+"ease": "sineIn",
+"t": 1.498911
+}, {
+"c": Color(0, 0, 0, 1),
+"ease": "sineIn",
+"t": 2.169935
+}]
+}
+
+[node name="global" type="Node2D" parent="." unique_id=401156356]
+z_index = 1
+script = ExtResource("3_o8i5a")
+bg_color_base = Color(0, 0, 0, 1)
+elem_name = "global"
+tracks = {
+"bg_alpha": [{
+"ease": "linear",
+"t": 0.0,
+"v": 1.0
+}, {
+"ease": "sineIn",
+"t": 1.498911,
+"v": 0.704724
+}, {
+"ease": "sineIn",
+"t": 2.169935,
+"v": 0.0
+}],
+"bg_color": [{
+"c": Color(0, 0, 0, 1),
+"ease": "linear",
+"t": 0.0
+}, {
+"c": Color(0, 0, 0, 1),
+"ease": "sineIn",
+"t": 1.498911
+}, {
+"c": Color(0, 0, 0, 1),
+"ease": "sineIn",
+"t": 2.169935
+}]
+}
+
+[node name="Player" type="Node" parent="." unique_id=1430871211]
+script = ExtResource("4_k41ly")
+looping = false

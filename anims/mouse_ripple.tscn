@@ -1,0 +1,173 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://addons/zen/runtime/zen_canvas.gd" id="1_vl4oy"]
+[ext_resource type="Script" path="res://addons/zen/runtime/zen_shape.gd" id="2_hfn6v"]
+[ext_resource type="Script" path="res://addons/zen/runtime/zen_player.gd" id="3_3lhce"]
+[ext_resource type="Script" path="res://addons/zen/runtime/zen_signal_bus.gd" id="4_5c7n0"]
+
+[node name="mouse_ripple" type="Node2D" unique_id=748819278]
+script = ExtResource("1_vl4oy")
+outro_start = 2.0
+loop_blend = 0.0
+clear_color = Color(0.1, 0.12, 0.16, 1)
+
+[node name="shape" type="Node2D" parent="." unique_id=254172160]
+script = ExtResource("2_hfn6v")
+shape_kind = 1
+size_frac = Vector2(32, 32)
+scale_base = 0.01
+color_base = Color(0.9607843, 0.9607843, 0.9607843, 0)
+outline_color_base = Color(0.9607843, 0.9607843, 0.9607843, 1)
+outline_base = 9.0
+elem_name = "shape"
+unit_abs = true
+tracks = {
+"h": [{
+"ease": "linear",
+"t": 0.0,
+"v": 32.0
+}, {
+"ease": "linear",
+"t": 0.563181,
+"v": 32.0
+}, {
+"ease": "sineIn",
+"t": 0.641612,
+"v": 48.0
+}],
+"outline": [{
+"ease": "linear",
+"t": 0.0,
+"v": 9.0
+}, {
+"ease": "linear",
+"t": 0.236383,
+"v": 9.0
+}, {
+"ease": "linear",
+"t": 0.562092,
+"v": 1.417323
+}, {
+"ease": "linear",
+"t": 1.082789,
+"v": 1.201656
+}, {
+"ease": "quadIn",
+"t": 1.988017,
+"v": 0.885827
+}],
+"outline_alpha": [{
+"ease": "linear",
+"t": 0.0,
+"v": 1.0
+}, {
+"ease": "linear",
+"t": 0.236383,
+"v": 1.0
+}, {
+"ease": "linear",
+"t": 0.562092,
+"v": 1.0
+}, {
+"ease": "linear",
+"t": 1.082789,
+"v": 1.0
+}, {
+"ease": "quadIn",
+"t": 1.988017,
+"v": 0.0
+}],
+"outline_color": [{
+"c": Color(0.15294118, 0.29803923, 0.57254905, 1),
+"ease": "linear",
+"t": 0.0
+}, {
+"c": Color(0.13725491, 0.3647059, 0.654902, 1),
+"ease": "linear",
+"t": 0.236383
+}, {
+"c": Color(0.050980393, 0.10980392, 0.25490198, 1),
+"ease": "linear",
+"t": 0.562092
+}, {
+"c": Color(0.2627451, 0.3529412, 0.4862745, 1),
+"ease": "linear",
+"t": 1.082789
+}, {
+"c": Color(0.5686275, 0.7137255, 0.827451, 1),
+"ease": "quadIn",
+"t": 1.988017
+}],
+"scale": [{
+"ease": "linear",
+"t": 0.0,
+"v": 0.01
+}, {
+"ease": "cubicIn",
+"t": 0.563181,
+"v": 1.0
+}, {
+"ease": "bounceOut",
+"t": 0.641612,
+"v": 1.0
+}, {
+"ease": "sineIn",
+"t": 2.0,
+"v": 10.0
+}],
+"w": [{
+"ease": "linear",
+"t": 0.0,
+"v": 32.0
+}, {
+"ease": "linear",
+"t": 0.563181,
+"v": 32.0
+}, {
+"ease": "sineIn",
+"t": 0.641612,
+"v": 48.0
+}]
+}
+
+[node name="Player" type="Node" parent="." unique_id=1636509725]
+script = ExtResource("3_3lhce")
+looping = false
+
+[node name="Signals" type="Node" parent="." unique_id=1857677296]
+script = ExtResource("4_5c7n0")
+signals_data = [{
+"length": 1.0,
+"name": "enter",
+"pos_anchor": false,
+"pos_params": [],
+"replay": false,
+"seq_keys": [],
+"seq_mult": 0.0,
+"seq_targets": [],
+"targets": [],
+"terminal": false,
+"uses_pos": false,
+"uses_seq": false
+}, {
+"length": 2.007874,
+"name": "ripple",
+"pos_anchor": true,
+"pos_params": [{
+"elem": "shape",
+"keys": [{
+"ease": "sineOut",
+"off": Vector2(0, 0),
+"t": 0.0
+}],
+"slot": 0
+}],
+"replay": true,
+"seq_keys": [],
+"seq_mult": 0.0,
+"seq_targets": [],
+"targets": [],
+"terminal": false,
+"uses_pos": true,
+"uses_seq": false
+}]

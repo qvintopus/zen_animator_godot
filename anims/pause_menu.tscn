@@ -1,0 +1,171 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://addons/zen/runtime/zen_canvas.gd" id="1_eun84"]
+[ext_resource type="Script" path="res://addons/zen/runtime/zen_text.gd" id="2_ifp6d"]
+[ext_resource type="Script" path="res://addons/zen/runtime/zen_player.gd" id="3_4skjw"]
+[ext_resource type="Script" path="res://addons/zen/runtime/zen_signal_bus.gd" id="4_m5ssp"]
+
+[node name="PAUSE_MENU" type="Node2D" unique_id=2038440173]
+script = ExtResource("1_eun84")
+duration = 2.1
+intro_end = 1.513235
+outro_start = 1.986574
+clear_color = Color(0.1, 0.12, 0.16, 1)
+
+[node name="title" type="Node2D" parent="." unique_id=1166584045]
+script = ExtResource("2_ifp6d")
+text = "PAUSE MENU"
+color_base = Color(0.9607843, 0.9607843, 0.9607843, 0)
+elem_name = "title"
+pos_frac = Vector2(0, 0.181102)
+tracks = {
+"alpha": [{
+"ease": "linear",
+"t": 0.0,
+"v": 0.0
+}, {
+"ease": "sineIn",
+"t": 0.041195,
+"v": 0.020598
+}, {
+"ease": "sineIn",
+"t": 1.471296,
+"v": 1.0
+}],
+"pos_x": [{
+"ease": "linear",
+"t": 0.0,
+"v": -0.208661
+}, {
+"ease": "expoIn",
+"t": 0.041195,
+"v": 0.0
+}, {
+"ease": "sineInOut",
+"t": 1.416204,
+"v": 0.467391
+}],
+"rot": []
+}
+
+[node name="subtitle" type="Node2D" parent="." unique_id=952556126]
+z_index = 1
+script = ExtResource("2_ifp6d")
+text = "still, all the buttons"
+size_frac = Vector2(0.06, 0.1)
+color_base = Color(0.9607843, 0.9607843, 0.9607843, 0)
+elem_name = "subtitle"
+pos_frac = Vector2(0, 0.287402)
+tracks = {
+"alpha": [{
+"ease": "linear",
+"t": 0.0,
+"v": 0.0
+}, {
+"ease": "sineIn",
+"t": 0.041195,
+"v": 0.020598
+}, {
+"ease": "sineIn",
+"t": 1.549074,
+"v": 1.0
+}],
+"pos_x": [{
+"ease": "linear",
+"t": 0.0,
+"v": -0.267717
+}, {
+"ease": "linear",
+"t": 0.186275,
+"v": 0.0
+}, {
+"ease": "sineInOut",
+"t": 1.4875,
+"v": 0.467391
+}],
+"rot": []
+}
+
+[node name="Player" type="Node" parent="." unique_id=208263903]
+script = ExtResource("3_4skjw")
+
+[node name="Signals" type="Node" parent="." unique_id=1341997776]
+script = ExtResource("4_m5ssp")
+signals_data = [{
+"length": 0.866142,
+"name": "exit",
+"pos_anchor": false,
+"pos_params": [],
+"replay": false,
+"seq_keys": [],
+"seq_mult": 0.0,
+"seq_targets": [],
+"targets": [{
+"elem": "title",
+"keys": [{
+"ease": "sineIn",
+"t": 0.856195,
+"v": -0.389381
+}],
+"prop": "pos_x"
+}, {
+"elem": "title",
+"keys": [{
+"ease": "sineIn",
+"t": 0.856195,
+"v": 0.181102
+}],
+"prop": "pos_y"
+}, {
+"elem": "subtitle",
+"keys": [{
+"ease": "sineOut",
+"t": 1.0,
+"v": -0.369469
+}],
+"prop": "pos_x"
+}, {
+"elem": "subtitle",
+"keys": [{
+"ease": "sineOut",
+"t": 1.0,
+"v": 0.287402
+}],
+"prop": "pos_y"
+}, {
+"elem": "title",
+"keys": [{
+"c": Color(0.9607843, 0.9607843, 0.9607843, 1),
+"ease": "sineIn",
+"t": 0.946903
+}],
+"prop": "color"
+}, {
+"elem": "title",
+"keys": [{
+"ease": "sineIn",
+"t": 0.946903,
+"v": 0.0
+}],
+"prop": "alpha"
+}, {
+"elem": "subtitle",
+"keys": [{
+"c": Color(0.9607843, 0.9607843, 0.9607843, 1),
+"ease": "sineOut",
+"t": 0.966814
+}],
+"prop": "color"
+}, {
+"elem": "subtitle",
+"keys": [{
+"ease": "sineOut",
+"t": 0.966814,
+"v": 0.0
+}],
+"prop": "alpha"
+}],
+"terminal": true,
+"uses_pos": false,
+"uses_seq": false
+}]

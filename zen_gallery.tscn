@@ -1,0 +1,119 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://tools/zen_gallery.gd" id="1"]
+
+[sub_resource type="StyleBoxFlat" id="bg"]
+bg_color = Color(0.0862745, 0.0941176, 0.1137255, 1)
+
+[node name="ZenGallery" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1")
+
+[node name="BG" type="Panel" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_styles/panel = SubResource("bg")
+
+[node name="Margin" type="MarginContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 18
+theme_override_constants/margin_top = 14
+theme_override_constants/margin_right = 18
+theme_override_constants/margin_bottom = 12
+
+[node name="Rows" type="VBoxContainer" parent="Margin"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="Head" type="HBoxContainer" parent="Margin/Rows"]
+layout_mode = 2
+
+[node name="Title" type="Label" parent="Margin/Rows/Head"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Zen Animator"
+theme_override_colors/font_color = Color(0.898, 0.753, 0.482, 1)
+theme_override_font_sizes/font_size = 22
+
+[node name="Status" type="Label" parent="Margin/Rows/Head"]
+layout_mode = 2
+text = ""
+theme_override_colors/font_color = Color(0.36, 0.39, 0.44, 1)
+
+[node name="Sep" type="HSeparator" parent="Margin/Rows"]
+layout_mode = 2
+
+[node name="Body" type="HBoxContainer" parent="Margin/Rows"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 16
+
+[node name="Left" type="VBoxContainer" parent="Margin/Rows/Body"]
+layout_mode = 2
+size_flags_horizontal = 0
+custom_minimum_size = Vector2(190, 0)
+
+[node name="ListLabel" type="Label" parent="Margin/Rows/Body/Left"]
+layout_mode = 2
+text = "animations"
+theme_override_colors/font_color = Color(0.38, 0.686, 0.937, 1)
+
+[node name="ListScroll" type="ScrollContainer" parent="Margin/Rows/Body/Left"]
+layout_mode = 2
+size_flags_vertical = 3
+horizontal_scroll_mode = 0
+
+[node name="List" type="VBoxContainer" parent="Margin/Rows/Body/Left/ListScroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 2
+
+[node name="Right" type="VBoxContainer" parent="Margin/Rows/Body"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+
+[node name="Info" type="RichTextLabel" parent="Margin/Rows/Body/Right"]
+layout_mode = 2
+size_flags_vertical = 3
+bbcode_enabled = true
+scroll_active = true
+theme_override_colors/default_color = Color(0.816, 0.835, 0.867, 1)
+
+[node name="Stage" type="AspectRatioContainer" parent="Margin/Rows/Body/Right"]
+visible = false
+layout_mode = 2
+size_flags_vertical = 3
+ratio = 1.7777778
+stretch_mode = 2
+
+[node name="View" type="TextureRect" parent="Margin/Rows/Body/Right/Stage"]
+layout_mode = 2
+expand_mode = 1
+stretch_mode = 5
+texture_filter = 2
+
+[node name="Sep2" type="HSeparator" parent="Margin/Rows"]
+layout_mode = 2
+
+[node name="Foot" type="HBoxContainer" parent="Margin/Rows"]
+layout_mode = 2
+
+[node name="Hint" type="Label" parent="Margin/Rows/Foot"]
+layout_mode = 2
+text = ""
+theme_override_colors/font_color = Color(0.36, 0.39, 0.44, 1)
