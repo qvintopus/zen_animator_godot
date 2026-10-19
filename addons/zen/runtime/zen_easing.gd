@@ -43,7 +43,7 @@ extends RefCounted
 ## hold steps, which bop_n_up needs (y reaches 1.5).
 ##
 ## Easing applies to the segment ENDING at a key (incoming). Callers must pass
-## the RIGHT-hand key's ease. See ZenSampler.
+## the RIGHT-hand key's ease. See ZenCurveBake.
 ##
 
 ## Built-in name -> [Tween.TransitionType, Tween.EaseType].

@@ -4,51 +4,250 @@
 [ext_resource type="Script" path="res://addons/zen/runtime/zen_text.gd" id="2_eun84"]
 [ext_resource type="Script" path="res://addons/zen/runtime/zen_signal_bus.gd" id="3_ifp6d"]
 
-[node name="PAUSE_MENU" type="Node2D" unique_id=1166649179]
+[sub_resource type="Animation" id="Animation_4skjw"]
+length = 2.1
+step = 0.0166667
+markers = [{
+"color": Color(1, 1, 1, 1),
+"name": &"intro_end",
+"time": 1.513235
+}, {
+"color": Color(1, 1, 1, 1),
+"name": &"outro_start",
+"time": 1.986574
+}]
+tracks/0/type = "method"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath(".")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"values": [{
+"args": [false],
+"method": &"_anim_pose"
+}]
+}
+tracks/1/type = "bezier"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath("title:alpha")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"handle_modes": PackedInt32Array(0, 0, 0, 0, 0, 0, 0, 0, 0),
+"points": PackedFloat32Array(0, 0, 0, 0.0034329167, 0, 0.0015679294, -0.0034329167, -0.0010317463, 0.0034329167, 0.0010317463, 0.006033015, -0.0034329167, -0.0019065724, 0.0034329167, 0.0019065724, 0.012715486, -0.0034329167, -0.0024917936, 0.0034329167, 0.0024917936, 0.020598, -0.0034329167, -0.002697951, 0.119175084, 0, 0.09515054, -0.119175084, -0.049057886, 0.119175084, 0.049057886, 0.30745822, -0.119175084, -0.09065448, 0.119175084, 0.09065448, 0.6251991, -0.119175084, -0.1184808, 0.119175084, 0.1184808, 1, -0.119175084, -0.12828326, 0, 0),
+"times": PackedFloat32Array(0, 0.01029875, 0.0205975, 0.03089625, 0.041195, 0.39872026, 0.7562455, 1.1137707, 1.471296)
+}
+tracks/2/type = "bezier"
+tracks/2/imported = false
+tracks/2/enabled = true
+tracks/2/path = NodePath("title:pos_x")
+tracks/2/interp = 1
+tracks/2/loop_wrap = true
+tracks/2/keys = {
+"handle_modes": PackedInt32Array(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
+"points": PackedFloat32Array(-0.208661, 0, 0, 5.3639324e-05, -9.36766e-05, -0.2086603, -5.3639324e-05, -1.8903276e-06, 5.3639324e-05, 1.8903276e-06, -0.20865455, -5.3639324e-05, -1.9422e-06, 0.00010727865, 3.8844e-06, -0.20864259, -0.00010727865, -4.100428e-06, 0.0002145573, 8.200856e-06, -0.20861661, -0.0002145573, -9.139616e-06, 0.0004291146, 1.8279232e-05, -0.2085554, -0.0004291146, -2.2699749e-05, 0.0008582292, 4.5399498e-05, -0.208385, -0.0008582292, -7.001472e-05, 0.0017164584, 0.00014002944, -0.20771696, -0.0017164584, -0.00033303423, 0.0017164584, 0.00033303423, -0.20612806, -0.0017164584, -0.0007921405, 0.0017164584, 0.0007921405, -0.202349, -0.0017164584, -0.0018840361, 0.0017164584, 0.0018840361, -0.19336084, -0.0017164584, -0.0044799703, 0.0017164584, 0.0044799703, -0.17198326, -0.0017164584, -0.010654504, 0.0008582292, 0.005327252, -0.15198305, -0.0008582292, -0.008216302, 0.0008582292, 0.008216302, -0.12113851, -0.0008582292, -0.01267101, 0.0008582292, 0.01267101, -0.07356974, -0.0008582292, -0.019541895, 0.0008582292, 0.019541895, 0, -0.0008582292, -0.030145874, 0.05729204, 6.9187765e-13, 0.01778901, -0.05729204, -0.0117068095, 0.05729204, 0.0117068095, 0.06844783, -0.05729204, -0.021629648, 0.11458408, 0.043259297, 0.2336955, -0.11458408, -0.061184615, 0.11458408, 0.061184615, 0.3989432, -0.11458408, -0.0432622, 0.05729204, 0.0216311, 0.44960198, -0.05729204, -0.011712251, 0.05729204, 0.011712251, 0.467391, -0.05729204, 1.1607781e-05, 0, 0),
+"times": PackedFloat32Array(0, 0.00016091797, 0.00032183595, 0.0006436719, 0.0012873438, 0.0025746876, 0.005149375, 0.01029875, 0.015448125, 0.0205975, 0.025746875, 0.03089625, 0.033470936, 0.036045626, 0.03862031, 0.041195, 0.21307112, 0.38494724, 0.7286995, 1.0724517, 1.2443279, 1.416204)
+}
+tracks/3/type = "bezier"
+tracks/3/imported = false
+tracks/3/enabled = true
+tracks/3/path = NodePath("subtitle:alpha")
+tracks/3/interp = 1
+tracks/3/loop_wrap = true
+tracks/3/keys = {
+"handle_modes": PackedInt32Array(0, 0, 0, 0, 0, 0, 0, 0, 0),
+"points": PackedFloat32Array(0, 0, 0, 0.0034329167, 0, 0.0015679294, -0.0034329167, -0.0010317463, 0.0034329167, 0.0010317463, 0.006033015, -0.0034329167, -0.0019065724, 0.0034329167, 0.0019065724, 0.012715486, -0.0034329167, -0.0024917936, 0.0034329167, 0.0024917936, 0.020598, -0.0034329167, -0.002697951, 0.12565659, 0, 0.09515054, -0.12565659, -0.049057886, 0.12565659, 0.049057886, 0.30745822, -0.12565659, -0.09065448, 0.12565659, 0.09065448, 0.6251991, -0.12565659, -0.1184808, 0.12565659, 0.1184808, 1, -0.12565659, -0.12828326, 0, 0),
+"times": PackedFloat32Array(0, 0.01029875, 0.0205975, 0.03089625, 0.041195, 0.41816476, 0.7951345, 1.1721042, 1.549074)
+}
+tracks/4/type = "bezier"
+tracks/4/imported = false
+tracks/4/enabled = true
+tracks/4/path = NodePath("subtitle:pos_x")
+tracks/4/interp = 1
+tracks/4/loop_wrap = true
+tracks/4/keys = {
+"handle_modes": PackedInt32Array(0, 0, 0, 0, 0, 0, 0, 0),
+"points": PackedFloat32Array(-0.267717, 0, 0, 0.062091667, 0.089239, 0, -0.062091667, -0.089280404, 0.054217707, 6.9187765e-13, 0.01778901, -0.054217707, -0.0117068095, 0.054217707, 0.0117068095, 0.06844783, -0.054217707, -0.021629648, 0.108435415, 0.043259297, 0.2336955, -0.108435415, -0.061184615, 0.108435415, 0.061184615, 0.3989432, -0.108435415, -0.0432622, 0.054217707, 0.0216311, 0.44960198, -0.054217707, -0.011712251, 0.054217707, 0.011712251, 0.467391, -0.054217707, 1.1607781e-05, 0, 0),
+"times": PackedFloat32Array(0, 0.186275, 0.34892812, 0.51158124, 0.8368875, 1.1621938, 1.3248469, 1.4875)
+}
+
+[sub_resource type="AnimationLibrary" id="AnimationLibrary_m5ssp"]
+_data = {
+&"zen": SubResource("Animation_4skjw")
+}
+
+[sub_resource type="Animation" id="Animation_xa354"]
+length = 0.866142
+step = 0.0166667
+tracks/0/type = "bezier"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("title:pos_x")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"handle_modes": PackedInt32Array(0, 0, 0, 0, 0),
+"points": PackedFloat32Array(0, 0, 0, 0.06179887, 0, -0.029639862, -0.06179887, 0.019503951, 0.06179887, -0.019503951, -0.11404706, -0.06179887, 0.036041513, 0.06179887, -0.036041513, -0.24037133, -0.06179887, 0.04710443, 0.06179887, -0.04710443, -0.389381, -0.06179887, 0.051001593, 0, 0),
+"times": PackedFloat32Array(0, 0.18539661, 0.37079322, 0.55618984, 0.74158645)
+}
+tracks/1/type = "bezier"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath("title:pos_y")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"handle_modes": PackedInt32Array(0, 0, 0, 0, 0),
+"points": PackedFloat32Array(0, 0, 0, 0.06179887, 0, 0.013785569, -0.06179887, -0.009071332, 0.06179887, 0.009071332, 0.05304355, -0.06179887, -0.01676299, 0.06179887, 0.01676299, 0.11179726, -0.06179887, -0.021908378, 0.06179887, 0.021908378, 0.181102, -0.06179887, -0.02372096, 0, 0),
+"times": PackedFloat32Array(0, 0.18539661, 0.37079322, 0.55618984, 0.74158645)
+}
+tracks/2/type = "bezier"
+tracks/2/imported = false
+tracks/2/enabled = true
+tracks/2/path = NodePath("subtitle:pos_x")
+tracks/2/interp = 1
+tracks/2/loop_wrap = true
+tracks/2/keys = {
+"handle_modes": PackedInt32Array(0, 0, 0, 0, 0),
+"points": PackedFloat32Array(0, 0, 0, 0.0721785, -0.04836338, -0.14138967, -0.0721785, 0.04468186, 0.0721785, -0.04468186, -0.26125404, -0.0721785, 0.034198437, 0.0721785, -0.034198437, -0.34134483, -0.0721785, 0.018507713, 0.0721785, -0.018507713, -0.369469, -0.0721785, -9.175862e-06, 0, 0),
+"times": PackedFloat32Array(0, 0.2165355, 0.433071, 0.6496065, 0.866142)
+}
+tracks/3/type = "bezier"
+tracks/3/imported = false
+tracks/3/enabled = true
+tracks/3/path = NodePath("subtitle:pos_y")
+tracks/3/interp = 1
+tracks/3/loop_wrap = true
+tracks/3/keys = {
+"handle_modes": PackedInt32Array(0, 0, 0, 0, 0),
+"points": PackedFloat32Array(0, 0, 0, 0.0721785, 0.037620835, 0.10998398, -0.0721785, -0.03475706, 0.0721785, 0.03475706, 0.2032239, -0.0721785, -0.02660223, 0.0721785, 0.02660223, 0.2655248, -0.0721785, -0.014396753, 0.0721785, 0.014396753, 0.287402, -0.0721785, 7.137706e-06, 0, 0),
+"times": PackedFloat32Array(0, 0.2165355, 0.433071, 0.6496065, 0.866142)
+}
+tracks/4/type = "bezier"
+tracks/4/imported = false
+tracks/4/enabled = true
+tracks/4/path = NodePath("title:color:r")
+tracks/4/interp = 1
+tracks/4/loop_wrap = true
+tracks/4/keys = {
+"handle_modes": PackedInt32Array(0, 0, 0, 0, 0),
+"points": PackedFloat32Array(0, 0, 0, 0.06834604, 0, 0.073135346, -0.06834604, -0.048125334, 0.06834604, 0.048125334, 0.28140724, -0.06834604, -0.0889312, 0.06834604, 0.0889312, 0.59310806, -0.06834604, -0.11622857, 0.06834604, 0.11622857, 0.9607843, -0.06834604, -0.12584469, 0, 0),
+"times": PackedFloat32Array(0, 0.20503812, 0.41007623, 0.61511433, 0.82015246)
+}
+tracks/5/type = "bezier"
+tracks/5/imported = false
+tracks/5/enabled = true
+tracks/5/path = NodePath("title:color:g")
+tracks/5/interp = 1
+tracks/5/loop_wrap = true
+tracks/5/keys = {
+"handle_modes": PackedInt32Array(0, 0, 0, 0, 0),
+"points": PackedFloat32Array(0, 0, 0, 0.06834604, 0, 0.073135346, -0.06834604, -0.048125334, 0.06834604, 0.048125334, 0.28140724, -0.06834604, -0.0889312, 0.06834604, 0.0889312, 0.59310806, -0.06834604, -0.11622857, 0.06834604, 0.11622857, 0.9607843, -0.06834604, -0.12584469, 0, 0),
+"times": PackedFloat32Array(0, 0.20503812, 0.41007623, 0.61511433, 0.82015246)
+}
+tracks/6/type = "bezier"
+tracks/6/imported = false
+tracks/6/enabled = true
+tracks/6/path = NodePath("title:color:b")
+tracks/6/interp = 1
+tracks/6/loop_wrap = true
+tracks/6/keys = {
+"handle_modes": PackedInt32Array(0, 0, 0, 0, 0),
+"points": PackedFloat32Array(0, 0, 0, 0.06834604, 0, 0.073135346, -0.06834604, -0.048125334, 0.06834604, 0.048125334, 0.28140724, -0.06834604, -0.0889312, 0.06834604, 0.0889312, 0.59310806, -0.06834604, -0.11622857, 0.06834604, 0.11622857, 0.9607843, -0.06834604, -0.12584469, 0, 0),
+"times": PackedFloat32Array(0, 0.20503812, 0.41007623, 0.61511433, 0.82015246)
+}
+tracks/7/type = "bezier"
+tracks/7/imported = false
+tracks/7/enabled = true
+tracks/7/path = NodePath("title:alpha")
+tracks/7/interp = 1
+tracks/7/loop_wrap = true
+tracks/7/keys = {
+"handle_modes": PackedInt32Array(0, 0, 0, 0, 0),
+"points": PackedFloat32Array(1, 0, 0, 0.06834604, 0, 0.9238795, -0.06834604, 0.05008963, 0.06834604, -0.05008963, 0.70710677, -0.06834604, 0.092561044, 0.06834604, -0.092561044, 0.38268346, -0.06834604, 0.120972596, 0.06834604, -0.120972596, 0, -0.06834604, 0.1309812, 0, 0),
+"times": PackedFloat32Array(0, 0.20503812, 0.41007623, 0.61511433, 0.82015246)
+}
+tracks/8/type = "bezier"
+tracks/8/imported = false
+tracks/8/enabled = true
+tracks/8/path = NodePath("subtitle:color:r")
+tracks/8/interp = 1
+tracks/8/loop_wrap = true
+tracks/8/keys = {
+"handle_modes": PackedInt32Array(0, 0, 0, 0, 0),
+"points": PackedFloat32Array(0, 0, 0, 0.06978318, 0.12576637, 0.36767623, -0.06978318, -0.11619278, 0.06978318, 0.11619278, 0.6793771, -0.06978318, -0.0889312, 0.06978318, 0.0889312, 0.88764894, -0.06978318, -0.048128314, 0.06978318, 0.048128314, 0.9607843, -0.06978318, 2.3861337e-05, 0, 0),
+"times": PackedFloat32Array(0, 0.20934956, 0.41869912, 0.62804866, 0.83739823)
+}
+tracks/9/type = "bezier"
+tracks/9/imported = false
+tracks/9/enabled = true
+tracks/9/path = NodePath("subtitle:color:g")
+tracks/9/interp = 1
+tracks/9/loop_wrap = true
+tracks/9/keys = {
+"handle_modes": PackedInt32Array(0, 0, 0, 0, 0),
+"points": PackedFloat32Array(0, 0, 0, 0.06978318, 0.12576637, 0.36767623, -0.06978318, -0.11619278, 0.06978318, 0.11619278, 0.6793771, -0.06978318, -0.0889312, 0.06978318, 0.0889312, 0.88764894, -0.06978318, -0.048128314, 0.06978318, 0.048128314, 0.9607843, -0.06978318, 2.3861337e-05, 0, 0),
+"times": PackedFloat32Array(0, 0.20934956, 0.41869912, 0.62804866, 0.83739823)
+}
+tracks/10/type = "bezier"
+tracks/10/imported = false
+tracks/10/enabled = true
+tracks/10/path = NodePath("subtitle:color:b")
+tracks/10/interp = 1
+tracks/10/loop_wrap = true
+tracks/10/keys = {
+"handle_modes": PackedInt32Array(0, 0, 0, 0, 0),
+"points": PackedFloat32Array(0, 0, 0, 0.06978318, 0.12576637, 0.36767623, -0.06978318, -0.11619278, 0.06978318, 0.11619278, 0.6793771, -0.06978318, -0.0889312, 0.06978318, 0.0889312, 0.88764894, -0.06978318, -0.048128314, 0.06978318, 0.048128314, 0.9607843, -0.06978318, 2.3861337e-05, 0, 0),
+"times": PackedFloat32Array(0, 0.20934956, 0.41869912, 0.62804866, 0.83739823)
+}
+tracks/11/type = "bezier"
+tracks/11/imported = false
+tracks/11/enabled = true
+tracks/11/path = NodePath("subtitle:alpha")
+tracks/11/interp = 1
+tracks/11/loop_wrap = true
+tracks/11/keys = {
+"handle_modes": PackedInt32Array(0, 0, 0, 0, 0),
+"points": PackedFloat32Array(1, 0, 0, 0.06978318, -0.1308997, 0.6173166, -0.06978318, 0.12093534, 0.06978318, -0.12093534, 0.29289323, -0.06978318, 0.092561044, 0.06978318, -0.092561044, 0.076120496, -0.06978318, 0.050092738, 0.06978318, -0.050092738, 0, -0.06978318, -2.4835268e-05, 0, 0),
+"times": PackedFloat32Array(0, 0.20934956, 0.41869912, 0.62804866, 0.83739823)
+}
+metadata/zen_capture = {
+"subtitle:alpha": [0.8373982115879999, 1.0],
+"subtitle:color:b": [0.8373982115879999, 0.0],
+"subtitle:color:g": [0.8373982115879999, 0.0],
+"subtitle:color:r": [0.8373982115879999, 0.0],
+"subtitle:pos_x": [0.866142, 0.0],
+"subtitle:pos_y": [0.866142, 0.0],
+"title:alpha": [0.820152458226, 1.0],
+"title:color:b": [0.820152458226, 0.0],
+"title:color:g": [0.820152458226, 0.0],
+"title:color:r": [0.820152458226, 0.0],
+"title:pos_x": [0.74158644969, 0.0],
+"title:pos_y": [0.74158644969, 0.0]
+}
+
+[sub_resource type="AnimationLibrary" id="AnimationLibrary_iqy5t"]
+_data = {
+&"exit": SubResource("Animation_xa354")
+}
+
+[node name="PAUSE_MENU" type="Node2D" unique_id=183397331]
 script = ExtResource("1_isakd")
-duration = 2.1
-intro_end = 1.513235
-outro_start = 1.986574
 clear_color = Color(0.1, 0.12, 0.16, 1)
 loop_play = true
 
-[node name="title" type="Node2D" parent="." unique_id=1694912313]
+[node name="title" type="Node2D" parent="." unique_id=185028170]
 script = ExtResource("2_eun84")
 text = "PAUSE MENU"
 color_base = Color(0.9607843, 0.9607843, 0.9607843, 0)
 elem_name = "title"
 pos_frac = Vector2(0, 0.181102)
-tracks = {
-"alpha": [{
-"ease": "linear",
-"t": 0.0,
-"v": 0.0
-}, {
-"ease": "sineIn",
-"t": 0.041195,
-"v": 0.020598
-}, {
-"ease": "sineIn",
-"t": 1.471296,
-"v": 1.0
-}],
-"pos_x": [{
-"ease": "linear",
-"t": 0.0,
-"v": -0.208661
-}, {
-"ease": "expoIn",
-"t": 0.041195,
-"v": 0.0
-}, {
-"ease": "sineInOut",
-"t": 1.416204,
-"v": 0.467391
-}],
-"rot": []
-}
 
-[node name="subtitle" type="Node2D" parent="." unique_id=1781547030]
+[node name="subtitle" type="Node2D" parent="." unique_id=699360867]
 z_index = 1
 script = ExtResource("2_eun84")
 text = "still, all the buttons"
@@ -56,37 +255,8 @@ size_frac = Vector2(0.06, 0.1)
 color_base = Color(0.9607843, 0.9607843, 0.9607843, 0)
 elem_name = "subtitle"
 pos_frac = Vector2(0, 0.287402)
-tracks = {
-"alpha": [{
-"ease": "linear",
-"t": 0.0,
-"v": 0.0
-}, {
-"ease": "sineIn",
-"t": 0.041195,
-"v": 0.020598
-}, {
-"ease": "sineIn",
-"t": 1.549074,
-"v": 1.0
-}],
-"pos_x": [{
-"ease": "linear",
-"t": 0.0,
-"v": -0.267717
-}, {
-"ease": "linear",
-"t": 0.186275,
-"v": 0.0
-}, {
-"ease": "sineInOut",
-"t": 1.4875,
-"v": 0.467391
-}],
-"rot": []
-}
 
-[node name="Signals" type="Node" parent="." unique_id=382781998]
+[node name="Signals" type="Node" parent="." unique_id=1062016799]
 script = ExtResource("3_ifp6d")
 signals_data = [{
 "length": 0.866142,
@@ -99,70 +269,43 @@ signals_data = [{
 "seq_targets": [],
 "targets": [{
 "elem": "title",
-"keys": [{
-"ease": "sineIn",
-"t": 0.856195,
-"v": -0.389381
-}],
+"keys": [],
 "prop": "pos_x"
 }, {
 "elem": "title",
-"keys": [{
-"ease": "sineIn",
-"t": 0.856195,
-"v": 0.181102
-}],
+"keys": [],
 "prop": "pos_y"
 }, {
 "elem": "subtitle",
-"keys": [{
-"ease": "sineOut",
-"t": 1.0,
-"v": -0.369469
-}],
+"keys": [],
 "prop": "pos_x"
 }, {
 "elem": "subtitle",
-"keys": [{
-"ease": "sineOut",
-"t": 1.0,
-"v": 0.287402
-}],
+"keys": [],
 "prop": "pos_y"
 }, {
 "elem": "title",
-"keys": [{
-"c": Color(0.9607843, 0.9607843, 0.9607843, 1),
-"ease": "sineIn",
-"t": 0.946903
-}],
+"keys": [],
 "prop": "color"
 }, {
 "elem": "title",
-"keys": [{
-"ease": "sineIn",
-"t": 0.946903,
-"v": 0.0
-}],
+"keys": [],
 "prop": "alpha"
 }, {
 "elem": "subtitle",
-"keys": [{
-"c": Color(0.9607843, 0.9607843, 0.9607843, 1),
-"ease": "sineOut",
-"t": 0.966814
-}],
+"keys": [],
 "prop": "color"
 }, {
 "elem": "subtitle",
-"keys": [{
-"ease": "sineOut",
-"t": 0.966814,
-"v": 0.0
-}],
+"keys": [],
 "prop": "alpha"
 }],
 "terminal": true,
 "uses_pos": false,
 "uses_seq": false
 }]
+
+[node name="AnimationPlayer" type="AnimationPlayer" parent="." unique_id=966327022]
+callback_mode_method = 1
+libraries/ = SubResource("AnimationLibrary_m5ssp")
+libraries/sig = SubResource("AnimationLibrary_iqy5t")

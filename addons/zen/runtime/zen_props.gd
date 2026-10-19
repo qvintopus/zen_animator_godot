@@ -32,6 +32,17 @@ const POS := ["pos_x", "pos_y"]
 const SIZE := ["w", "h"]
 
 
+## The property name a prop wears in an Animation track path. Identical except
+## where Node2D already owns the name: `scale` is a Vector2 there, and a float
+## track on it would be applied to the node itself.
+static func track_prop(prop_name: String) -> String:
+    return "zen_scale" if prop_name == "scale" else prop_name
+
+
+static func prop_of_track(track_name: String) -> String:
+    return "scale" if track_name == "zen_scale" else track_name
+
+
 static func is_pos(prop_name: String) -> bool:
     return POS.has(prop_name)
 

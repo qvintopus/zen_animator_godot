@@ -152,8 +152,10 @@ authored tail; without it, it is a seamless loop.
 
 ### 3. A pause marker freezes the export
 
-No bundled document has a `pause` marker, so this needs one added to a `.cfg`
-(`pause 1.0 0`) and a re-import. At `--fps=30 --pause_hold=2` the output should grow by
+`ma_prog_01` has four pause markers (`pause_1`.. in its `zen` animation); another is
+added by a `pause 1.0 0` line plus a re-import, or by dragging/adding a `pause_N`
+marker in Godot's animation panel. In the gallery, playback holds at a marker and SPACE
+continues. At `--fps=30 --pause_hold=2` the output should grow by
 60 frames, all of them identical, starting at the marker's own frame.
 
 ### 4. The outro is never rendered
@@ -320,7 +322,7 @@ wrap must restart at `intro_end`, so the slide-in is NOT replayed on later cycle
 In the animation panel, the `zen` animation should show `intro_end` and `outro_start` as
 draggable markers. Dragging one edits the document (`ZenAnimBuilder.sync_markers`).
 
-Checked automatically by `test_anim_player_plays` / `_markers` / `_mirrors_keys`, all
+Checked automatically by `test_anim_player_plays` / `_markers` / `_tracks` / `_roundtrip`, all
 verified to fail when their bug is reintroduced. Two of those three did NOT bite at
 first, which is worth recording:
 

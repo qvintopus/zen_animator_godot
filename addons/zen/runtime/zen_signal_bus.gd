@@ -167,7 +167,11 @@ func _on_fire(params: Dictionary, index: int) -> void:
     if index < 0 or index >= signals_data.size(): return
     var sig: Dictionary = signals_data[index]
     var t := _doc_time()
-    player.start(sig, params, _seq_index(), _capture.bind(t))
+    var nm := String(sig.get("name", ""))
+    player.start(sig, params, _seq_index(), _capture.bind(t),
+        canvas.signal_timeline(nm) if canvas != null else ZenTimeline.new(),
+        func(e, p): return ZenAnimBuilder.node_name_for(canvas, e, p) \
+            if canvas != null else e)
     running_name = String(sig.get("name", "")) if player.playing else ""
     set_process(player.playing)
 
@@ -252,7 +256,7 @@ func offset(elem: String, prop: String) -> float:
 ## Returns null for an unresolvable element, which the player stores as a
 ## neutral capture - matching the C's out-of-range guard (anim.c:1516-1521).
 func _capture(elem_name: String, prop: String, t: float) -> Variant:
-    var e := _find_elem(elem_name)
+    var e := _find_elem(elem_name, prop)
     if e == null:
         push_warning("zen: signal targets unknown element '%s'" % elem_name)
         return null
@@ -270,10 +274,12 @@ func _capture(elem_name: String, prop: String, t: float) -> Variant:
 ## the editor would silently repoint every index at the wrong element. The name
 ## matched is `elem_name`, the AUTHORED name, not Node.name, which has been
 ## sanitised for Godot's naming rules.
-func _find_elem(nm: String) -> ZenElement:
+func _find_elem(nm: String, prop := "") -> ZenElement:
     if canvas == null: return null
     for e in canvas.elements():
-        if (e as ZenElement).elem_name == nm: return e
+        var el := e as ZenElement
+        if el.elem_name == nm and (prop.is_empty() or prop == "corner_mode" or el.owns(prop)):
+            return el
     return null
 
 

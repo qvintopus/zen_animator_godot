@@ -2,189 +2,325 @@
 class_name ZenAnimBuilder
 extends RefCounted
 ##
-## Builds a real Godot `Animation` for a ZenCanvas, so a scene PLAYS on F6 and
-## scrubs on Godot's own timeline.
+## Assembles the AnimationPlayer a Zen scene SAVES, and keeps it the single
+## source of truth for the keys.
 ##
-## WHY A METHOD TRACK AND NOT VALUE TRACKS (the whole design in one place):
+## WHAT IS IN THE SCENE
 ##
-## Zen's geometry is RESOLVED, not stored. A property is a fraction of the
-## canvas, times `scale`, times the unit mode, and - for a signal-driven or
-## loop-blended property - a function of state that does not exist until the
-## frame is posed. There is no `Node2D.position` to key: the position is
-## computed from pos_frac against design_size every pose. So a value track per
-## property would have to duplicate the entire resolver, and would still be
-## wrong the moment a signal fired.
+##   AnimationPlayer           root_node ".." (the canvas)
+##     library ""    "zen"          the document timeline
+##     library "sig" one per signal, `length` seconds long
 ##
-## Instead the Animation owns TIME and the timeline UI, and one method track
-## calls `canvas.pose_looping(t, looping)` - the same entry point the exporter
-## uses. That keeps exactly one resolver in the project, and `pose()` stays a
-## pure function of (scene, t), which is what lets the exporter render frames
-## out of order.
+## "zen" holds one track per animated property. Scalars are BEZIER tracks at
+## `Node:prop`; colours are three bezier tracks `Node:prop:r|g|b` (RGB only -
+## alpha has its own scalar track); stepped props (`string`, `shape_id`) are
+## VALUE tracks with nearest interpolation, because a pool index must never be
+## interpolated. Zen's easings are BAKED into the bezier handles by
+## ZenCurveBake - Godot does the interpolating, and what is stored is what
+## plays. The clock fields are markers: `intro_end`, `outro_start` and
+## `pause_N[_once]`, so dragging them in Godot's panel edits the document.
 ##
-## WHAT THIS BUYS: F6 plays the scene; Godot's animation panel shows the clock
-## with intro_end / outro_start as draggable markers; dragging the playhead
-## scrubs the real animation. The markers are DATA, not decoration -
-## `ZenCanvas` reads its own exported fields, and a future authoring tool
-## writes them back from the markers. They also drive the live wrap: a loop
-## with an intro plays through once, then `ZenCanvas._process` narrows the
-## AnimationPlayer's own section to [intro_end, outro_start) via
-## `set_section_with_markers`, so Godot's section-loop API restarts the body
-## there and never at 0.
+## A signal's keys sit at `u * length` seconds, so its Animation shows real
+## time. Its sequence envelope is the `Signals:seq` track and its pos-param
+## offsets are `Node:pos_offset_<i>:x|y`. See ZenTimeline for the capture rule.
 ##
-## KEY POPULATION (`populate_keys`) is the groundwork for that tool: it mirrors
-## each Zen track into a real, visible, draggable Godot track. Those tracks are
-## deliberately NOT what drives the render - they are an editing surface, and
-## `sync_from_keys` reads them back. Driving from them would mean a second
-## resolver, and the two would drift.
+## The retained `_anim_pose` method track keeps the old "the Animation owns
+## time" contract: it calls canvas.pose_looping(), the one resolver.
 ##
 
-## Name of the animation added to every canvas, and of its library slot.
 const ANIM := "zen"
 const LIB := ""
+const SIG_LIB := "sig"
 
-## Marker names. These are the .cfg's own clock fields, surfaced on the Godot
-## timeline so they can be dragged instead of typed into the inspector.
 const M_INTRO := "intro_end"
 const M_OUTRO := "outro_start"
+const M_PAUSE := "pause_"
+const ONCE := "_once"
+
+const SEQ_NODE := "Signals"
+const SEQ_PROP := "seq"
 
 
-## Build the Animation for `canvas`. `looping` decides whether the method
-## track's _anim_pose call asks for the smooth-loop blend.
-static func build(canvas: ZenCanvas, looping := true) -> Animation:
+# ---------------------------------------------------------------------------
+#  Naming
+# ---------------------------------------------------------------------------
+
+## AnimationLibrary names reject / : , [ and an empty string.
+static func sig_anim_name(signal_name: String) -> String:
+    var out := ""
+    for ch in signal_name:
+        out += "_" if "/:,[]".contains(ch) else ch
+    return out if not out.is_empty() else "signal"
+
+
+## Path of the Animation a signal lives in, as AnimationPlayer addresses it.
+static func sig_path(signal_name: String) -> String:
+    return "%s/%s" % [SIG_LIB, sig_anim_name(signal_name)]
+
+
+## The NODE NAME that owns (elem, prop): the authored element name is matched
+## against `elem_name` and a global's two halves are told apart by prop.
+static func node_name_for(canvas: ZenCanvas, elem: String, prop: String) -> String:
+    for e in canvas.elements():
+        var el := e as ZenElement
+        if el.elem_name == elem and el.owns(prop): return String(el.name)
+    return elem
+
+
+# ---------------------------------------------------------------------------
+#  The document timeline
+# ---------------------------------------------------------------------------
+
+static func bake_timeline(canvas: ZenCanvas, looping := true) -> Animation:
     var anim := Animation.new()
-    # The FULL clock, not the play section: the outro must be visible on the
-    # timeline (it is authored data) even though it is never rendered. Trimming
-    # is ZenCanvas's job, not the animation's.
+    # The FULL clock, not the play section: the outro stays visible on the
+    # timeline (it is authored data) though it is never rendered.
     anim.length = maxf(canvas.duration, 0.0001)
     anim.step = 0.0166667                                  # 1/60, the edit grid
-    # Placeholder default - ZenCanvas.setup_animation_player sets the real
-    # value (LOOP_LINEAR vs LOOP_NONE) once it knows loop_play and has_intro(),
-    # since a section only auto-loops under LOOP_LINEAR (measured on 4.7.2;
-    # LOOP_NONE plays a section once and holds, regardless of which
-    # play_section variant started it).
+    # setup_animation_player sets the real mode (LOOP_LINEAR vs LOOP_NONE).
     anim.loop_mode = Animation.LOOP_NONE
 
-    _add_markers(anim, canvas)
+    _write_markers(anim, canvas)
 
-    # One method track, keyed at t=0, calling the one resolver.
     var tr := anim.add_track(Animation.TYPE_METHOD)
-    # The AnimationPlayer sits beside the elements under the canvas, so the
-    # canvas is its parent.
-    anim.track_set_path(tr, NodePath(".."))
-    anim.track_insert_key(tr, 0.0, {
-        "method": "_anim_pose",
-        "args": [looping],
-    })
-    return anim
+    anim.track_set_path(tr, NodePath("."))
+    anim.track_insert_key(tr, 0.0, {"method": "_anim_pose", "args": [looping]})
 
-
-## Surface the clock fields as timeline markers, when they are set at all.
-##
-## `intro_end` 0 means "no intro" and `outro_start` 0 means "unset, play the
-## whole clock" (AnimDocOutroStart), so a 0 is an ABSENT marker rather than a
-## marker at the origin - otherwise every document would show a spurious
-## intro_end pinned to the left edge.
-static func _add_markers(anim: Animation, canvas: ZenCanvas) -> void:
-    if not anim.has_method("add_marker"): return            # pre-4.5 fallback
-    if canvas.intro_end > 0.0:
-        anim.add_marker(M_INTRO, clampf(canvas.intro_end, 0.0, anim.length))
-    if canvas.outro_start > 0.0:
-        anim.add_marker(M_OUTRO, clampf(canvas.outro_start, 0.0, anim.length))
-
-
-## Read the clock back OUT of the markers, so dragging them on the timeline
-## edits the document. Returns true when something changed.
-static func sync_markers(anim: Animation, canvas: ZenCanvas) -> bool:
-    if anim == null or not anim.has_method("get_marker_names"): return false
-    var changed := false
-    var names: PackedStringArray = anim.get_marker_names()
-    if names.has(M_INTRO):
-        var v := anim.get_marker_time(M_INTRO)
-        if not is_equal_approx(v, canvas.intro_end):
-            canvas.intro_end = v
-            changed = true
-    if names.has(M_OUTRO):
-        var v2 := anim.get_marker_time(M_OUTRO)
-        if not is_equal_approx(v2, canvas.outro_start):
-            canvas.outro_start = v2
-            changed = true
-    return changed
-
-
-## Mirror every Zen track onto the Animation as a real, visible Godot track.
-##
-## GROUNDWORK, not the render path. These tracks exist so an author can see and
-## drag the keys in Godot's timeline; `sync_from_keys` reads them back into the
-## Zen tracks, which are what actually render. Deliberately one-way-at-a-time:
-## two live sources for the same number is how they drift.
-##
-## Paths are `ElementName:prop` against the canvas, using the element's NODE
-## name (not elem_name) because that is what a NodePath can address. The two
-## agree for every imported document; a renamed node is resolved by name here
-## and would simply produce no track.
-##
-## Interpolation is LINEAR and `transition` is left alone: the stored VALUES are
-## Zen's, and the per-key easing lives in the Zen track (`ease`), which Godot
-## has no field for. So these tracks show WHERE the keys are, not the curve
-## between them - that is a known, accepted limit of the editing surface, and
-## the reason the render still goes through ZenSampler.
-static func populate_keys(anim: Animation, canvas: ZenCanvas) -> int:
-    var n := 0
     for e in canvas.elements():
         var el := e as ZenElement
         for prop in el.tracks:
             var keys: Array = el.tracks[prop]
-            if keys.is_empty(): continue                    # `track rot 0`
-            var stepped := ZenProps.is_stepped(String(prop))
-            var tr := anim.add_track(Animation.TYPE_VALUE)
-            anim.track_set_path(tr, NodePath("../%s:%s" % [el.name, prop]))
-            # A stepped prop keys a POOL INDEX; interpolating it resolves to the
-            # wrong entry entirely (anim.c AnimPropIsStepped).
-            anim.track_set_interpolation_type(tr, Animation.INTERPOLATION_NEAREST
-                if stepped else Animation.INTERPOLATION_LINEAR)
-            anim.value_track_set_update_mode(tr, Animation.UPDATE_DISCRETE
-                if stepped else Animation.UPDATE_CONTINUOUS)
-            for k in keys:
-                var kd: Dictionary = k
-                anim.track_insert_key(tr, float(kd["t"]),
-                    kd["c"] if kd.has("c") else kd.get("v", 0.0))
-            n += 1
-    return n
+            if keys.is_empty() or not el.owns(String(prop)): continue
+            var path := el.track_path(String(prop))
+            if ZenProps.is_stepped(String(prop)):
+                _add_stepped(anim, path, keys)
+            elif ZenProps.is_color(String(prop)):
+                _add_color(anim, path, keys)
+            else:
+                _add_scalar(anim, path, keys)
+    return anim
 
 
-## Read mirrored Godot tracks back into the Zen tracks, preserving each key's
-## authored `ease` by position.
-##
-## A key the author ADDED in Godot's timeline has no ease of its own, so it
-## inherits "linear" - the same default the .cfg grammar uses for an
-## unannotated key. A key that was DELETED simply disappears. Returns the
-## number of tracks updated.
-static func sync_from_keys(anim: Animation, canvas: ZenCanvas) -> int:
+## Surface the clock fields as markers. 0 means ABSENT for intro/outro
+## (AnimDocOutroStart), so a 0 is not a marker at the origin.
+static func _write_markers(anim: Animation, canvas: ZenCanvas) -> void:
+    if not anim.has_method("add_marker"): return            # pre-4.5 fallback
+    for n in anim.get_marker_names():
+        anim.remove_marker(n)
+    if canvas.intro_end > 0.0:
+        anim.add_marker(M_INTRO, clampf(canvas.intro_end, 0.0, anim.length))
+    if canvas.outro_start > 0.0:
+        anim.add_marker(M_OUTRO, clampf(canvas.outro_start, 0.0, anim.length))
     var n := 0
-    for ti in anim.get_track_count():
-        if anim.track_get_type(ti) != Animation.TYPE_VALUE: continue
-        var path := anim.track_get_path(ti)
-        var node_name := String(path.get_concatenated_names()).trim_prefix("../")
-        var prop := String(path.get_concatenated_subnames())
-        if prop.is_empty(): continue
-        var el: ZenElement = null
-        for e in canvas.elements():
-            if (e as Node).name == node_name: el = e
-        if el == null: continue
-        var old: Array = el.tracks.get(prop, [])
-        var fresh: Array = []
-        for ki in anim.track_get_key_count(ti):
-            var t := anim.track_get_key_time(ti, ki)
-            var v: Variant = anim.track_get_key_value(ti, ki)
-            # Carry the ease from the key that was at this index before, which
-            # is right for a drag (times move, order does not) and degrades to
-            # linear for an insert.
-            var ease_name := "linear"
-            if ki < old.size(): ease_name = String((old[ki] as Dictionary).get("ease", "linear"))
-            var kd := {"t": t, "ease": ease_name}
-            if v is Color: kd["c"] = v
-            else: kd["v"] = float(v)
-            fresh.append(kd)
-        el.tracks[prop] = fresh
+    for p in canvas.pauses:
         n += 1
-    return n
+        var nm := "%s%d%s" % [M_PAUSE, n, ONCE if bool(p.get("once", false)) else ""]
+        anim.add_marker(nm, clampf(float(p["t"]), 0.0, anim.length))
+
+
+## Read the clock back OUT of the markers and length, so editing them in Godot
+## edits the document. Returns true when something changed.
+static func sync_markers(anim: Animation, canvas: ZenCanvas) -> bool:
+    if anim == null: return false
+    var changed := false
+    if not is_equal_approx(anim.length, canvas.duration):
+        canvas.duration = anim.length
+        changed = true
+    if not anim.has_method("get_marker_names"): return changed
+    var names: PackedStringArray = anim.get_marker_names()
+    # Absent marker = unset (0), so deleting one in Godot clears it.
+    var intro := anim.get_marker_time(M_INTRO) if names.has(M_INTRO) else 0.0
+    var outro := anim.get_marker_time(M_OUTRO) if names.has(M_OUTRO) else 0.0
+    if not is_equal_approx(intro, canvas.intro_end):
+        canvas.intro_end = intro
+        changed = true
+    if not is_equal_approx(outro, canvas.outro_start):
+        canvas.outro_start = outro
+        changed = true
+    var marks: Array = []
+    for nm in names:
+        if not String(nm).begins_with(M_PAUSE): continue
+        marks.append({"t": anim.get_marker_time(nm), "once": String(nm).ends_with(ONCE)})
+    marks.sort_custom(func(a, b): return float(a["t"]) < float(b["t"]))
+    if not _same_pauses(marks, canvas.pauses):
+        canvas.pauses = marks
+        changed = true
+    return changed
+
+
+static func _same_pauses(a: Array, b: Array) -> bool:
+    if a.size() != b.size(): return false
+    for i in a.size():
+        if not is_equal_approx(float(a[i]["t"]), float(b[i]["t"])): return false
+        if bool(a[i].get("once", false)) != bool(b[i].get("once", false)): return false
+    return true
+
+
+# ---------------------------------------------------------------------------
+#  Tracks
+# ---------------------------------------------------------------------------
+
+static func _add_scalar(anim: Animation, path: String, keys: Array) -> void:
+    _insert_bezier(anim, path, ZenCurveBake.bake(keys))
+
+
+static func _insert_bezier(anim: Animation, path: String, baked: Array) -> void:
+    var tr := anim.add_track(Animation.TYPE_BEZIER)
+    anim.track_set_path(tr, NodePath(path))
+    for k in baked:
+        anim.bezier_track_insert_key(tr, k["t"], k["v"], k["in"], k["out"])
+
+
+static func _add_color(anim: Animation, path: String, keys: Array) -> void:
+    for ch in ["r", "g", "b"]:
+        var ck: Array = []
+        for k in keys:
+            var c: Color = k["c"]
+            ck.append({"t": k["t"], "v": c[ch], "ease": k.get("ease", "linear")})
+        _insert_bezier(anim, "%s:%s" % [path, ch], ZenCurveBake.bake(ck))
+
+
+static func _add_stepped(anim: Animation, path: String, keys: Array) -> void:
+    var tr := anim.add_track(Animation.TYPE_VALUE)
+    anim.track_set_path(tr, NodePath(path))
+    anim.track_set_interpolation_type(tr, Animation.INTERPOLATION_NEAREST)
+    anim.value_track_set_update_mode(tr, Animation.UPDATE_DISCRETE)
+    var times: Array = []
+    for k in keys: times.append(float(k["t"]))
+    times = ZenCurveBake.separate(times)
+    for i in keys.size():
+        anim.track_insert_key(tr, times[i], float(keys[i]["v"]))
+
+
+# ---------------------------------------------------------------------------
+#  Signals
+# ---------------------------------------------------------------------------
+
+## One Animation for an authored signal. `node_of` is Callable(elem, prop) ->
+## node name; the default is the authored name itself.
+static func bake_signal(sig: Dictionary, node_of := Callable()) -> Animation:
+    var length := float(sig.get("length", 0.0))
+    var span := length if length > 0.0 else 1.0     # length 0: instant, lands on u=1
+    var anim := Animation.new()
+    anim.length = span
+    anim.step = 0.0166667
+    var capture: Dictionary = {}
+
+    for tg in sig.get("targets", []):
+        var prop := String(tg["prop"])
+        var keys: Array = tg.get("keys", [])
+        if keys.is_empty() or ZenProps.is_stepped(prop): continue
+        var node := _node(node_of, String(tg["elem"]), prop)
+        var path := "%s:%s" % [node, ZenProps.track_prop(prop)]
+        if ZenProps.is_color(prop):
+            for ch in ["r", "g", "b"]:
+                var ck: Array = []
+                for k in keys:
+                    var c: Color = k["c"]
+                    ck.append({"t": k["t"], "v": c[ch], "ease": k.get("ease", "linear")})
+                _signal_track(anim, "%s:%s" % [path, ch], ck, span, true, capture)
+        else:
+            _signal_track(anim, path, keys, span, true, capture)
+
+    var seq_keys: Array = sig.get("seq_keys", [])
+    if not seq_keys.is_empty():
+        # The envelope starts from a constant 0, so it is a real key, not a capture.
+        _signal_track(anim, "%s:%s" % [SEQ_NODE, SEQ_PROP], seq_keys, span, false, capture)
+
+    var pos_params: Array = sig.get("pos_params", [])
+    for i in pos_params.size():
+        var pp: Dictionary = pos_params[i]
+        var keys: Array = pp.get("keys", [])
+        if keys.is_empty(): continue
+        var node := _node(node_of, String(pp["elem"]), "pos_x")
+        for axis in ["x", "y"]:
+            var ak: Array = []
+            for k in keys:
+                var off: Vector2 = k["off"]
+                ak.append({"t": k["t"], "v": off[axis], "ease": k.get("ease", "linear")})
+            _signal_track(anim, "%s:pos_offset_%d:%s" % [node, i, axis], ak, span, true, capture)
+
+    if not capture.is_empty(): anim.set_meta(ZenTimeline.META_CAPTURE, capture)
+    return anim
+
+
+static func _node(node_of: Callable, elem: String, prop: String) -> String:
+    return String(node_of.call(elem, prop)) if node_of.is_valid() else elem
+
+
+## Bake `keys` (t in u) onto `anim` at u*span seconds. With `capture`, a first
+## key past u=0 gets a placeholder key at t=0 and a capture-meta entry.
+static func _signal_track(anim: Animation, path: String, keys: Array, span: float,
+                          capture_start: bool, capture: Dictionary) -> void:
+    var scaled: Array = []
+    for k in keys:
+        scaled.append({"t": float(k["t"]) * span, "v": float(k["v"]),
+                       "ease": k.get("ease", "linear")})
+    if float(scaled[0]["t"]) > 0.0:
+        var v1 := float(scaled[0]["v"])
+        var p0 := 0.0 if absf(v1) > 1e-6 else 1.0
+        if capture_start: capture[path] = [float(scaled[0]["t"]), p0]
+        else: p0 = 0.0
+        scaled.push_front({"t": 0.0, "v": p0, "ease": "linear"})
+    _insert_bezier(anim, path, ZenCurveBake.bake(scaled))
+
+
+# ---------------------------------------------------------------------------
+#  Installing into a canvas
+# ---------------------------------------------------------------------------
+
+## The canvas's AnimationPlayer, or null.
+static func find_player(canvas: Node) -> AnimationPlayer:
+    for c in canvas.get_children():
+        if c is AnimationPlayer: return c
+    return null
+
+
+## Bake the canvas's in-memory keys into a real AnimationPlayer child, owned by
+## the canvas so it packs. Idempotent: it replaces what it made before.
+##
+## `strip` drops the signal keys from the bus once they live in the player, so
+## the scene stores them in exactly one place.
+static func install(canvas: ZenCanvas, strip := true) -> AnimationPlayer:
+    var ap := find_player(canvas)
+    if ap == null:
+        ap = AnimationPlayer.new()
+        ap.name = "AnimationPlayer"
+        canvas.add_child(ap)
+        # Like the bus, a non-element child: a z index is not spent on it.
+        ap.owner = canvas.owner if canvas.owner != null else canvas
+    ap.root_node = NodePath("..")
+    ap.callback_mode_method = AnimationMixer.ANIMATION_CALLBACK_MODE_METHOD_IMMEDIATE
+
+    var lib := _library(ap, LIB)
+    if lib.has_animation(ANIM): lib.remove_animation(ANIM)
+    lib.add_animation(ANIM, bake_timeline(canvas, canvas.loop_smooth))
+
+    var bus := canvas.bus()
+    if bus != null:
+        var slib := _library(ap, SIG_LIB)
+        for s in bus.signals_data:
+            var sig: Dictionary = s
+            var nm := sig_anim_name(String(sig.get("name", "")))
+            if slib.has_animation(nm): slib.remove_animation(nm)
+            slib.add_animation(nm, bake_signal(sig,
+                func(e, p): return node_name_for(canvas, e, p)))
+            if strip: strip_keys(sig)
+    # assigned_animation, not current_animation: the latter PLAYS it.
+    ap.assigned_animation = ANIM
+    return ap
+
+
+static func _library(ap: AnimationPlayer, nm: String) -> AnimationLibrary:
+    if ap.has_animation_library(nm): return ap.get_animation_library(nm)
+    var lib := AnimationLibrary.new()
+    ap.add_animation_library(nm, lib)
+    return lib
+
+
+## The authored signal with its key arrays emptied: the shape stored in the
+## scene once the keys are in the player.
+static func strip_keys(sig: Dictionary) -> void:
+    for tg in sig.get("targets", []): tg["keys"] = []
+    sig["seq_keys"] = []
+    for pp in sig.get("pos_params", []): pp["keys"] = []

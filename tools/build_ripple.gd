@@ -62,6 +62,7 @@ func _init() -> void:
 
     canvas.add_child(s)
     s.owner = canvas
+    ZenAnimBuilder.install(canvas)
 
     var packed := PackedScene.new()
     var err := packed.pack(canvas)

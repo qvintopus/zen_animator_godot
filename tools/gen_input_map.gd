@@ -13,6 +13,7 @@ const RETIRED := ["zen_scale_down", "zen_scale_up"]
 
 const ACTIONS := {
     "zen_play": [KEY_ENTER, KEY_KP_ENTER, KEY_SPACE],
+    "zen_continue": [KEY_SPACE],      # resume playback held at a pause marker
     "zen_back": [KEY_ESCAPE],
     "zen_restart": [KEY_R],
     "zen_prev": [KEY_UP],

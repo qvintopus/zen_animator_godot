@@ -25,7 +25,7 @@ func _init() -> void:
         var tx := e as ZenText
         if tx != null:
             print("  %-20s TEXT     abs=%-5s tracks=%s" % [
-                tx.elem_name, tx.unit_abs, ", ".join(tx.tracks.keys())])
+                tx.elem_name, tx.unit_abs, ", ".join(_tracks_of(c, tx))])
             print("    text=%s" % JSON.stringify(tx.text))
             for frac in [0.0, 0.25, 0.5, 0.75, 1.0]:
                 var tt: float = c.play_start() + (c.play_end() - c.play_start()) * frac
@@ -40,13 +40,13 @@ func _init() -> void:
         var gl := e as ZenGlobal
         if gl != null:
             print("  %-20s GLOBAL   bg=%-5s tracks=%s" % [
-                gl.elem_name, gl.is_background, ", ".join(gl.tracks.keys())])
+                gl.elem_name, gl.is_background, ", ".join(_tracks_of(c, gl))])
             continue
         var s := e as ZenShape
         if s == null: continue
         print("  %-20s kind=%-8s abs=%-5s tracks=%s" % [
             s.elem_name, ZenShape.KIND_NAMES[s.shape_kind], s.unit_abs,
-            ", ".join(s.tracks.keys())])
+            ", ".join(_tracks_of(c, s))])
         for frac in [0.0, 0.25, 0.5, 0.75, 1.0]:
             var t: float = c.play_start() + (c.play_end() - c.play_start()) * frac
             var sc := s.prop("scale", t, s.scale_base)
@@ -61,3 +61,12 @@ func _init() -> void:
                    s.prop("outline_alpha", t, s.outline_color_base.a),
                    uh * s.prop("outline", t, s.outline_base) * sc])
     quit(0)
+
+
+## The element's animated props, read from the scene's AnimationPlayer.
+func _tracks_of(c: ZenCanvas, el: ZenElement) -> PackedStringArray:
+    var out := PackedStringArray()
+    for p in c.timeline().paths():
+        var parts := String(p).split(":")
+        if parts[0] == String(el.name) and not out.has(parts[1]): out.append(parts[1])
+    return out

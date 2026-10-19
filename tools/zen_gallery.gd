@@ -152,7 +152,6 @@ func _describe(path: String, base: String) -> Dictionary:
 	var kinds := {"text": 0, "shape": 0, "global": 0}
 	var tracked := 0
 	var keys := 0
-	var eases := {}
 	for e in c.elements():
 		var el := e as ZenElement
 		if el is ZenText: kinds["text"] += 1
@@ -165,14 +164,12 @@ func _describe(path: String, base: String) -> Dictionary:
 				for nm in used:
 					if nm != "" and not shapes.has(nm): shapes.append(nm)
 		elif el is ZenGlobal: kinds["global"] += 1
-		for prop in el.tracks:
-			var arr: Array = el.tracks[prop]
-			if arr.is_empty(): continue
-			tracked += 1
-			keys += arr.size()
-			for k in arr:
-				var en := String((k as Dictionary).get("ease", "linear"))
-				eases[en] = int(eases.get(en, 0)) + 1
+
+	# Keys are read from the scene's own AnimationPlayer: what is listed here is
+	# what plays. Method tracks (the pose callback) are not "animated props".
+	var tl := c.timeline()
+	tracked = tl.paths().size()
+	keys = tl.key_count()
 
 	var sig_names: Array = []
 	for ch in c.get_children():
@@ -185,7 +182,6 @@ func _describe(path: String, base: String) -> Dictionary:
 	info["kinds"] = kinds
 	info["tracks"] = tracked
 	info["keys"] = keys
-	info["eases"] = eases
 	info["signals"] = sig_names
 	info["duration"] = c.duration
 	info["intro_end"] = c.intro_end
@@ -432,17 +428,9 @@ func _render_info(e: Dictionary) -> String:
 		if int(k[nm]) > 0: parts.append("%d %s" % [int(k[nm]), nm])
 	L.append("[color=#61afef]elements[/color]  %d  [color=#5c6370](%s)[/color]"
 			 % [int(e["elements"]), ", ".join(parts) if not parts.is_empty() else "-"])
-	L.append("[color=#61afef]tracks[/color]  %d animated, %d keys"
+	L.append("[color=#61afef]tracks[/color]  %d in the AnimationPlayer, %d keys"
 			 % [int(e["tracks"]), int(e["keys"])])
 
-	# Which easings this document actually uses - the thing that changed when
-	# the project moved onto Godot's Tween family, and so worth seeing per-scene.
-	var es: Dictionary = e["eases"]
-	var ek: Array = es.keys()
-	ek.sort_custom(func(a, b): return int(es[a]) > int(es[b]))
-	var ep: Array = []
-	for nm in ek: ep.append("%s x%d" % [nm, int(es[nm])])
-	L.append("[color=#61afef]easings[/color]  %s" % (", ".join(ep) if not ep.is_empty() else "-"))
 
 	# Signals are invisible in an export (the exporter sets every bus inert so a
 	# frame stays a pure function of (scene, t)), so listing them here is the
@@ -491,6 +479,10 @@ func _gallery_hint() -> String:
 			["zen_help", "(hold) all hotkeys"], ["zen_back", "quit"]])
 
 
+## Whether the playing footer currently advertises "continue".
+var _hint_paused := false
+
+
 func _show_playing(nm: String) -> void:
 	_view = View.PLAYING
 	_stage.visible = true
@@ -499,7 +491,10 @@ func _show_playing(nm: String) -> void:
 	_title.text = nm
 	# Only advertise the signal keys when there is something to fire.
 	var n := _signal_count()
-	var pairs: Array = [["zen_restart", "restart"]]
+	var pairs: Array = []
+	_hint_paused = _playing != null and _playing.held_pause >= 0
+	if _hint_paused: pairs.append(["zen_continue", "continue"])
+	pairs.append(["zen_restart", "restart"])
 	if n == 1: pairs.append(["1", "fire signal"])
 	elif n > 1: pairs.append(["1-%d" % n, "fire signal"])
 	pairs.append_array([["zen_help", "(hold) all hotkeys"], ["zen_back", "back"]])
@@ -515,6 +510,7 @@ func _signal_count() -> int:
 func _show_help() -> void:
 	var rows: Array = []
 	if _view == View.PLAYING:
+		rows.append(["zen_continue", "continue from a pause marker"])
 		rows.append(["zen_restart", "restart the animation"])
 		var n := _signal_count()
 		if n > 0: rows.append(["1" if n == 1 else "1-%d" % n, "fire signal (%s)" % ", ".join(_playing.bus().names())])
@@ -873,7 +869,9 @@ func _update_status() -> void:
 	var extra := ""
 	if bus != null and bus.is_running(): extra = "   [signal]"
 	elif bus != null and bus.is_holding(): extra = "   [signal end]"
-	elif _playing.held_pause >= 0: extra = "   [paused]"
+	elif _playing.held_pause >= 0: extra = "   [paused - SPACE to continue]"
+	if _view == View.PLAYING and _hint_paused != (_playing.held_pause >= 0):
+		_show_playing(_title.text)
 
 	# A one-shot pauses on its last frame (ZenCanvas._process), which in a
 	# GALLERY reads as "broken" rather than "finished" - the previous behaviour
@@ -955,6 +953,12 @@ func _unhandled_input(ev: InputEvent) -> void:
 		if _view in [View.GALLERY, View.PLAYING]:
 			_toggle("loop")
 			get_viewport().set_input_as_handled()
+	elif ev.is_action_pressed("zen_continue") and _view == View.PLAYING \
+			and _playing != null and _playing.held_pause >= 0:
+		# Before zen_play: SPACE is bound to both, and plays from the list.
+		_playing.release_pause()
+		_update_status()
+		get_viewport().set_input_as_handled()
 	elif ev.is_action_pressed("zen_play"):
 		if _view == View.GALLERY:
 			if _section == Section.ASSETS: _open_shape_editor()

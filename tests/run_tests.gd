@@ -37,7 +37,6 @@ func _init() -> void:
 func _run() -> void:
     test_easing_against_godot()
     test_custom_curve()
-    test_sampler()
     test_export_plan()
     test_cfg_parse()
     test_real_cfgs()
@@ -49,6 +48,11 @@ func _run() -> void:
     test_loop_seam_closes()
     test_seam_open_without_blend()
     test_stepped_never_blends()
+    test_anim_player_tracks()
+    test_anim_player_roundtrip()
+    test_bake_accuracy()
+    test_signal_capture_segment()
+    await test_release_pause_keeps_section()
     await test_canvas_clock()
     test_canvas_pauses()
     test_pause_across_wrap()
@@ -64,7 +68,6 @@ func _run() -> void:
     test_ffmpeg_args_per_format()
     await test_job_cancel_png()
     test_props_registry_agrees()
-    test_blend_keyed()
     test_signal_u_normalization()
     test_signal_no_start()
     test_signal_seq_offset()
@@ -90,7 +93,6 @@ func _run() -> void:
     test_signal_export_purity()
     await test_anim_player_plays()
     test_anim_player_markers()
-    test_anim_player_mirrors_keys()
     test_input_actions_declared()
     await test_section_loops_into_body()
     test_seek_stays_in_section()
@@ -110,41 +112,6 @@ func _run() -> void:
     quit(1 if fails > 0 else 0)
 
 
-## BlendKeyed (anim.c:1570-1584), the shared primitive under the pos-param
-## bindings and the seq envelope. Three edges carry the behaviour.
-func test_blend_keyed() -> void:
-    var keys := [{"t": 0.5, "v": 10.0, "ease": "linear"},
-                 {"t": 1.0, "v": 20.0, "ease": "linear"}]
-
-    # No keys at all: the implicit u=0 anchor is the answer.
-    check_near(ZenSignalPlayer._keyed(7.0, [], 0.5), 7.0, "blend_keyed no keys = anchor")
-
-    # Before the first key it eases FROM the anchor, so u=0 IS the anchor and
-    # u=0.25 is half way from the anchor to the first key.
-    check_near(ZenSignalPlayer._keyed(0.0, keys, 0.0), 0.0, "blend_keyed u=0 = anchor")
-    check_near(ZenSignalPlayer._keyed(0.0, keys, 0.25), 5.0, "blend_keyed eases from anchor")
-    check_near(ZenSignalPlayer._keyed(0.0, keys, 0.5), 10.0, "blend_keyed hits first key")
-
-    # Between keys.
-    check_near(ZenSignalPlayer._keyed(0.0, keys, 0.75), 15.0, "blend_keyed mid segment")
-
-    # Past the last key it HOLDS - it does not keep extrapolating, which is
-    # what makes a finished signal sit still on its final pose.
-    check_near(ZenSignalPlayer._keyed(0.0, keys, 1.0), 20.0, "blend_keyed at last key")
-    check_near(ZenSignalPlayer._keyed(0.0, keys, 5.0), 20.0, "blend_keyed past end holds")
-
-    # Easing is INCOMING: the segment uses the RIGHT key's ease. quadIn at the
-    # half-way point of the first segment is 0.25, not 0.5.
-    var eased := [{"t": 1.0, "v": 100.0, "ease": "quadIn"}]
-    check_near(ZenSignalPlayer._keyed(0.0, eased, 0.5), 25.0,
-               "blend_keyed uses the INCOMING (right-hand) ease")
-
-    # A degenerate segment snaps rather than dividing by zero.
-    var dup := [{"t": 0.5, "v": 3.0, "ease": "linear"},
-                {"t": 0.5, "v": 9.0, "ease": "linear"}]
-    check_near(ZenSignalPlayer._keyed(0.0, dup, 0.5), 9.0, "blend_keyed degenerate snaps")
-
-
 ## Signal key times are NORMALIZED u (0..1 of `length`), not seconds. Tested
 ## with a length that makes the confusion obvious: at t=1.5s of a 3.03s signal
 ## u is ~0.495, whereas reading the keys as seconds would give a wildly
@@ -158,7 +125,7 @@ func test_signal_u_normalization() -> void:
                 "pos_params": [], "seq_mult": 0.0, "uses_seq": false,
                 "seq_targets": [], "seq_keys": []}
     var cap := func(_e: String, _pr: String) -> Variant: return 0.0
-    p.start(sig, {}, 0, cap)
+    _start(p, sig, {}, 0, cap)
     check(p.playing, "signal with a target plays")
     check_near(p.u(), 0.0, "u starts at 0")
     p.update(1.5157)
@@ -174,7 +141,7 @@ func test_signal_u_normalization() -> void:
     var inst := sig.duplicate(true)
     inst["length"] = 0.0
     var q := ZenSignalPlayer.new()
-    q.start(inst, {}, 0, cap)
+    _start(q, inst, {}, 0, cap)
     check_near(q.u(), 1.0, "length=0 snaps u to 1")
     check_near(float(q.eval("a", "alpha")), 1.0, "length=0 lands on the final key")
     q.update(0.016)
@@ -189,7 +156,7 @@ func test_signal_no_start() -> void:
                   "seq_targets": [], "seq_keys": [], "uses_seq": false,
                   "seq_mult": 0.0, "uses_pos": false, "pos_anchor": false}
     var p := ZenSignalPlayer.new()
-    p.start(empty, {}, 0, func(_e, _pr): return 0.0)
+    _start(p, empty, {}, 0, func(_e, _pr): return 0.0)
     check(not p.playing, "a signal with no targets/posparams/seqtargets never starts")
     check(p.is_done(), "and reports done immediately")
     check(p.eval("shape", "pos_x") == null, "an unstarted signal drives nothing")
@@ -199,13 +166,13 @@ func test_signal_no_start() -> void:
     only_pos["uses_pos"] = true
     only_pos["pos_params"] = [{"elem": "shape", "slot": 0, "keys": []}]
     var q := ZenSignalPlayer.new()
-    q.start(only_pos, {"pos": Vector2(0.5, 0.5)}, 0, func(_e, _pr): return 0.0)
+    _start(q, only_pos, {"pos": Vector2(0.5, 0.5)}, 0, func(_e, _pr): return 0.0)
     check(q.playing, "posparams alone are enough to start")
 
     var only_seq: Dictionary = empty.duplicate(true)
     only_seq["seq_targets"] = [{"elem": "shape", "prop": "scale"}]
     var r := ZenSignalPlayer.new()
-    r.start(only_seq, {}, 0, func(_e, _pr): return 0.0)
+    _start(r, only_seq, {}, 0, func(_e, _pr): return 0.0)
     check(r.playing, "seqtargets alone are enough to start")
 
 
@@ -218,7 +185,7 @@ func test_signal_seq_offset() -> void:
     var cap := func(_e, _pr): return 0.0
 
     var p := ZenSignalPlayer.new()
-    p.start(sig, {}, 3, cap)
+    _start(p, sig, {}, 3, cap)
     check_near(p.seq_offset("shape", "scale"), 0.0, "seq env starts at 0")
     p.update(1.0)
     check_near(p.seq_offset("shape", "scale"), 3.0 * 0.5 * 0.5, "seq = seq*mult*env(u)")
@@ -227,7 +194,7 @@ func test_signal_seq_offset() -> void:
 
     # seq 0 means "not sequenced" and must contribute nothing at all.
     var q := ZenSignalPlayer.new()
-    q.start(sig, {}, 0, cap)
+    _start(q, sig, {}, 0, cap)
     q.update(1.0)
     check_near(q.seq_offset("shape", "scale"), 0.0, "seq index 0 contributes nothing")
 
@@ -235,7 +202,7 @@ func test_signal_seq_offset() -> void:
     var flat: Dictionary = sig.duplicate(true)
     flat["seq_keys"] = []
     var r := ZenSignalPlayer.new()
-    r.start(flat, {}, 2, cap)
+    _start(r, flat, {}, 2, cap)
     check_near(r.seq_offset("shape", "scale"), 1.0, "no env keys = constant full offset")
 
 
@@ -340,56 +307,6 @@ func test_custom_curve() -> void:
     for i in 101:
         var v := c.sample(float(i) / 100.0)
         check(is_finite(v), "custom finite at p=%.2f" % (float(i) / 100.0))
-
-
-## Track evaluation: clamping, incoming easing, stepped props.
-func test_sampler() -> void:
-    var keys := [
-        {"t": 0.0, "v": 0.0, "ease": "linear"},
-        {"t": 1.0, "v": 10.0, "ease": "quadIn"},
-        {"t": 2.0, "v": 20.0, "ease": "linear"},
-    ]
-    # Clamp before first / after last (AnimTrackSegment).
-    check_near(ZenSampler.eval(keys, -5.0), 0.0, "clamp before first key")
-    check_near(ZenSampler.eval(keys, 99.0), 20.0, "clamp after last key (hold)")
-    check_near(ZenSampler.eval(keys, 0.0), 0.0, "exactly on first key")
-    check_near(ZenSampler.eval(keys, 2.0), 20.0, "exactly on last key")
-    # INCOMING ease: the segment 0->1 is eased by key[1].ease (quadIn), so at
-    # the midpoint the value is 10*quadIn(0.5) = 10*0.25 = 2.5, NOT 5.
-    check_near(ZenSampler.eval(keys, 0.5), 2.5, "incoming ease (quadIn on right key)")
-    # The 1->2 segment uses key[2].ease (linear) -> plain midpoint.
-    check_near(ZenSampler.eval(keys, 1.5), 15.0, "linear segment midpoint")
-    # Stepped: hold the left value until the right key is reached.
-    check_near(ZenSampler.eval(keys, 0.5, true), 0.0, "stepped holds left")
-    check_near(ZenSampler.eval(keys, 1.0, true), 10.0, "stepped takes right at key")
-    # Single key -> that value everywhere.
-    check_near(ZenSampler.eval([{"t": 3.0, "v": 7.0, "ease": "linear"}], 0.0), 7.0,
-               "single key is constant")
-    # Empty track -> the supplied fallback (the element's base pose).
-    check_near(ZenSampler.eval([], 1.0, false, 42.0), 42.0, "empty track -> base")
-    # Zero-span segment steps instantly: SegmentFraction divides by a zero span
-    # and returns p=1.0, so the right value lands immediately. zooming_box.cfg's
-    # TV-out signal relies on this (two keys at an identical u=0.457965).
-    # Note the duplicate pair must be INTERIOR: a duplicate at the very start
-    # hits AnimTrackSegment's `t <= keys[0].t` clamp first and yields the LEFT
-    # value - verified against the C, which returns 5.0 for that case.
-    var dup := [
-        {"t": 0.0, "v": 0.0, "ease": "linear"},
-        {"t": 1.0, "v": 5.0, "ease": "linear"},
-        {"t": 1.0, "v": 9.0, "ease": "linear"},
-        {"t": 2.0, "v": 9.0, "ease": "linear"},
-    ]
-    # Verified against the C: exactly ON the duplicate time the LEFT value still
-    # shows (the scan stops at the first key with t <= keys[i].t); the step to
-    # the right value happens immediately after. Both sides are asserted so a
-    # future refactor cannot silently move the step by one key.
-    check_near(ZenSampler.eval(dup, 1.0), 5.0, "interior dup at t -> left value")
-    check_near(ZenSampler.eval(dup, 1.0001), 9.0, "interior dup just past t -> right value")
-    var head := [
-        {"t": 1.0, "v": 5.0, "ease": "linear"},
-        {"t": 1.0, "v": 9.0, "ease": "linear"},
-    ]
-    check_near(ZenSampler.eval(head, 1.0), 5.0, "duplicate at head clamps left (matches C)")
 
 
 ## Export frame planning: the outro is always trimmed, the intro is optional,
@@ -880,6 +797,7 @@ func test_stepped_never_blends() -> void:
     el.tracks = {"string": [
         {"t": 0.0, "v": 0.0, "ease": "linear"},
         {"t": 2.0, "v": 7.0, "ease": "linear"}]}
+    ZenAnimBuilder.install(c)
 
     ZenElement.blend_begin(c, true)
     # At the loop end the blend weight is 1, so a blended read would return 0.
@@ -905,6 +823,7 @@ func test_canvas_clock() -> void:
     c.duration = 2.0
     c.outro_start = 2.0
     c.loop_play = true
+    ZenAnimBuilder.install(c)
     root.add_child(c)
     await process_frame
     var ap := c.animation_player()
@@ -921,6 +840,7 @@ func test_canvas_clock() -> void:
     c2.duration = 2.0
     c2.outro_start = 2.0
     c2.loop_play = false
+    ZenAnimBuilder.install(c2)
     root.add_child(c2)
     await process_frame
     var ap2 := c2.animation_player()
@@ -939,6 +859,12 @@ func test_canvas_clock() -> void:
 ## through advance_pauses(t0,t1) directly - the pure helper the old
 ## ZenPlayer.advance() folded the same check into, now unit-testable without a
 ## live clock.
+## Start a bare player on a signal baked straight from its dictionary.
+func _start(pl: ZenSignalPlayer, sig: Dictionary, params: Dictionary, seq: int,
+            capture: Callable) -> void:
+    pl.start(sig, params, seq, capture, ZenTimeline.new(ZenAnimBuilder.bake_signal(sig)))
+
+
 func test_canvas_pauses() -> void:
     var c := ZenCanvas.new()
     c.duration = 3.0
@@ -1058,6 +984,7 @@ func test_canvas_idle_until_played() -> void:
     c.duration = 2.0
     c.outro_start = 2.0
     c.live_playback = false
+    ZenAnimBuilder.install(c)
     root.add_child(c)
     await process_frame
     check(c.animation_player() == null, "live_playback=false builds no AnimationPlayer")
@@ -1360,6 +1287,7 @@ func _sig_canvas(sig: Dictionary) -> ZenCanvas:
     bus.name = "Signals"
     bus.signals_data = [sig]
     canvas.add_child(bus)
+    ZenAnimBuilder.install(canvas)
     return canvas
 
 
@@ -2043,17 +1971,25 @@ func test_anim_player_plays() -> void:
     pm.queue_free()
 
 
-## intro_end / outro_start must reach the timeline as markers, and come back
-## when dragged. They are the document's own clock fields, not decoration.
+## The saved scene's AnimationPlayer "zen" animation.
+func _zen_anim(c: ZenCanvas) -> Animation:
+    return ZenAnimBuilder.find_player(c).get_animation(ZenAnimBuilder.ANIM)
+
+
+## intro_end / outro_start / pauses are markers in the SAVED animation, and the
+## canvas reads them back (also when they are dragged in Godot's panel).
 func test_anim_player_markers() -> void:
     var canvas: ZenCanvas = (load("res://anims/main_menu.tscn") as PackedScene).instantiate()
     canvas.live_playback = false
-    var anim := ZenAnimBuilder.build(canvas, true)
+    check(ZenAnimBuilder.find_player(canvas) != null, "the scene carries its AnimationPlayer")
+    var anim := _zen_anim(canvas)
     var names: PackedStringArray = anim.get_marker_names()
     check(names.has(ZenAnimBuilder.M_INTRO), "intro_end reaches the timeline as a marker")
     check(names.has(ZenAnimBuilder.M_OUTRO), "outro_start reaches the timeline as a marker")
     check(is_equal_approx(anim.get_marker_time(ZenAnimBuilder.M_INTRO), canvas.intro_end),
           "the intro marker carries the authored time")
+    check(is_equal_approx(anim.length, canvas.duration),
+          "duration comes from the animation length (%.3f)" % canvas.duration)
 
     # Dragging a marker edits the document.
     anim.remove_marker(ZenAnimBuilder.M_INTRO)
@@ -2062,43 +1998,39 @@ func test_anim_player_markers() -> void:
     check(is_equal_approx(canvas.intro_end, 0.9),
           "and writes back to intro_end (%.4f)" % canvas.intro_end)
 
-    # A 0 is ABSENT, not a marker at the origin - else every document would show
-    # a spurious intro_end pinned to the left edge.
+    # A 0 is ABSENT, not a marker at the origin.
     var ripple: ZenCanvas = (load("res://anims/mouse_ripple.tscn") as PackedScene).instantiate()
     ripple.live_playback = false
-    var a2 := ZenAnimBuilder.build(ripple, false)
-    check(not a2.get_marker_names().has(ZenAnimBuilder.M_INTRO),
+    check(not _zen_anim(ripple).get_marker_names().has(ZenAnimBuilder.M_INTRO),
           "intro_end 0 means no marker at all")
-    canvas.queue_free()
-    ripple.queue_free()
+
+    # Pause markers: pause_N[_once], read back in time order.
+    var pg: ZenCanvas = (load("res://anims/ma_prog_01.tscn") as PackedScene).instantiate()
+    check(pg.pauses.size() == 4, "ma_prog_01's four pauses come back from markers (%d)" % pg.pauses.size())
+    var pa := _zen_anim(pg)
+    var first_t := float(pg.pauses[0]["t"])
+    for nm in pa.get_marker_names():
+        if String(nm).begins_with(ZenAnimBuilder.M_PAUSE) and is_equal_approx(pa.get_marker_time(nm), first_t):
+            pa.remove_marker(nm)
+            pa.add_marker(String(nm), first_t + 0.25)
+    ZenAnimBuilder.sync_markers(pa, pg)
+    check(is_equal_approx(float(pg.pauses[0]["t"]), first_t + 0.25) or float(pg.pauses[0]["t"]) > first_t,
+          "moving a pause marker moves the pause")
+    var asc := true
+    for i in range(1, pg.pauses.size()):
+        if float(pg.pauses[i]["t"]) < float(pg.pauses[i - 1]["t"]): asc = false
+    check(asc, "pauses stay ascending")
+    canvas.free()
+    ripple.free()
+    pg.free()
 
 
-## Key mirroring is the groundwork for the authoring tool: every Zen track must
-## become a real, visible Godot track, and survive the round trip back.
-func test_anim_player_mirrors_keys() -> void:
-    var canvas: ZenCanvas = (load("res://anims/main_menu.tscn") as PackedScene).instantiate()
-    canvas.live_playback = false
-    root.add_child(canvas)
-    var anim := ZenAnimBuilder.build(canvas, true)
-    var n := ZenAnimBuilder.populate_keys(anim, canvas)
-    check(n > 0, "tracks are mirrored onto the Animation (%d)" % n)
-
-    # Count the non-empty Zen tracks; every one must appear.
-    var want := 0
-    for e in canvas.elements():
-        for prop in (e as ZenElement).tracks:
-            if not (e as ZenElement).tracks[prop].is_empty(): want += 1
-    check(n == want, "every non-empty Zen track is mirrored (%d of %d)" % [n, want])
-
-    # A stepped prop must never interpolate - a value between two pool entries
-    # resolves to the wrong entry entirely.
-    #
-    # Built by hand because NO bundled document carries a stepped track: walking
-    # main_menu's tracks made this assertion vacuously true, and it passed with
-    # the interpolation forced to LINEAR. Verified to fail now.
-    var stepped_canvas := ZenCanvas.new()
-    stepped_canvas.live_playback = false
-    stepped_canvas.duration = 2.0
+## What is in the AnimationPlayer is what plays: tracks have the right type,
+## stepped props never interpolate, and editing a key changes the pose.
+func test_anim_player_tracks() -> void:
+    var c := ZenCanvas.new()
+    c.live_playback = false
+    c.duration = 2.0
     var txt := ZenText.new()
     txt.name = "stepped_text"
     txt.elem_name = "stepped_text"
@@ -2106,44 +2038,129 @@ func test_anim_player_mirrors_keys() -> void:
         "string": [{"t": 0.0, "v": 0.0, "ease": "linear"},
                    {"t": 1.0, "v": 3.0, "ease": "linear"}],
         "alpha":  [{"t": 0.0, "v": 0.0, "ease": "linear"},
-                   {"t": 1.0, "v": 1.0, "ease": "linear"}],
+                   {"t": 1.0, "v": 1.0, "ease": "cubicIn"}],
+        "color":  [{"t": 0.0, "c": Color(1, 0, 0), "ease": "linear"},
+                   {"t": 1.0, "c": Color(0, 0, 1), "ease": "linear"}],
     }
-    stepped_canvas.add_child(txt)
-    var sanim := ZenAnimBuilder.build(stepped_canvas, false)
-    ZenAnimBuilder.populate_keys(sanim, stepped_canvas)
-    var saw_stepped := false
-    var stepped_ok := true
-    var smooth_ok := false
-    for ti in sanim.get_track_count():
-        if sanim.track_get_type(ti) != Animation.TYPE_VALUE: continue
-        var pr := String(sanim.track_get_path(ti).get_concatenated_subnames())
-        var it := sanim.track_get_interpolation_type(ti)
-        if ZenProps.is_stepped(pr):
-            saw_stepped = true
-            if it != Animation.INTERPOLATION_NEAREST: stepped_ok = false
-        elif pr == "alpha":
-            smooth_ok = it == Animation.INTERPOLATION_LINEAR
-    check(saw_stepped, "the stepped track was actually mirrored (else the next check is vacuous)")
-    check(stepped_ok, "stepped props are mirrored as NEAREST, never interpolated")
-    check(smooth_ok, "and an ordinary prop beside it still interpolates LINEAR")
-    stepped_canvas.queue_free()
+    c.add_child(txt)
+    txt.owner = c
+    ZenAnimBuilder.install(c)
+    var anim := _zen_anim(c)
+    var seen := {}
+    for ti in anim.get_track_count():
+        seen[String(anim.track_get_path(ti))] = anim.track_get_type(ti)
+    check(seen.get("stepped_text:string") == Animation.TYPE_VALUE, "stepped prop is a value track")
+    var ti_s := anim.find_track(NodePath("stepped_text:string"), Animation.TYPE_VALUE)
+    check(anim.track_get_interpolation_type(ti_s) == Animation.INTERPOLATION_NEAREST,
+          "stepped props are NEAREST, never interpolated")
+    check(seen.get("stepped_text:alpha") == Animation.TYPE_BEZIER, "alpha is a bezier track")
+    check(seen.has("stepped_text:color:r") and seen.has("stepped_text:color:b"),
+          "colour is split per channel")
 
-    # Round trip: read the mirrored tracks back and the key times must survive,
-    # each keeping its authored ease.
-    var title: ZenElement = null
-    for e in canvas.elements():
-        if (e as ZenElement).elem_name == "title": title = e
-    var before: Array = (title.tracks.get("pos_x", []) as Array).duplicate(true)
-    ZenAnimBuilder.sync_from_keys(anim, canvas)
-    var after: Array = title.tracks.get("pos_x", [])
-    check(before.size() == after.size(),
-          "a round trip preserves the key count (%d -> %d)" % [before.size(), after.size()])
-    var same := true
-    for i in mini(before.size(), after.size()):
-        if not is_equal_approx(float(before[i]["t"]), float(after[i]["t"])): same = false
-        if String(before[i].get("ease","")) != String(after[i].get("ease","")): same = false
-    check(same, "and preserves each key's time and authored ease")
-    canvas.queue_free()
+    var tl := c.timeline()
+    check_near(tl.stepped("stepped_text:string", 0.5, 0.0), 0.0, "stepped holds the left key")
+    check_near(tl.stepped("stepped_text:string", 1.0, 0.0), 3.0, "stepped takes the key at its time")
+    check_near(tl.scalar("stepped_text:alpha", 0.5, 0.0), 0.125, "cubicIn baked into the curve", 0.002)
+    check_near(tl.color("stepped_text:color", 0.5, Color.BLACK, 1.0).r, 0.5, "colour channel interpolates")
+
+    # Editing a key in the saved Animation changes what plays.
+    c.pose(0.5)
+    var before := txt.prop("alpha", 0.5, 0.0)
+    var ti_a := anim.find_track(NodePath("stepped_text:alpha"), Animation.TYPE_BEZIER)
+    anim.bezier_track_set_key_value(ti_a, 1, 0.0)
+    anim.bezier_track_set_key_in_handle(ti_a, 1, Vector2(-1.0 / 3.0, 0.0))
+    anim.bezier_track_set_key_out_handle(ti_a, 0, Vector2(1.0 / 3.0, 0.0))
+    c.timeline_dirty()
+    check(txt.prop("alpha", 0.5, 0.0) < before - 0.05,
+          "editing a key in the AnimationPlayer changes the pose")
+    c.free()
+
+
+## pack -> instantiate keeps every curve.
+func test_anim_player_roundtrip() -> void:
+    var c: ZenCanvas = (load("res://anims/main_menu.tscn") as PackedScene).instantiate()
+    c.live_playback = false
+    var packed := PackedScene.new()
+    for n in c.get_children(): n.owner = c
+    check(packed.pack(c) == OK, "scene packs")
+    var d: ZenCanvas = packed.instantiate()
+    d.live_playback = false
+    var worst := 0.0
+    for t in [0.0, 0.7, 1.4, 2.2, 3.0]:
+        c.pose(t)
+        d.pose(t)
+        var ea := c.elements()
+        var eb := d.elements()
+        for i in ea.size():
+            for p in ZenProps.scalars_for((ea[i] as ZenElement).zen_kind()):
+                worst = maxf(worst, absf((ea[i] as ZenElement).prop(p, t, 0.0) - (eb[i] as ZenElement).prop(p, t, 0.0)))
+    check(worst < 1e-6, "a round-tripped scene poses identically (%s)" % snappedf(worst, 1e-9))
+    check(is_equal_approx(c.duration, d.duration), "and keeps the clock")
+    c.free()
+    d.free()
+
+
+## Every built-in ease bakes within tolerance; the polynomial ones near exactly.
+func test_bake_accuracy() -> void:
+    var worst_all := 0.0
+    var worst_exact := 0.0
+    for nm in ZenEasing.GODOT_EASE.keys():
+        var anim := Animation.new()
+        anim.length = 5.0
+        var tr := anim.add_track(Animation.TYPE_BEZIER)
+        for k in ZenCurveBake.bake([{"t": 1.0, "v": 10.0, "ease": "linear"},
+                                    {"t": 3.0, "v": 50.0, "ease": nm}]):
+            anim.bezier_track_insert_key(tr, k["t"], k["v"], k["in"], k["out"])
+        var m := 0.0
+        for i in 201:
+            var sx := i / 200.0
+            m = maxf(m, absf(anim.bezier_track_interpolate(tr, 1.0 + 2.0 * sx)
+                - (10.0 + 40.0 * ZenEasing.apply(nm, sx))) / 40.0)
+        worst_all = maxf(worst_all, m)
+        if ["linear", "quadIn", "quadOut", "cubicIn", "cubicOut", "backIn", "backOut"].has(nm):
+            worst_exact = maxf(worst_exact, m)
+    check(worst_all < 1.5e-3, "every built-in ease bakes within 1.5e-3 (%s)" % snappedf(worst_all, 1e-9))
+    check(worst_exact < 3e-4, "polynomial eases bake near-exactly (%s)" % snappedf(worst_exact, 1e-9))
+
+
+## A signal's capture segment: the baked placeholder maps onto the live value.
+func test_signal_capture_segment() -> void:
+    var sig := {"name": "go", "length": 1.0, "targets": [
+        {"elem": "x", "prop": "w", "keys": [{"t": 0.5, "v": 10.0, "ease": "backOut"}]}]}
+    var tl := ZenTimeline.new(ZenAnimBuilder.bake_signal(sig))
+    for v0 in [0.0, 4.0, -3.0, 10.0]:
+        for u in [0.0, 0.1, 0.25, 0.4, 0.5, 0.8, 1.0]:
+            var want: float = 10.0 if u >= 0.5 else \
+                v0 + (10.0 - v0) * ZenEasing.apply("backOut", u / 0.5)
+            check_near(tl.blend("x:w", u, v0), want, "capture segment v0=%s u=%s" % [v0, u], 0.02)
+    # A track with a key at u=0 has no capture: it ignores the live value.
+    var flat := {"name": "f", "length": 1.0, "targets": [
+        {"elem": "x", "prop": "w", "keys": [{"t": 0.0, "v": 2.0, "ease": "linear"},
+                                            {"t": 1.0, "v": 6.0, "ease": "linear"}]}]}
+    var ft := ZenTimeline.new(ZenAnimBuilder.bake_signal(flat))
+    check_near(ft.blend("x:w", 0.5, 99.0), 4.0, "keys from u=0 ignore the live value", 0.01)
+    check_near(ft.blend("x:w", 3.0, 99.0), 6.0, "past the last key holds")
+
+
+## SPACE's job: release a held pause and keep playing INSIDE the section.
+func test_release_pause_keeps_section() -> void:
+    var c: ZenCanvas = (load("res://anims/ma_prog_01.tscn") as PackedScene).instantiate()
+    c.loop_smooth = false
+    root.add_child(c)
+    await process_frame
+    c.setup_animation_player(true)
+    var ap := c.animation_player()
+    c.held_pause = 0
+    ap.seek(float(c.pauses[0]["t"]), true)
+    ap.pause()
+    c.pose(float(c.pauses[0]["t"]))
+    c.release_pause()
+    check(c.held_pause < 0, "release clears the hold")
+    check(ap.has_section(), "the section survives the release")
+    check(ap.is_playing(), "and playback resumes")
+    check(ap.current_animation_position >= float(c.pauses[0]["t"]) - 0.05,
+          "resumes at the marker, not at 0 (%.3f)" % ap.current_animation_position)
+    c.queue_free()
 
 
 ## Generated by tools/gen_input_map.gd into project.godot's [input] section.
@@ -2289,6 +2306,7 @@ func test_seek_stays_in_section() -> void:
     c.intro_end = 0.5
     c.outro_start = 2.0
     c.loop_play = true
+    ZenAnimBuilder.install(c)
     root.add_child(c)
     for _i in 2: await process_frame
     var ap := c.animation_player()
@@ -2313,6 +2331,7 @@ func test_loop_play_separate_from_smooth() -> void:
     c.loop_play = true
     c.loop_smooth = false
     c.loop_blend = 0.5
+    ZenAnimBuilder.install(c)
     root.add_child(c)
     await process_frame
     var ap := c.animation_player()
@@ -2333,6 +2352,7 @@ func test_viewer_intro_loop_toggles() -> void:
     c.outro_start = 2.0
     c.loop_play = true
     c.play_intro = false
+    ZenAnimBuilder.install(c)
     root.add_child(c)
     await process_frame
     var ap := c.animation_player()
@@ -2347,6 +2367,7 @@ func test_viewer_intro_loop_toggles() -> void:
     d.outro_start = 2.0
     d.loop_play = true
     d.play_loop = false
+    ZenAnimBuilder.install(d)
     root.add_child(d)
     await process_frame
     var ap2 := d.animation_player()
@@ -2427,7 +2448,12 @@ func test_custom_shape_resolution() -> void:
     if icon != null:
         check(icon.shape_name == "ai_icon_128" and icon.shape != null, "shape_name resolves to an asset")
         check(icon.shape_refs.size() >= 1, "shape_ref lines resolve into shape_refs")
-        var keys: Array = icon.tracks.get("shape_id", [])
+        var sanim := _zen_anim(c)
+        var sti := sanim.find_track(NodePath("%s:shape_id" % icon.name), Animation.TYPE_VALUE)
+        var keys: Array = []
+        for ki in sanim.track_get_key_count(sti) if sti >= 0 else 0:
+            keys.append({"t": sanim.track_get_key_time(sti, ki),
+                         "v": float(sanim.track_get_key_value(sti, ki))})
         var ok := not keys.is_empty()
         for k in keys:
             var v := float(k["v"])
@@ -2442,10 +2468,13 @@ func test_custom_shape_resolution() -> void:
     var m := ZenShape.new()
     m.shape_kind = ZenShape.Kind.CUSTOM
     check(m.shape_at(0.0) == null, "no shape: shape_at is null (placeholder)")
+    var mc := ZenCanvas.new()
+    mc.add_child(m)
     m.tracks = {"shape_id": [{"t": 0.0, "v": ZenShape.SHAPE_MISSING, "ease": "linear"}]}
+    ZenAnimBuilder.install(mc)
     m.shape = ZenPixelShape.new()
     check(m.shape_at(0.0) == null, "SHAPE_MISSING key draws the placeholder even with a rest shape")
-    m.free()
+    mc.free()
 
 
 ## Options: default pinned first, families A-Z case-insensitively, deduped;

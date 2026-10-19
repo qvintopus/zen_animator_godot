@@ -10,15 +10,18 @@ extends RefCounted
 ## pose is the IMPLICIT KEY AT u=0, and it is the whole reason a signal reads as
 ## a transition rather than a jump.
 ##
-## A RefCounted, like ZenSampler and ZenEasing: it is a value owned by the bus,
-## with no business in the scene tree.
+## A RefCounted, like ZenEasing: it is a value owned by the bus, with no
+## business in the scene tree.
+##
+## Its keys are NOT in the signal Dictionary: they are tracks of the signal's
+## Animation in the scene's AnimationPlayer, sampled through a ZenTimeline (see
+## ZenAnimBuilder for the track paths and ZenTimeline for the capture rule).
 ##
 ## TWO THINGS THAT LOOK LIKE BUGS AND ARE NOT:
 ##
-##   - Key times are NORMALIZED u in 0..1 of `length`, NOT seconds, even though
-##     the key dictionaries are structurally identical to timeline keys (anim.h
-##     :365). `length <= 0` means "instant": u snaps to 1 and the signal lands
-##     on its final key. Never hand these keys to ZenSampler.
+##   - Authored key times are NORMALIZED u in 0..1 of `length`; in the Animation
+##     they sit at u * length seconds. `length <= 0` means "instant": u snaps
+##     to 1 and the signal lands on its final key.
 ##   - eval() returns a Variant, null meaning "not driven". The C uses an
 ##     out-param plus a bool because EVERY float is a legal property value, so
 ##     no sentinel float can mean "no". Same reason here.
@@ -46,6 +49,10 @@ var _from_color: Array = []
 ## The captured live geometry, by pos-param index:
 ## {"px","py","w","h","scale","corner"}.
 var _from_pose: Array = []
+## The signal's Animation, sampled, and the elem/prop -> node-name resolver
+## its track paths were baked with.
+var _tl: ZenTimeline = null
+var _node_of := Callable()
 ## One warning per player for the deferred corner branch, not one per frame.
 var _warned_corner := false
 
@@ -72,9 +79,13 @@ func u() -> float:
 ## The capture MUST read the plain path, with no override installed: a signal
 ## captures the timeline pose and must never sample a previous signal's
 ## override, or re-firing mid-flight would compound (anim.c:1522-1524).
+##
+## `tl` is the signal's timeline (its Animation in the scene's AnimationPlayer).
 func start(signal_data: Dictionary, p: Dictionary, seq_index: int,
-           capture: Callable) -> void:
+           capture: Callable, tl: ZenTimeline, node_of := Callable()) -> void:
     sig = signal_data
+    _node_of = node_of
+    _tl = tl
     clock = 0.0
     playing = false
     held = false
@@ -160,11 +171,11 @@ func eval(elem: String, prop: String) -> Variant:
 
     var i := _target_index(elem, prop)
     if i < 0: return null
-    var keys: Array = sig["targets"][i]["keys"]
-    # A target with no keys has nothing to drive it with: NOT driven, so the
+    # A target with no track has nothing to drive it with: NOT driven, so the
     # plain track (and the loop blend) stay in charge (anim.c:1687).
-    if keys.is_empty(): return null
-    return _keyed(float(_from_value[i]), keys, u())
+    var path := _path(elem, prop)
+    if not _tl.has(path): return null
+    return _tl.blend(path, _t(), float(_from_value[i]))
 
 
 ## The colour this signal drives, or null. `alpha` is supplied by the caller
@@ -174,9 +185,9 @@ func eval_color(elem: String, prop: String, alpha: float) -> Variant:
     if not is_overriding(): return null
     var i := _target_index(elem, prop)
     if i < 0: return null
-    var keys: Array = sig["targets"][i]["keys"]
-    if keys.is_empty(): return null
-    var c: Color = _keyed_color(_from_color[i], keys, u())
+    var path := _path(elem, prop)
+    if not _tl.has_color(path): return null
+    var c: Color = _tl.blend_color(path, _t(), _from_color[i])
     return Color(c.r, c.g, c.b, alpha)
 
 
@@ -197,9 +208,9 @@ func seq_offset(elem: String, prop: String) -> float:
     if not matched: return 0.0
 
     var env := 1.0
-    var keys: Array = sig.get("seq_keys", [])
-    if not keys.is_empty():
-        env = _keyed(0.0, keys, u())
+    var seq_path := "%s:%s" % [ZenAnimBuilder.SEQ_NODE, ZenAnimBuilder.SEQ_PROP]
+    if _tl.has(seq_path):
+        env = _tl.scalar(seq_path, _t(), 0.0)
     return float(seq) * mult * env
 
 
@@ -282,69 +293,25 @@ func _pos_param_eval(elem: String, prop: String) -> Variant:
 
     var fp: Dictionary = _from_pose[i_center]
     var live := float(fp["px"]) if prop == "pos_x" else float(fp["py"])
-    return _pos_binding_point(i_center, live, prop == "pos_x", u())
+    return _pos_binding_point(i_center, live, prop == "pos_x")
 
 
 ## The eased point a binding drives its centre to: each key's target is
 ## (emitted pos + the key's offset), blended from the live capture over u.
-func _pos_binding_point(i: int, live: float, is_x: bool, uu: float) -> float:
+func _pos_binding_point(i: int, live: float, is_x: bool) -> float:
     var pp: Dictionary = sig["pos_params"][i]
     var base := pos().x if is_x else pos().y
-    var keys: Array = []
-    for k in pp.get("keys", []):
-        var off: Vector2 = k["off"]
-        keys.append({"t": k["t"], "v": base + (off.x if is_x else off.y),
-                     "ease": k["ease"]})
-    return _keyed(live, keys, uu)
+    var node := String(_node_of.call(String(pp["elem"]), "pos_x")) \
+        if _node_of.is_valid() else String(pp["elem"])
+    var path := "%s:pos_offset_%d:%s" % [node, i, "x" if is_x else "y"]
+    return _tl.blend(path, _t(), live, base)
 
 
-## BlendKeyed (anim.c:1570-1584): blend from the implicit u=0 anchor `v0`
-## through `keys` at progress `uu`.
-##
-## Three edges, all load-bearing: no keys returns the anchor; past the last key
-## HOLDS it (it does not keep extrapolating); and before the first key it eases
-## from the anchor, using that key's own ease - because Zen easing is INCOMING,
-## easing the segment that ENDS at the key.
-static func _keyed(v0: float, keys: Array, uu: float) -> float:
-    var n := keys.size()
-    if n == 0: return v0
-    if uu >= float(keys[n - 1]["t"]): return float(keys[n - 1]["v"])
-
-    var at := 0.0
-    var av := v0
-    var k := 0
-    while k < n and uu > float(keys[k]["t"]):
-        k += 1
-    if k >= n: k = n - 1
-    var bt := float(keys[k]["t"])
-    var bv := float(keys[k]["v"])
-    if k > 0:
-        at = float(keys[k - 1]["t"])
-        av = float(keys[k - 1]["v"])
-    if bt <= at: return bv                        # degenerate segment: snap
-    var f := ZenEasing.apply(String(keys[k]["ease"]), (uu - at) / (bt - at))
-    return av + (bv - av) * f
+## Seconds into the signal's Animation: u * its length.
+func _t() -> float:
+    return u() * _tl.length()
 
 
-## The colour form. RGB only, and mixed through ZenElement._mix so a
-## half-blended channel lands on the same byte the C reference picked.
-static func _keyed_color(c0: Color, keys: Array, uu: float) -> Color:
-    var n := keys.size()
-    if n == 0: return c0
-    if uu >= float(keys[n - 1]["t"]): return keys[n - 1]["c"]
-
-    var at := 0.0
-    var av := c0
-    var k := 0
-    while k < n and uu > float(keys[k]["t"]):
-        k += 1
-    if k >= n: k = n - 1
-    var bt := float(keys[k]["t"])
-    var bv: Color = keys[k]["c"]
-    if k > 0:
-        at = float(keys[k - 1]["t"])
-        av = keys[k - 1]["c"]
-    if bt <= at: return bv
-    var f := ZenEasing.apply(String(keys[k]["ease"]), (uu - at) / (bt - at))
-    return Color(ZenElement._mix(av.r, bv.r, f), ZenElement._mix(av.g, bv.g, f),
-                 ZenElement._mix(av.b, bv.b, f), 1.0)
+func _path(elem: String, prop: String) -> String:
+    var node := String(_node_of.call(elem, prop)) if _node_of.is_valid() else elem
+    return "%s:%s" % [node, ZenProps.track_prop(prop)]

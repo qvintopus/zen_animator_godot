@@ -15,9 +15,9 @@ extends Node2D
 ##     they are scalars, because that is what keeps them stable when only the
 ##     width changes.
 ##
-## Tracks are stored as plain Arrays of {t, v, ease} (or {t, c, ease} for
-## colour) and evaluated by ZenSampler, NOT by Godot's interpolator - see the
-## header of zen_sampler.gd for why.
+## The keys live in the canvas's AnimationPlayer ("zen" animation) and are
+## sampled through ZenTimeline. `tracks` is only the INPUT the baker turns into
+## that animation (importer, tests); it is not saved with the scene.
 ##
 
 @export var elem_name := ""
@@ -33,14 +33,70 @@ extends Node2D
 ## corner).
 @export var corner_mode := false
 
-## prop name -> Array of key Dictionaries.
-@export var tracks: Dictionary = {}
+## prop name -> Array of key Dictionaries {t, v|c, ease}. Baker input only:
+## not exported, so the scene's one copy of the keys is the AnimationPlayer.
+## Call ZenAnimBuilder.install(canvas) after setting it.
+var tracks: Dictionary = {}
 
 var canvas: ZenCanvas = null
 
 
 func _ready() -> void:
     _find_canvas()
+
+
+# ---------------------------------------------------------------------------
+#  Animatable properties, for Godot's animation editor.
+#
+#  A track path `Node:prop` only resolves (and its key button only appears) if
+#  the node has that property. Zen's are resolved geometry, not Node2D fields,
+#  so they are declared here as EDITOR-only properties: never stored, and
+#  `_set` swallows the write because playback does not apply tracks to the node
+#  - it SAMPLES the Animation itself (ZenTimeline). In the editor a write means
+#  the author scrubbed or dragged a key, so the canvas re-poses.
+# ---------------------------------------------------------------------------
+const POS_OFFSETS := 3          ## pos_offset_0..2, a signal's binding slots
+
+
+func _get_property_list() -> Array[Dictionary]:
+    var out: Array[Dictionary] = []
+    for p in ZenProps.scalars_for(zen_kind()):
+        if not owns(p): continue
+        out.append({"name": ZenProps.track_prop(p), "type": TYPE_FLOAT,
+            "usage": PROPERTY_USAGE_EDITOR})
+    for p in ZenProps.colors_for(zen_kind()):
+        if not owns(p): continue
+        out.append({"name": p, "type": TYPE_COLOR, "usage": PROPERTY_USAGE_EDITOR})
+    for i in POS_OFFSETS:
+        out.append({"name": "pos_offset_%d" % i, "type": TYPE_VECTOR2,
+            "usage": PROPERTY_USAGE_EDITOR})
+    return out
+
+
+func _is_zen_prop(n: StringName) -> bool:
+    var s := String(n)
+    if s.begins_with("pos_offset_"): return true
+    var p := ZenProps.prop_of_track(s)
+    # Only the TRACK spelling: Node2D's own `scale` must reach the engine.
+    if ZenProps.track_prop(p) != s: return false
+    return owns(p) and (ZenProps.scalars_for(zen_kind()).has(p)
+        or ZenProps.colors_for(zen_kind()).has(p))
+
+
+func _get(n: StringName) -> Variant:
+    if not _is_zen_prop(n): return null
+    var s := String(n)
+    if s.begins_with("pos_offset_"): return Vector2.ZERO
+    var p := ZenProps.prop_of_track(s)
+    return base_color(p) if ZenProps.is_color(p) else base_scalar(p)
+
+
+func _set(n: StringName, _value: Variant) -> bool:
+    if not _is_zen_prop(n): return false
+    if Engine.is_editor_hint():
+        if canvas == null: _find_canvas()
+        if canvas != null: canvas.call_deferred("editor_repose")
+    return true
 
 
 func _find_canvas() -> void:
@@ -67,16 +123,37 @@ func _uh() -> float:
     return 1.0 if unit_abs else design().y
 
 
+## Does this node own `prop`? A ZenGlobal is two nodes sharing one authored
+## element, each owning its own half of the props.
+func owns(_prop: String) -> bool:
+    return true
+
+
+## "Node:prop" - the track path of a property in the canvas's "zen" animation.
+func track_path(prop: String) -> String:
+    return "%s:%s" % [name, ZenProps.track_prop(prop)]
+
+
+func _tl() -> ZenTimeline:
+    if canvas == null: _find_canvas()
+    return canvas.timeline() if canvas != null else null
+
+
 func has_track(prop: String) -> bool:
-    return tracks.has(prop) and (tracks[prop] as Array).size() > 0
+    var tl := _tl()
+    if tl == null: return false
+    var path := track_path(prop)
+    return tl.has_color(path) if ZenProps.is_color(prop) else tl.has(path)
 
 
 ## The plain timeline read: the track if it has keys, else the base pose. No
 ## loop blend - that is prop()'s job, and the blend TARGET is sampled through
 ## here so an untracked property blends from its base rather than from 0.
 func track_or_base(prop_name: String, t: float, base: float, stepped := false) -> float:
-    if not has_track(prop_name): return base
-    return ZenSampler.eval(tracks[prop_name], t, stepped, base)
+    var tl := _tl()
+    if tl == null: return base
+    var path := track_path(prop_name)
+    return tl.stepped(path, t, base) if stepped else tl.scalar(path, t, base)
 
 
 ## Scalar property at `t`: the timeline, then the signal override, then the
@@ -133,9 +210,9 @@ func plain_prop_color(prop_name: String, t: float, base: Color, alpha: float) ->
 
 ## The plain colour read, RGB only. See track_or_base.
 func track_or_base_color(prop_name: String, t: float, base: Color, alpha: float) -> Color:
-    if not has_track(prop_name):
-        return Color(base.r, base.g, base.b, alpha)
-    return ZenSampler.eval_color(tracks[prop_name], t, alpha, base)
+    var tl := _tl()
+    if tl == null: return Color(base.r, base.g, base.b, alpha)
+    return tl.color(track_path(prop_name), t, base, alpha)
 
 
 ## Colour property at `t`. RGB only - alpha is always a separate track, so it
@@ -198,8 +275,8 @@ func _pose(_t: float) -> void:
 #
 #  This lives here, in the one place every property read funnels through, which
 #  is why no per-kind property table is needed: prop() and prop_color() are the
-#  only callers of ZenSampler in the project, so a property cannot be silently
-#  left unblended.
+#  only readers of the timeline, so a property cannot be silently left
+#  unblended.
 #
 #  Installed for the duration of one pose() by ZenCanvas and always torn down,
 #  so it can never leak into a non-looping render.

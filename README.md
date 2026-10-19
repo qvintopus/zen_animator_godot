@@ -62,9 +62,13 @@ pickable colours, and rename / duplicate / delete. It knows nothing of the old `
 text format - only `tools/import_shp.gd`, the one-shot migration, does. The editor works on a copy; **Save** writes the `.tres` and updates the
 already-loaded resource, so animations using it redraw at once.
 
-**Scenes play on F6.** A `ZenCanvas` builds a real Godot `AnimationPlayer` for itself, so
-opening a scene and running it animates, and `intro_end` / `outro_start` appear as
-draggable markers on Godot's own timeline. The live clock is driven entirely through
+**Scenes play on F6, and the AnimationPlayer is the scene's timeline.** Every
+`anims/*.tscn` saves an `AnimationPlayer` beside `Signals`; it is the **only** stored copy
+of the keys. Library `""` holds the `zen` animation (one track per animated property,
+easings baked into Godot bezier curves; `intro_end`, `outro_start` and `pause_N[_once]`
+are draggable markers) and library `sig` holds one animation per signal. What is in
+that player is what plays, in the gallery and in exports. SPACE continues playback held
+at a pause marker. The live clock is driven entirely through
 Godot's `AnimationPlayer` section API (`play_section` / `play_section_with_markers`): a
 document with an intro plays through once, then `ZenCanvas._process` narrows the
 AnimationPlayer's own section to `[intro_end, outro_start)`, so Godot's native section-loop
@@ -200,11 +204,12 @@ Visual checks needing a display are collected in `VISUAL_CHECKS.md`.
 ## Layout
 
 ```
-addons/zen/runtime/    zen_easing, zen_curve, zen_sampler, zen_canvas (clock + pauses),
+addons/zen/runtime/    zen_easing, zen_curve, zen_curve_bake (ease -> bezier), zen_timeline (pure Animation
+                       sampling), zen_canvas (clock + pauses),
                        zen_element, zen_shape, zen_text, zen_text_metrics, zen_global,
                        zen_props (property registry), zen_signal_player (override eval),
                        zen_signal_bus (per-canvas dispatch), zen_signals (global relay
-                       autoload), zen_anim_builder (Godot AnimationPlayer + timeline markers),
+                       autoload), zen_anim_builder (assembles the saved AnimationPlayer),
                        zen_pixel_shape (the pixel-shape asset), zen_assets (asset lookup/save)
 addons/zen/fonts/      bundled fonts (LICENSES.md) - ZenText's project-default font
 addons/zen/importer/   zen_cfg_parse (grammar), zen_cfg_build (nodes), zen_cfg_import (entry)
@@ -233,7 +238,7 @@ tests/                 run_tests.gd + the generated easing reference
 
 Three decisions carry most of the weight; the reasoning is in the file headers.
 
-**Easing CURVES are Godot's; easing APPLICATION is `ZenSampler`'s.** These are two
+**Easing CURVES are Godot's, and they are BAKED into the AnimationPlayer.** These are two
 separate questions and an earlier design note conflated them.
 
 *The curves* come from `Tween.interpolate_value`, which is a **static** function exposing
@@ -247,20 +252,20 @@ to 1e-7. The raylib `.webm` is therefore no longer the fidelity target. Custom c
 (`ZenCurve`, multi-knot bezier with overshoot and hold steps, which Godot's `Curve`
 cannot express) register by name and **shadow** a built-in of the same name.
 
-*The application* stays in `ZenSampler`, because Zen's easing is **incoming** (it eases
-the segment ENDING at a key) while Godot's `transition` is outgoing, and because a value
-track would have to duplicate the whole fraction-to-pixel resolver. So Godot owns timing
-and key storage; `ZenSampler` owns interpolation.
+*The application* is `ZenCurveBake`: Zen's easing is **incoming** (it eases the segment
+ENDING at a key) while Godot's `transition` is outgoing, so each segment is baked into
+bezier handles (exact for linear/quad/cubic/back, adaptive Hermite fit within 2e-4 of the
+ease for the rest). Godot interpolates; `ZenTimeline` samples the Animation purely.
 
-**The `AnimationPlayer` owns time; `pose_looping()` owns the resolve.** The animation
-carries ONE method track calling `canvas._anim_pose(t)` - the same entry point the
-exporter uses - rather than a value track per property. Zen geometry is *resolved*, not
-stored (a fraction of the canvas, times `scale`, times the unit mode, plus any signal
-override), so there is no `Node2D.position` to key; a value track per property would mean
-a second resolver that drifts from the first. `ZenAnimBuilder.populate_keys()` can mirror
-the Zen tracks onto the timeline as real draggable keys for authoring, and
-`sync_from_keys()` reads them back - but those tracks are an editing surface, never the
-render path. The intro-skip-on-loop rule *is* expressible on Godot's own clock (added in
+**The `AnimationPlayer` owns time; `pose_looping()` owns the resolve.** Zen geometry is
+*resolved*, not stored (a fraction of the canvas, times `scale`, times the unit mode,
+plus any signal override), so the key tracks (`Node:prop`, `Node:color:r|g|b`) are
+**sampled** by `ZenTimeline` straight out of the Animation resource rather than applied
+to node properties - one resolver, and a frame stays a pure function of (scene, t). The
+elements declare the track names as editor-only properties so Godot's panel accepts them
+(`scale` is `zen_scale`, since Node2D owns `scale`). A signal's implicit u=0 key is the
+live pose, so its first segment is baked from a placeholder and re-mapped at fire time
+(`zen_capture` meta). The intro-skip-on-loop rule *is* expressible on Godot's own clock (added in
 4.4): `AnimationPlayer.play_section_with_markers()` loops strictly inside a marker range and
 wraps to its start marker, never to 0 - what `Animation.loop_mode` alone cannot do. See the
 next note for how `ZenCanvas` drives it.
@@ -313,7 +318,7 @@ funnels every seek through `_seek_safe()`, the one place in the project allowed 
 looping document holds its final pose and then snaps. Over the last `loop_blend` seconds
 every property is eased (smoothstep `p*p*(3-2p)`) into the pose it holds at the loop
 start, so the two poses coincide by the time the clock wraps. Putting it in `prop()` /
-`prop_color()` - the only two callers of `ZenSampler` in the project - is what makes it
+`prop_color()` - the only two readers of the timeline in the project - is what makes it
 impossible for a property to be silently left unblended, which the plan flagged as a risk.
 Three rules carry over from the C: colour blends **RGB only** (alpha rides its own scalar
 track), **stepped** props (`string`, `shape_id`) are never blended because they key a pool

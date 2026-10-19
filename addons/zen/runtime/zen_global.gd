@@ -29,6 +29,11 @@ func zen_kind() -> String:
     return "global"
 
 
+## The background half owns bg_alpha/bg_color, the fade half fade/color.
+func owns(prop_name: String) -> bool:
+    return (prop_name == "bg_alpha" or prop_name == "bg_color") == is_background
+
+
 func base_scalar(prop_name: String) -> float:
     match prop_name:
         "fade": return 0.0

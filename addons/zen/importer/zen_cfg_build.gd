@@ -66,6 +66,9 @@ static func build(doc: Dictionary) -> Dictionary:
         canvas.add_child(bus)
         bus.owner = canvas
 
+    # The keys are stored in the scene's AnimationPlayer, not on the nodes.
+    ZenAnimBuilder.install(canvas)
+
     return {"canvas": canvas, "skipped": skipped}
 
 
