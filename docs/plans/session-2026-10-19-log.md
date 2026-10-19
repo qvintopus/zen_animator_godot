@@ -150,3 +150,59 @@ changes, as expected nothing moved.
   poking at this same checkout; I asked both to hold off and saw no
   conflicting file changes land. Worth asking what those were, in case it
   wasn't actually asked for.
+
+## Options screen (new request, after the plan's 4 tasks) - commit `bc12d0a`
+
+Added after Task 4 was already done and committed: pressing O from the
+gallery now opens an Options overlay with a font picker and the default
+export scale, per your message. Design choices:
+
+- **Font switching uses `SystemFont`, not more bundled files.** The picker
+  lists every font `OS.get_system_fonts()` reports on the machine plus
+  "Default (Source Sans 3)". Picking one builds a `SystemFont` with that
+  family name and installs it as a new static override on `ZenText`
+  (`ZenText.set_font_override`), so every element with no per-element `font`
+  picks it up immediately, with no `.tscn` edit. This sidesteps the font-
+  bundling scope cut from Task 2 entirely - no extra `.ttf` files needed for
+  real font choice, though it does mean the exact list is machine-dependent
+  (whatever's installed here).
+- **Persistence is a new `ZenSettings` helper** (`addons/zen/runtime/zen_settings.gd`),
+  not an autoload - it reads/writes `user://zen_settings.cfg` lazily, so
+  nothing had to go in `project.godot`'s `[autoload]` section. Both the
+  gallery and `tools/export_scene.gd` call `ZenSettings.apply_startup()` so
+  a saved font choice applies on the next run without visiting Options
+  again, and the exporter's default `--scale` (when not given on the CLI)
+  now comes from the same saved value instead of a hardcoded `4`.
+- **Export resolution shown, not fully solved**: the Options screen shows
+  `320 x 180 canvas x scale = WxH` using `ZenCanvas.design_size`'s own
+  default - every current animation happens to use that default, there's no
+  per-scene canvas-size picker. If a future scene used a different canvas,
+  the Options number would still be the common-case default, not that
+  scene's actual export size. Flagging this as a scope note, not a bug: you
+  only asked to "show current used resolution for export," which this does
+  for the default case.
+- Two new InputMap actions beyond `zen_options` itself: `zen_scale_down`/
+  `zen_scale_up` on LEFT/RIGHT, following the Task 3 convention (named
+  actions, not raw keycodes) rather than reading physical keycodes directly
+  in `zen_options.gd`.
+- Added `test_zen_settings()` to the suite, which explicitly restores every
+  value it touches (including the font override) at the end - a stray
+  `SystemFont` override left active would make every later font-dependent
+  check depend on whatever happens to be installed on the machine running
+  the suite, which is not something a test suite should depend on.
+- A probe script I ran to smoke-test the Options overlay interactively left
+  `export_scale=5` in the real `user://zen_settings.cfg` on this machine;
+  deleted that file afterward so your first real run starts from defaults.
+- `VISUAL_CHECKS.md` picked up stray tab/indentation corruption (no content
+  change) twice more overnight, from what ListAgents shows as a *third*
+  peer session (`observer-sessions-99`, appeared after `-ec` and `-fb` had
+  already gone away) - reverted both times, and sent it the same hold-off
+  request. Worth checking what all three of those sessions were asked to do.
+
+**Verification**: full suite 1071/0 (up from 1062 - the 9 new checks are
+`test_input_actions_declared`'s 3 new action names plus `test_zen_settings`'s
+6), `compare_ripple` 2657/0, `test_render.tscn` (needs a display) 26/0, and
+an interactive headless-with-display probe exercising the actual Options
+Control (open, list 337 fonts, bump scale, pick a font, close) with no
+script errors. Did not get a human look at the Options screen's layout/
+styling - purely code-level verification, same caveat as Task 2's font work.
