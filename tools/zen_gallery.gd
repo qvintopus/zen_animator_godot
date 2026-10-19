@@ -28,13 +28,16 @@ const ANIM_DIR := "res://anims"
 ## listing both would show the same animation twice under near-identical names.
 const HIDDEN := ["mouse_ripple_hand"]
 
-enum View { GALLERY, PLAYING }
+enum View { GALLERY, PLAYING, OPTIONS }
+
+const OPTIONS_SCENE := "res://tools/zen_options.tscn"
 
 var _view: View = View.GALLERY
 var _entries: Array = []            # [{path, name, canvas_data...}]
 var _sel := 0
 var _playing: ZenCanvas = null
 var _sub: SubViewport = null
+var _options: Control = null
 
 ## How long a finished one-shot holds on its last frame before replaying.
 const REPLAY_HOLD := 0.9
@@ -54,6 +57,7 @@ var _replay_hold := 0.0
 
 
 func _ready() -> void:
+    ZenSettings.apply_startup()
     _scan()
     _build_list()
     _show_gallery()
@@ -256,7 +260,7 @@ func _show_gallery() -> void:
     _info.visible = true
     _title.text = "Zen Animator"
     _status.text = "%d animations" % _entries.size()
-    _hint.text = "  ENTER / double-click  play      UP/DOWN  select      R  reload      ESC  quit"
+    _hint.text = "  ENTER / double-click  play      UP/DOWN  select      R  reload      O  options      ESC  quit"
 
 
 func _show_playing(nm: String) -> void:
@@ -336,12 +340,32 @@ func _restart() -> void:
 ## ESC backs out one level, then quits - the usual nesting, so it is never a
 ## surprise which one happens.
 func _back() -> void:
-    if _view == View.PLAYING:
+    if _view == View.OPTIONS:
+        _close_options()
+    elif _view == View.PLAYING:
         _stop()
         _show_gallery()
         _select(_sel)
     else:
         get_tree().quit()
+
+
+## Options is an overlay on top of the gallery, not a scene change - a scene
+## change would re-run _ready() and lose the current selection for no reason,
+## since nothing here needs a fresh SceneTree.
+func _open_options() -> void:
+    if _options != null: return
+    _options = (load(OPTIONS_SCENE) as PackedScene).instantiate()
+    _options.closed.connect(_close_options)
+    add_child(_options)
+    _view = View.OPTIONS
+
+
+func _close_options() -> void:
+    if _options != null:
+        _options.queue_free()
+        _options = null
+    _view = View.GALLERY
 
 
 ## Fire a signal by number while playing. This is the only interactive way to
@@ -395,8 +419,13 @@ func _unhandled_input(ev: InputEvent) -> void:
         _back()
         get_viewport().set_input_as_handled()
     elif ev.is_action_pressed("zen_restart"):
-        _restart()
-        get_viewport().set_input_as_handled()
+        if _view != View.OPTIONS:
+            _restart()
+            get_viewport().set_input_as_handled()
+    elif ev.is_action_pressed("zen_options"):
+        if _view == View.GALLERY:
+            _open_options()
+            get_viewport().set_input_as_handled()
     elif ev.is_action_pressed("zen_play"):
         if _view == View.GALLERY:
             _play(_sel)

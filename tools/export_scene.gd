@@ -16,12 +16,14 @@ func _ready() -> void:
     DisplayServer.window_set_vsync_mode(DisplayServer.VSYNC_DISABLED)
     Engine.max_fps = 0
 
+    ZenSettings.apply_startup()
+
     var a := _args()
     var anim := String(a.get("anim", "mouse_ripple"))
     var s := ZenExport.Settings.new()
     s.fmt = String(a.get("fmt", "webm"))
     s.fps = int(a.get("fps", 30))
-    s.scale = clampi(int(a.get("scale", 4)), 1, ZenExport.MAX_SCALE)
+    s.scale = clampi(int(a.get("scale", ZenSettings.export_scale())), 1, ZenExport.MAX_SCALE)
     s.quality = int(a.get("quality", 70))
     s.show_intro = _flag(a, "intro")
     s.transparent = _flag(a, "transparent")

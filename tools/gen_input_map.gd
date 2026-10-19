@@ -10,6 +10,9 @@ const ACTIONS := {
     "zen_restart": [KEY_R],
     "zen_prev": [KEY_UP],
     "zen_next": [KEY_DOWN],
+    "zen_options": [KEY_O],
+    "zen_scale_down": [KEY_LEFT],
+    "zen_scale_up": [KEY_RIGHT],
 }
 
 func _init() -> void:

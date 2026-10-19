@@ -40,12 +40,23 @@ var _t := 0.0
 const DEFAULT_FONT_PATH := "res://addons/zen/fonts/SourceSans3-Regular.ttf"
 static var _default_font_cache: Font = null
 
+## Options-screen override, applied process-wide so every element with no
+## per-element `font` picks it up without touching any .tscn. Null means "use
+## the bundled default" - see ZenSettings.apply_startup().
+static var _font_override: Font = null
+
+
+static func set_font_override(f: Font) -> void:
+    _font_override = f
+
 
 ## The project default font, loaded once and cached. A static func rather than
 ## a member so it resolves correctly even for a node that is instantiated but
 ## never enters the tree (dump_scene.gd, the importer) - _ready() is not
 ## guaranteed to have run.
 static func default_font() -> Font:
+    if _font_override != null:
+        return _font_override
     if _default_font_cache == null:
         _default_font_cache = load(DEFAULT_FONT_PATH)
     return _default_font_cache
