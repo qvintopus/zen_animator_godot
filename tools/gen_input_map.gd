@@ -22,6 +22,20 @@ const ACTIONS := {
     "zen_toggle_intro": [KEY_I],
     "zen_toggle_loop": [KEY_L],
     "zen_tab": [KEY_TAB],
+    # Shape editor. Several share a key with a gallery action (1-3, R, L):
+    # the editor is an overlay that consumes its keys first, and the gallery
+    # ignores every key but ESC while it is open.
+    "zen_edit_ink_empty": [KEY_1],
+    "zen_edit_ink_fill": [KEY_2],
+    "zen_edit_ink_outline": [KEY_3],
+    "zen_edit_brush_down": [KEY_BRACKETLEFT],
+    "zen_edit_brush_up": [KEY_BRACKETRIGHT],
+    "zen_edit_fit": [KEY_F],
+    "zen_edit_tool_pen": [KEY_P],
+    "zen_edit_tool_line": [KEY_L],
+    "zen_edit_tool_rect": [KEY_R],
+    "zen_edit_tool_fill": [KEY_G],
+    "zen_edit_mirror": [KEY_M],
 }
 
 func _init() -> void:
@@ -35,15 +49,31 @@ func _init() -> void:
     # opening the dialog - a distinct action, not a modifier check on
     # zen_export, so _unhandled_input can simply check this one first.
     _set_action("zen_export_queue", [KEY_E], true)
+    _set_action("zen_edit_save", [KEY_S], true)
+    _set_action("zen_edit_undo", [KEY_Z], true)
+    # Redo is checked before undo by the editor: a non-exact match lets
+    # Ctrl+Shift+Z satisfy the Ctrl+Z action too.
+    _set_action("zen_edit_redo", [KEY_Z], true, true)
+    _add_event("zen_edit_redo", KEY_Y, true)
     ProjectSettings.save()
     print("input map written")
     quit()
 
-func _set_action(action_name: String, keys: Array, ctrl := false) -> void:
+func _set_action(action_name: String, keys: Array, ctrl := false, shift := false) -> void:
     var events := []
     for key in keys:
         var ev := InputEventKey.new()
         ev.physical_keycode = key
         ev.ctrl_pressed = ctrl
+        ev.shift_pressed = shift
         events.append(ev)
     ProjectSettings.set_setting("input/%s" % action_name, {"deadzone": 0.2, "events": events})
+
+
+func _add_event(action_name: String, key: int, ctrl := false) -> void:
+    var cur: Dictionary = ProjectSettings.get_setting("input/%s" % action_name)
+    var ev := InputEventKey.new()
+    ev.physical_keycode = key
+    ev.ctrl_pressed = ctrl
+    (cur["events"] as Array).append(ev)
+    ProjectSettings.set_setting("input/%s" % action_name, cur)

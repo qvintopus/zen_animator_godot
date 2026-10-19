@@ -403,3 +403,31 @@ Zen geometry is fractional, so cropping silently hides elements instead of scali
 - Reopen the dialog after closing it: every field should come back exactly as left
   (`ZenSettings.set_export_defaults()`), except scale, which was already shared with
   Options and format/fps.
+
+---
+
+## 11. Gallery sections, playback toggles, shape editor
+
+```sh
+$G --path .          # F5: the gallery
+```
+
+- **Accordion.** "animations" is open on start, "assets (visual)" collapsed below it.
+  Click "assets (visual)" (or TAB): animations collapse to their header and the 9 pixel
+  shapes list under it with a preview and "used by". Each header stays put while only its
+  list scrolls; holding DOWN keeps the selection on screen.
+- **Terminal signal holds.** Play `pause_menu`, press `1` (`exit`): the title flies off and
+  the screen **stays** empty with `[signal end]` in the status, then the animation restarts
+  from its intro. Press `L` (`[LOOP off]`) and fire again: it stays empty for good.
+- **I / L.** `I` toggles `[INTRO on/off]` (off: playback starts at intro_end); `n/a` on a
+  document with no intro. `L` off plays once and holds the last frame.
+- **Custom shapes render.** Play `ma_prog_02_coding` and `fangs_test`: icons are crisp pixel
+  art (square texels, no blur) tinted by their element colours.
+- **Shape editor.** ENTER on `book_icon`: paint (LMB), erase (RMB), zoom about the cursor
+  (wheel), pan (MMB), grid at high zoom, the brush footprint follows the cursor. Try line /
+  rect / fill (L / R / G), mirror (M), undo/redo (Ctrl+Z / Ctrl+Shift+Z). The title gains `*`
+  when dirty; ESC asks Save / Discard / Cancel. Drop a PNG on the window, raise "threshold
+  preview", Convert. Save, go back, play `ma_prog_02_coding`: the book shows the edit.
+- **Options.** Opens scrolled to the saved font, fonts A-Z, the search field sits on the
+  "font" row and filters as you type; ESC clears the search, a second ESC closes.
+

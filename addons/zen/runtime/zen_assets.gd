@@ -54,12 +54,31 @@ static func save_path(name: String) -> String:
     return "%s/%s.tres" % [dir, name]
 
 
-static func save_shape(shape: ZenPixelShape, name: String) -> Error:
+## Save `shape` as `name`. When that resource is already loaded (a scene in
+## the gallery uses it), the LOADED instance takes the new cells, so every
+## canvas drawing it redraws on `changed` - the editor works on a copy and
+## only publishes on save. Returns the instance that was written.
+static func save_shape(shape: ZenPixelShape, name: String) -> ZenPixelShape:
     var path := save_path(name)
     DirAccess.make_dir_recursive_absolute(path.get_base_dir())
-    var err := ResourceSaver.save(shape, path)
-    if err == OK: shape.take_over_path(path)
-    return err
+    var target := shape
+    if ResourceLoader.has_cached(path):
+        target = load(path) as ZenPixelShape
+        if target == null: target = shape
+        elif target != shape:
+            target.size = shape.size
+            target.cells = shape.cells.duplicate()
+    if ResourceSaver.save(target, path) != OK: return null
+    if target == shape: shape.take_over_path(path)
+    return target
+
+
+## Delete the file `name` resolves to. A shipped shape shadowed by a user one
+## comes back into view afterwards, as in the original pool.
+static func delete_shape(name: String) -> Error:
+    var p: String = shape_paths().get(name, "")
+    if p.is_empty(): return ERR_FILE_NOT_FOUND
+    return DirAccess.remove_absolute(ProjectSettings.globalize_path(p))
 
 
 ## The name a shape resource is known by: its file basename.

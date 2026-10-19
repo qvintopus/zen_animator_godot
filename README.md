@@ -23,7 +23,32 @@ hard-coded keycodes. **zen_play** or double-click plays, **zen_prev/zen_next** s
 **zen_signal_1..9** fire a signal while playing - the only interactive way to see one,
 since an export never fires one. Clicking another row while playing switches straight to
 it, and a finished one-shot replays after holding its last frame, so the gallery always
-shows motion.
+shows motion. A **terminal** signal (pause_menu's `exit`) holds the pose it ends on - it no
+longer snaps back to the timeline - and then the whole animation restarts.
+
+**zen_toggle_intro** (I) and **zen_toggle_loop** (L) are viewer toggles, persisted in
+`ZenSettings` and shown as `[INTRO ..] [LOOP ..]` badges in the status line: intro off
+starts playback at `intro_end`; loop off plays once and holds the last frame (no wrap, no
+auto-replay - including after a terminal signal). They are `ZenCanvas.play_intro` /
+`play_loop`, runtime overrides the exporter never reads.
+
+The left column is an accordion: **animations** (open by default) and **assets (visual)**.
+Clicking a header (or **zen_tab**, TAB) opens that section and collapses the other; each
+header stays pinned while its own list scrolls, and the selection is kept in view.
+
+**Visual assets are pixel shapes** - the original editor's `.shp` files, ported as
+`ZenPixelShape` resources in `assets/shapes/*.tres` (`tools/import_shp.gd` converts them).
+A pixel shape is a grid of fill/outline cells with no colour of its own: a `custom`
+`ZenShape` tints fill with its `color` track and outline with `outline_color`, and a
+stepped `shape_id` track switches between `shape_refs`. A missing asset draws a magenta
+box with a diagonal, so it shows in exports too. ENTER on an asset (or "+ new asset...")
+opens the **shape editor** (`tools/zen_shape_editor.tscn`): pen / line / rect / flood-fill
+with fill, rim or erase ink, brush size, mirror X, resize, clear, bulk ink, auto-outline,
+UndoRedo-backed undo/redo, a reference image (native file dialog or drag-and-drop) traced
+with fade/threshold/scale/offset and converted to pixels, a live preview tinted with
+pickable colours, rename / duplicate / delete, and `.shp` export (dropping a `.shp` on the
+window imports one). The editor works on a copy; **Save** writes the `.tres` and updates the
+already-loaded resource, so animations using it redraw at once.
 
 **Scenes play on F6.** A `ZenCanvas` builds a real Godot `AnimationPlayer` for itself, so
 opening a scene and running it animates, and `intro_end` / `outro_start` appear as
@@ -42,7 +67,7 @@ not raylib's bitmap metrics; see the design note below). The loop seam is closed
 `main_menu` the wrap went from a mean channel delta of **0.587 to 0.019**, which is the
 same order as an ordinary adjacent frame pair (0.007).
 
-The suite stands at **1062 numeric checks** and **26 render checks**, all green. Crumble and
+The suite stands at **1196 numeric checks** and **31 render checks**, all green. Crumble and
 the cursor-anchored ripple render correctly; `VISUAL_CHECKS.md` lists what to look at.
 Final sign-off is the user's.
 
@@ -128,7 +153,7 @@ bundled documents import complete.
 Headless is fine - nothing here renders.
 
 ```sh
-# 1152 checks
+# 1196 checks
 ./Godot_v4.7.2-stable_linux.x86_64 --headless --path . --script res://tests/run_tests.gd
 
 # importer fidelity: 2657 sampled comparisons, must be 0 mismatches
@@ -138,7 +163,7 @@ Headless is fine - nothing here renders.
 ./Godot_v4.7.2-stable_linux.x86_64 --headless --path . \
     --script res://tools/dump_scene.gd -- main_menu
 
-# 26 render checks - NEEDS A DISPLAY. Pins frame orientation, the 320x180 canvas, the
+# 31 render checks - NEEDS A DISPLAY. Pins frame orientation, the 320x180 canvas, the
 # loop seam, crumble, the ripple anchor and export purity - none of which a numeric
 # test can see.
 ./Godot_v4.7.2-stable_linux.x86_64 --path . --rendering-driver opengl3 \
@@ -167,11 +192,14 @@ addons/zen/runtime/    zen_easing, zen_curve, zen_sampler, zen_canvas (clock + p
                        zen_element, zen_shape, zen_text, zen_text_metrics, zen_global,
                        zen_props (property registry), zen_signal_player (override eval),
                        zen_signal_bus (per-canvas dispatch), zen_signals (global relay
-                       autoload), zen_anim_builder (Godot AnimationPlayer + timeline markers)
+                       autoload), zen_anim_builder (Godot AnimationPlayer + timeline markers),
+                       zen_pixel_shape (the pixel-shape asset), zen_assets (asset lookup/save)
 addons/zen/fonts/      bundled fonts (LICENSES.md) - ZenText's project-default font
 addons/zen/importer/   zen_cfg_parse (grammar), zen_cfg_build (nodes), zen_cfg_import (entry)
 zen_gallery.tscn       the main scene (F5): browse, inspect and play animations
-tools/                 zen_gallery.gd, zen_options.gd (font picker), zen_export.gd (the
+tools/                 zen_gallery.gd, zen_options.gd (font picker), zen_shape_editor.gd/.tscn
+                       + zen_pixel_canvas.gd + zen_shape_preview.gd (shape editor),
+                       import_shp.gd (.shp -> .tres), zen_export.gd (the
                        engine: plan_chain + Job), zen_export_dialog.gd/.tscn (the Export
                        screen, E / Ctrl+E), export_scene.tscn (CLI door onto the same
                        engine), build_ripple.gd, compare_ripple.gd, dump_scene.gd,
@@ -179,6 +207,7 @@ tools/                 zen_gallery.gd, zen_options.gd (font picker), zen_export.
                        signal_shots.tscn (renders what an export cannot show),
                        gen_ease_ref.gd (regenerates tests/ease_ref.txt),
                        gen_input_map.gd (regenerates project.godot's [input] section)
+assets/shapes/         pixel-shape assets (ZenPixelShape .tres)
 anims/                 authored Godot scenes (source of truth)
 anims_src/             the original .cfg files, input to the one-shot importer
 tests/                 run_tests.gd + the generated easing reference

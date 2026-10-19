@@ -100,6 +100,7 @@ func _run() -> void:
     test_pixel_shape_shp_roundtrip()
     test_custom_shape_resolution()
     test_options_font_sort_filter()
+    await test_shape_editor()
     test_zen_settings()
     test_export_dialog_preview()
     print("\n%d checks, %d failures" % [checks, fails])
@@ -2439,3 +2440,70 @@ func test_options_font_sort_filter() -> void:
     check(ZenOptions.filter_fonts(f, "") == [0, 1, 2, 3], "empty search shows all")
     check(ZenOptions.filter_fonts(f, "AL") == [1], "search is case-insensitive")
     check(ZenOptions.filter_fonts(f, "source") == [0], "default matches on its label")
+
+
+## The shape editor end to end, headless: a stroke is one undo step, redo
+## restores it, line/rect/flood tools touch the right cells, and Save
+## publishes into the loaded resource so live users redraw.
+func test_shape_editor() -> void:
+    check(ZenPixelCanvas.line_cells(Vector2i(0, 0), Vector2i(3, 0)).size() == 4, "line is inclusive")
+    check(ZenPixelCanvas.rect_cells(Vector2i(0, 0), Vector2i(2, 2)).size() == 8, "rect is its outline")
+
+    var ed: ZenShapeEditor = (load("res://tools/zen_shape_editor.tscn") as PackedScene).instantiate()
+    root.add_child(ed)
+    await process_frame
+    await ed.open("")
+    var cv: ZenPixelCanvas = ed._canvas
+    var sh: ZenPixelShape = ed._shape
+    check(sh != null and sh.size == ZenShapeEditor.NEW_SIZE, "a blank shape opens at the default size")
+    check(ed._dirty(), "an unsaved new shape is dirty")
+
+    cv.tool = ZenPixelCanvas.Tool.PEN
+    cv.ink = ZenPixelShape.FILL
+    cv._begin(Vector2i(2, 2), ZenPixelShape.FILL)
+    cv._end(Vector2i(2, 2))
+    check(sh.get_cell(2, 2) == ZenPixelShape.FILL, "pen paints")
+    ed._do_undo()
+    check(sh.get_cell(2, 2) == ZenPixelShape.EMPTY, "one stroke is one undo step")
+    ed._do_redo()
+    check(sh.get_cell(2, 2) == ZenPixelShape.FILL, "redo restores the stroke")
+
+    cv.mirror_x = true
+    cv._begin(Vector2i(0, 0), ZenPixelShape.OUTLINE)
+    cv._end(Vector2i(0, 0))
+    check(sh.get_cell(sh.size.x - 1, 0) == ZenPixelShape.OUTLINE, "mirror X paints the opposite cell")
+    cv.mirror_x = false
+
+    cv.tool = ZenPixelCanvas.Tool.FILL
+    cv._begin(Vector2i(5, 5), ZenPixelShape.FILL)
+    var filled := sh.count(ZenPixelShape.FILL)
+    check(filled == sh.size.x * sh.size.y - 2, "flood fills the connected empty region (%d)" % filled)
+    ed._do_undo()
+    check(sh.count(ZenPixelShape.FILL) == 1, "flood fill undoes in one step")
+
+    ed._size_w.value = 10
+    check(sh.size.x == 10, "the size box resizes")
+    ed._do_undo()
+    check(sh.size.x == ZenShapeEditor.NEW_SIZE.x, "resize undoes")
+
+    # Save publishes into an already-loaded instance.
+    var nm := "zz_test_tmp"
+    ed._name = nm
+    ed._save()
+    var live := ZenAssets.load_shape(nm)
+    check(live != null and live.get_cell(2, 2) == ZenPixelShape.FILL, "save writes the asset")
+    check(not ed._dirty(), "saved: no longer dirty")
+    var hits := [0]
+    live.changed.connect(func(): hits[0] += 1)
+    sh = ed._shape
+    check(sh != live, "after save the editor works on a fresh copy")
+    cv.tool = ZenPixelCanvas.Tool.PEN
+    cv._begin(Vector2i(4, 4), ZenPixelShape.FILL)
+    cv._end(Vector2i(4, 4))
+    check(live.get_cell(4, 4) == ZenPixelShape.EMPTY, "edits stay in the working copy until save")
+    ed._save()
+    check(live.get_cell(4, 4) == ZenPixelShape.FILL and hits[0] > 0,
+          "save updates the loaded resource and emits changed")
+    ZenAssets.delete_shape(nm)
+    check(not ZenAssets.shape_paths().has(nm), "delete removes the asset")
+    ed.queue_free()

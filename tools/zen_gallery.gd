@@ -28,10 +28,18 @@ const ANIM_DIR := "res://anims"
 ## listing both would show the same animation twice under near-identical names.
 const HIDDEN := ["mouse_ripple_hand"]
 
-enum View { GALLERY, PLAYING, OPTIONS, EXPORT }
+enum View { GALLERY, PLAYING, OPTIONS, EXPORT, SHAPE_EDITOR }
+
+## The left column is an accordion of these: one section open at a time, its
+## header pinned above its own scrolling list.
+enum Section { ANIMS, ASSETS }
 
 const OPTIONS_SCENE := "res://tools/zen_options.tscn"
 const EXPORT_SCENE := "res://tools/zen_export_dialog.tscn"
+const SHAPE_EDITOR_SCENE := "res://tools/zen_shape_editor.tscn"
+
+## Row 0 of the assets list: create a new asset.
+const NEW_ASSET_ROW := "+ new asset..."
 
 var _view: View = View.GALLERY
 var _entries: Array = []            # [{path, name, canvas_data...}]
@@ -40,6 +48,12 @@ var _playing: ZenCanvas = null
 var _sub: SubViewport = null
 var _options: Control = null
 var _export_dialog: Control = null
+var _shape_editor: Control = null
+var _section: Section = Section.ANIMS
+## [{name, path}] from ZenAssets, sorted. Asset ROW i is _assets[i - 1]; row 0
+## is NEW_ASSET_ROW.
+var _assets: Array = []
+var _sel_asset := 0
 var _prev_view: View = View.GALLERY   # EXPORT returns here on close
 
 ## Names queued with Ctrl+E, in order. Duplicates allowed (chaining an
@@ -51,6 +65,12 @@ const REPLAY_HOLD := 0.9
 var _replay_hold := 0.0
 
 @onready var _list: VBoxContainer = $Margin/Rows/Body/Left/ListScroll/List
+@onready var _list_scroll: ScrollContainer = $Margin/Rows/Body/Left/ListScroll
+@onready var _anim_header: Button = $Margin/Rows/Body/Left/AnimHeader
+@onready var _asset_header: Button = $Margin/Rows/Body/Left/AssetHeader
+@onready var _asset_scroll: ScrollContainer = $Margin/Rows/Body/Left/AssetScroll
+@onready var _asset_list: VBoxContainer = $Margin/Rows/Body/Left/AssetScroll/AssetList
+@onready var _asset_preview: ZenShapePreview = $Margin/Rows/Body/Right/AssetPreview
 @onready var _info: RichTextLabel = $Margin/Rows/Body/Right/Info
 ## The frame keeps the animation's aspect; the TextureRect inside it shows the
 ## SubViewport. Splitting the two is what stops a non-16:9 window from cropping
@@ -65,9 +85,13 @@ var _replay_hold := 0.0
 
 func _ready() -> void:
 	ZenSettings.apply_startup()
+	_anim_header.pressed.connect(_set_section.bind(Section.ANIMS))
+	_asset_header.pressed.connect(_set_section.bind(Section.ASSETS))
 	_scan()
 	_build_list()
-	_show_gallery()
+	_scan_assets()
+	_build_asset_list()
+	_set_section(Section.ANIMS)
 	_select(0)
 
 
@@ -107,6 +131,7 @@ func _describe(path: String, base: String) -> Dictionary:
 		return info
 	c.live_playback = false
 
+	var shapes: Array = []
 	var kinds := {"text": 0, "shape": 0, "global": 0}
 	var tracked := 0
 	var keys := 0
@@ -114,7 +139,14 @@ func _describe(path: String, base: String) -> Dictionary:
 	for e in c.elements():
 		var el := e as ZenElement
 		if el is ZenText: kinds["text"] += 1
-		elif el is ZenShape: kinds["shape"] += 1
+		elif el is ZenShape:
+			kinds["shape"] += 1
+			var zs := el as ZenShape
+			if zs.shape_kind == ZenShape.Kind.CUSTOM:
+				var used: Array = [zs.shape_name, ZenAssets.name_of(zs.shape)]
+				for r in zs.shape_refs: used.append(ZenAssets.name_of(r))
+				for nm in used:
+					if nm != "" and not shapes.has(nm): shapes.append(nm)
 		elif el is ZenGlobal: kinds["global"] += 1
 		for prop in el.tracks:
 			var arr: Array = el.tracks[prop]
@@ -147,6 +179,7 @@ func _describe(path: String, base: String) -> Dictionary:
 	info["loop_blend"] = c.loop_blend
 	info["pauses"] = c.pauses.size()
 	info["design"] = c.design_size
+	info["shapes"] = shapes
 	info["clear"] = c.clear_color
 	c.free()
 	return info
@@ -196,7 +229,110 @@ func _select(i: int) -> void:
 	_sel = clampi(i, 0, _entries.size() - 1)
 	for j in _list.get_child_count():
 		(_list.get_child(j) as Button).button_pressed = j == _sel
-	_info.text = _render_info(_entries[_sel])
+	if _section == Section.ANIMS: _info.text = _render_info(_entries[_sel])
+	_keep_visible(_list_scroll, _list, _sel)
+
+
+## Scroll a list so row `i` is on screen. Deferred a frame: rows built this
+## frame have no layout yet, and ensure_control_visible would aim at zero.
+func _keep_visible(scroll: ScrollContainer, list: VBoxContainer, i: int) -> void:
+	await get_tree().process_frame
+	if i >= 0 and i < list.get_child_count():
+		scroll.ensure_control_visible(list.get_child(i))
+
+
+# ---------------------------------------------------------------- sections
+
+## Open one section and collapse the other. Opening the assets while an
+## animation plays stops it - the right pane belongs to the open section.
+func _set_section(sec: Section) -> void:
+	_section = sec
+	var anims := sec == Section.ANIMS
+	_anim_header.text = "%s animations (%d)" % ["▾" if anims else "▸", _entries.size()]
+	_asset_header.text = "%s assets (visual) (%d)" % ["▸" if anims else "▾", _assets.size()]
+	_list_scroll.visible = anims
+	_asset_scroll.visible = not anims
+	if _view == View.PLAYING and not anims:
+		_stop()
+	if _view in [View.GALLERY, View.PLAYING] and not (anims and _view == View.PLAYING):
+		_show_gallery()
+	if anims: _select(_sel)
+	else: _select_asset(_sel_asset)
+
+
+func _scan_assets() -> void:
+	_assets.clear()
+	var paths := ZenAssets.shape_paths()
+	for nm in paths:
+		_assets.append({"name": nm, "path": paths[nm]})
+
+
+func _build_asset_list() -> void:
+	for ch in _asset_list.get_children():
+		_asset_list.remove_child(ch)
+		ch.queue_free()
+	var labels: Array = [NEW_ASSET_ROW]
+	for a in _assets: labels.append(String(a["name"]))
+	for i in labels.size():
+		var b := Button.new()
+		b.text = "  %s" % labels[i]
+		b.alignment = HORIZONTAL_ALIGNMENT_LEFT
+		b.focus_mode = Control.FOCUS_NONE
+		b.toggle_mode = true
+		b.pressed.connect(_select_asset.bind(i))
+		b.gui_input.connect(_on_asset_row_input.bind(i))
+		_asset_list.add_child(b)
+
+
+func _on_asset_row_input(ev: InputEvent, i: int) -> void:
+	if not (ev is InputEventMouseButton): return
+	var mb := ev as InputEventMouseButton
+	if mb.button_index != MOUSE_BUTTON_LEFT or not mb.double_click: return
+	_select_asset(i)
+	_open_shape_editor()
+	accept_event()
+
+
+func _select_asset(i: int) -> void:
+	_sel_asset = clampi(i, 0, _assets.size())
+	for j in _asset_list.get_child_count():
+		(_asset_list.get_child(j) as Button).button_pressed = j == _sel_asset
+	_keep_visible(_asset_scroll, _asset_list, _sel_asset)
+	if _section != Section.ASSETS: return
+	if _sel_asset == 0:
+		_asset_preview.shape = null
+		_info.text = "[b][color=#e5c07b]new asset[/color][/b]\n\n" \
+			+ "Press ENTER to create a pixel shape in the shape editor.\n\n" \
+			+ "[color=#5c6370]A pixel shape is a grid of fill and outline cells with no colour " \
+			+ "of its own: a custom shape element tints fill with its color track and " \
+			+ "outline with its outline_color track, so both stay animatable.[/color]"
+		return
+	var a: Dictionary = _assets[_sel_asset - 1]
+	var shp := load(String(a["path"])) as ZenPixelShape
+	_asset_preview.shape = shp
+	_info.text = _render_asset_info(a, shp)
+
+
+func _render_asset_info(a: Dictionary, shp: ZenPixelShape) -> String:
+	var nm := String(a["name"])
+	var L: Array = []
+	L.append("[b][color=#e5c07b]%s[/color][/b]" % nm)
+	L.append("[color=#5c6370]%s[/color]" % String(a["path"]))
+	L.append("")
+	if shp == null:
+		L.append("[color=#e06c75]could not load[/color]")
+		return "\n".join(L)
+	L.append("[color=#61afef]kind[/color]  pixel shape")
+	L.append("[color=#61afef]size[/color]  %d x %d cells" % [shp.size.x, shp.size.y])
+	L.append("[color=#61afef]cells[/color]  %d fill, %d outline" % [
+		shp.count(ZenPixelShape.FILL), shp.count(ZenPixelShape.OUTLINE)])
+	var users: Array = []
+	for e in _entries:
+		if (e.get("shapes", []) as Array).has(nm): users.append(String(e["name"]))
+	L.append("[color=#61afef]used by[/color]  %s" % (", ".join(users) if not users.is_empty()
+			 else "[color=#5c6370]no animation[/color]"))
+	L.append("    [color=#5c6370]press ENTER or double-click to edit[/color]")
+	return "\n".join(L)
 
 
 ## The metadata panel. Everything here is read off the scene, so it describes
@@ -266,9 +402,15 @@ func _show_gallery() -> void:
 	_view = View.GALLERY
 	_stage.visible = false
 	_info.visible = true
+	_asset_preview.visible = _section == Section.ASSETS
 	_title.text = "Zen Animator"
+	if _section == Section.ASSETS:
+		_status.text = "%d assets%s" % [_assets.size(), _queue_suffix()]
+		_hint.text = "  ENTER / double-click  edit      UP/DOWN  select      TAB  animations" \
+				   + "      R  reload      O  options      ESC  quit"
+		return
 	_status.text = "%d animations%s" % [_entries.size(), _queue_suffix()]
-	_hint.text = "  ENTER / double-click  play      UP/DOWN  select      R  reload" \
+	_hint.text = "  ENTER / double-click  play      UP/DOWN  select      TAB  assets      R  reload" \
 			   + "      I  intro      L  loop      O  options      E  export      Ctrl+E  queue      ESC  quit"
 	_status.text += "   " + _toggle_badges(null)
 
@@ -277,6 +419,7 @@ func _show_playing(nm: String) -> void:
 	_view = View.PLAYING
 	_stage.visible = true
 	_info.visible = false
+	_asset_preview.visible = false
 	_title.text = nm
 	# Only advertise the signal keys when there is something to fire.
 	var n := 0
@@ -312,6 +455,7 @@ func _queue_suffix() -> String:
 ## reposition every element, because Zen geometry is fractional.
 func _play(i: int) -> void:
 	_stop()
+	if _section != Section.ANIMS: _set_section(Section.ANIMS)
 	var e: Dictionary = _entries[i]
 	if not bool(e.get("ok", false)): return
 	var ps := load(String(e["path"])) as PackedScene
@@ -362,14 +506,19 @@ func _restart() -> void:
 		var keep := _sel
 		_scan()
 		_build_list()
+		_scan_assets()
+		_build_asset_list()
+		_set_section(_section)
 		_select(keep)
-		_status.text = "%d animations  [reloaded]" % _entries.size()
+		_status.text = "%d animations, %d assets  [reloaded]" % [_entries.size(), _assets.size()]
 
 
 ## ESC backs out one level, then quits - the usual nesting, so it is never a
 ## surprise which one happens.
 func _back() -> void:
-	if _view == View.OPTIONS:
+	if _view == View.SHAPE_EDITOR:
+		return          # the editor owns ESC (it may have unsaved changes)
+	elif _view == View.OPTIONS:
 		_close_options()
 	elif _view == View.EXPORT:
 		_close_export()
@@ -397,6 +546,36 @@ func _close_options() -> void:
 		_options.queue_free()
 		_options = null
 	_view = View.GALLERY
+
+
+## The shape editor: the same overlay-child pattern, on the selected asset
+## (or a blank one for the "+ new asset" row). Closing it rescans the assets
+## and selects whatever it last saved, so a new shape appears selected.
+func _open_shape_editor() -> void:
+	if _shape_editor != null: return
+	_shape_editor = (load(SHAPE_EDITOR_SCENE) as PackedScene).instantiate()
+	_shape_editor.closed.connect(_close_shape_editor)
+	add_child(_shape_editor)
+	var nm := "" if _sel_asset == 0 or _assets.is_empty() else String(_assets[_sel_asset - 1]["name"])
+	_shape_editor.open(nm)
+	_view = View.SHAPE_EDITOR
+
+
+func _close_shape_editor() -> void:
+	var nm := ""
+	if _shape_editor != null:
+		nm = _shape_editor.current_name()
+		_shape_editor.queue_free()
+		_shape_editor = null
+	_view = View.GALLERY
+	_scan_assets()
+	_build_asset_list()
+	var row := 0
+	for i in _assets.size():
+		if String(_assets[i]["name"]) == nm: row = i + 1
+	_sel_asset = row
+	# Animations may now draw a changed shape; their usage lists still hold.
+	_set_section(Section.ASSETS)
 
 
 ## Export is the same overlay-child pattern as Options - opening it from
@@ -528,7 +707,7 @@ func _unhandled_input(ev: InputEvent) -> void:
 		_back()
 		get_viewport().set_input_as_handled()
 	elif ev.is_action_pressed("zen_restart"):
-		if _view != View.OPTIONS:
+		if _view in [View.GALLERY, View.PLAYING]:
 			_restart()
 			get_viewport().set_input_as_handled()
 	elif ev.is_action_pressed("zen_options"):
@@ -544,6 +723,10 @@ func _unhandled_input(ev: InputEvent) -> void:
 		if _view in [View.GALLERY, View.PLAYING]:
 			_open_export()
 			get_viewport().set_input_as_handled()
+	elif ev.is_action_pressed("zen_tab"):
+		if _view in [View.GALLERY, View.PLAYING]:
+			_set_section(Section.ASSETS if _section == Section.ANIMS else Section.ANIMS)
+			get_viewport().set_input_as_handled()
 	elif ev.is_action_pressed("zen_toggle_intro"):
 		if _view in [View.GALLERY, View.PLAYING]:
 			_toggle("intro")
@@ -554,15 +737,18 @@ func _unhandled_input(ev: InputEvent) -> void:
 			get_viewport().set_input_as_handled()
 	elif ev.is_action_pressed("zen_play"):
 		if _view == View.GALLERY:
-			_play(_sel)
+			if _section == Section.ASSETS: _open_shape_editor()
+			else: _play(_sel)
 			get_viewport().set_input_as_handled()
 	elif ev.is_action_pressed("zen_prev"):
 		if _view == View.GALLERY:
-			_select(_sel - 1)
+			if _section == Section.ASSETS: _select_asset(_sel_asset - 1)
+			else: _select(_sel - 1)
 			get_viewport().set_input_as_handled()
 	elif ev.is_action_pressed("zen_next"):
 		if _view == View.GALLERY:
-			_select(_sel + 1)
+			if _section == Section.ASSETS: _select_asset(_sel_asset + 1)
+			else: _select(_sel + 1)
 			get_viewport().set_input_as_handled()
 	else:
 		# zen_signal_1..9 fire the nth signal of the playing document.

@@ -1,6 +1,7 @@
-[gd_scene load_steps=3 format=3]
+[gd_scene load_steps=4 format=3]
 
 [ext_resource type="Script" path="res://tools/zen_gallery.gd" id="1"]
+[ext_resource type="Script" path="res://tools/zen_shape_preview.gd" id="2"]
 
 [sub_resource type="StyleBoxFlat" id="bg"]
 bg_color = Color(0.0862745, 0.0941176, 0.1137255, 1)
@@ -65,12 +66,18 @@ theme_override_constants/separation = 16
 [node name="Left" type="VBoxContainer" parent="Margin/Rows/Body"]
 layout_mode = 2
 size_flags_horizontal = 0
-custom_minimum_size = Vector2(190, 0)
+custom_minimum_size = Vector2(220, 0)
 
-[node name="ListLabel" type="Label" parent="Margin/Rows/Body/Left"]
+[node name="AnimHeader" type="Button" parent="Margin/Rows/Body/Left"]
 layout_mode = 2
-text = "animations"
+flat = true
+focus_mode = 0
+alignment = 0
 theme_override_colors/font_color = Color(0.38, 0.686, 0.937, 1)
+theme_override_colors/font_hover_color = Color(0.55, 0.78, 0.97, 1)
+theme_override_colors/font_pressed_color = Color(0.38, 0.686, 0.937, 1)
+theme_override_colors/font_focus_color = Color(0.38, 0.686, 0.937, 1)
+text = "▾ animations"
 
 [node name="ListScroll" type="ScrollContainer" parent="Margin/Rows/Body/Left"]
 layout_mode = 2
@@ -78,6 +85,28 @@ size_flags_vertical = 3
 horizontal_scroll_mode = 0
 
 [node name="List" type="VBoxContainer" parent="Margin/Rows/Body/Left/ListScroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 2
+
+[node name="AssetHeader" type="Button" parent="Margin/Rows/Body/Left"]
+layout_mode = 2
+flat = true
+focus_mode = 0
+alignment = 0
+theme_override_colors/font_color = Color(0.38, 0.686, 0.937, 1)
+theme_override_colors/font_hover_color = Color(0.55, 0.78, 0.97, 1)
+theme_override_colors/font_pressed_color = Color(0.38, 0.686, 0.937, 1)
+theme_override_colors/font_focus_color = Color(0.38, 0.686, 0.937, 1)
+text = "▸ assets (visual)"
+
+[node name="AssetScroll" type="ScrollContainer" parent="Margin/Rows/Body/Left"]
+visible = false
+layout_mode = 2
+size_flags_vertical = 3
+horizontal_scroll_mode = 0
+
+[node name="AssetList" type="VBoxContainer" parent="Margin/Rows/Body/Left/AssetScroll"]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 2
@@ -93,6 +122,13 @@ size_flags_vertical = 3
 bbcode_enabled = true
 scroll_active = true
 theme_override_colors/default_color = Color(0.816, 0.835, 0.867, 1)
+
+[node name="AssetPreview" type="Control" parent="Margin/Rows/Body/Right"]
+visible = false
+layout_mode = 2
+size_flags_vertical = 3
+size_flags_stretch_ratio = 1.6
+script = ExtResource("2")
 
 [node name="Stage" type="AspectRatioContainer" parent="Margin/Rows/Body/Right"]
 visible = false
