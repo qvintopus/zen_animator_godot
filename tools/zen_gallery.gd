@@ -28,9 +28,10 @@ const ANIM_DIR := "res://anims"
 ## listing both would show the same animation twice under near-identical names.
 const HIDDEN := ["mouse_ripple_hand"]
 
-enum View { GALLERY, PLAYING, OPTIONS }
+enum View { GALLERY, PLAYING, OPTIONS, EXPORT }
 
 const OPTIONS_SCENE := "res://tools/zen_options.tscn"
+const EXPORT_SCENE := "res://tools/zen_export_dialog.tscn"
 
 var _view: View = View.GALLERY
 var _entries: Array = []            # [{path, name, canvas_data...}]
@@ -38,6 +39,12 @@ var _sel := 0
 var _playing: ZenCanvas = null
 var _sub: SubViewport = null
 var _options: Control = null
+var _export_dialog: Control = null
+var _prev_view: View = View.GALLERY   # EXPORT returns here on close
+
+## Names queued with Ctrl+E, in order. Duplicates allowed (chaining an
+## animation twice is meaningful); capped at ZenExport.MAX_CHAIN.
+var _export_queue: Array[String] = []
 
 ## How long a finished one-shot holds on its last frame before replaying.
 const REPLAY_HOLD := 0.9
@@ -138,6 +145,7 @@ func _describe(path: String, base: String) -> Dictionary:
     info["play_end"] = c.play_end()
     info["loop_smooth"] = c.loop_smooth
     info["loop_blend"] = c.loop_blend
+    info["pauses"] = c.pauses.size()
     info["design"] = c.design_size
     info["clear"] = c.clear_color
     c.free()
@@ -259,8 +267,9 @@ func _show_gallery() -> void:
     _stage.visible = false
     _info.visible = true
     _title.text = "Zen Animator"
-    _status.text = "%d animations" % _entries.size()
-    _hint.text = "  ENTER / double-click  play      UP/DOWN  select      R  reload      O  options      ESC  quit"
+    _status.text = "%d animations%s" % [_entries.size(), _queue_suffix()]
+    _hint.text = "  ENTER / double-click  play      UP/DOWN  select      R  reload" \
+               + "      O  options      E  export      Ctrl+E  queue      ESC  quit"
 
 
 func _show_playing(nm: String) -> void:
@@ -274,7 +283,11 @@ func _show_playing(nm: String) -> void:
     var sig := ""
     if n == 1: sig = "      1  fire signal"
     elif n > 1: sig = "      1-%d  fire signal" % n
-    _hint.text = "  R  restart      ESC  back to gallery%s" % sig
+    _hint.text = "  R  restart      E  export      Ctrl+E  queue      ESC  back to gallery%s" % sig
+
+
+func _queue_suffix() -> String:
+    return "   [queued: %d]" % _export_queue.size() if not _export_queue.is_empty() else ""
 
 
 # ---------------------------------------------------------------- playing
@@ -342,6 +355,8 @@ func _restart() -> void:
 func _back() -> void:
     if _view == View.OPTIONS:
         _close_options()
+    elif _view == View.EXPORT:
+        _close_export()
     elif _view == View.PLAYING:
         _stop()
         _show_gallery()
@@ -366,6 +381,69 @@ func _close_options() -> void:
         _options.queue_free()
         _options = null
     _view = View.GALLERY
+
+
+## Export is the same overlay-child pattern as Options - opening it from
+## PLAYING leaves playback running underneath, so closing it returns there
+## rather than always falling back to the gallery.
+func _open_export() -> void:
+    if _export_dialog != null: return
+    _export_dialog = (load(EXPORT_SCENE) as PackedScene).instantiate()
+    _export_dialog.closed.connect(_close_export)
+    add_child(_export_dialog)
+    var chain: Array = _export_queue.duplicate()
+    if chain.is_empty():
+        var current := _playing.scene_file_path.get_file().get_basename() \
+                       if _playing != null else String(_entries[_sel].get("name", ""))
+        if current != "": chain = [current]
+    _prev_view = _view if _view in [View.GALLERY, View.PLAYING] else View.GALLERY
+    _export_dialog.open(_entries, chain)
+    _view = View.EXPORT
+
+
+func _close_export() -> void:
+    if _export_dialog != null:
+        _export_queue = _export_dialog.get_chain()
+        if _export_dialog.exported_ok():
+            _export_queue.clear()
+        _export_dialog.queue_free()
+        _export_dialog = null
+    _view = _prev_view
+    if _view == View.GALLERY: _show_gallery()
+    elif _view == View.PLAYING: _show_playing(_title.text)
+
+
+## Ctrl+E: tag the current selection (gallery) or the playing animation onto
+## the export queue without opening the dialog. Refuses a design_size that
+## does not match the chain's first link - letterbox/stretch are both wrong,
+## so mixing sizes is refused rather than guessed at (ZenExport.plan_chain
+## enforces the same rule when the chain actually runs).
+func _queue_current() -> void:
+    var nm := _playing.scene_file_path.get_file().get_basename() \
+              if _view == View.PLAYING and _playing != null \
+              else String(_entries[_sel].get("name", "")) if not _entries.is_empty() else ""
+    if nm == "": return
+    var entry := {}
+    for e in _entries:
+        if String(e.get("name", "")) == nm: entry = e; break
+    if entry.is_empty() or not bool(entry.get("ok", false)): return
+
+    if _export_queue.size() >= ZenExport.MAX_CHAIN:
+        _status.text = "queue is full (%d max)" % ZenExport.MAX_CHAIN
+        return
+    if not _export_queue.is_empty():
+        var first := {}
+        for e in _entries:
+            if String(e.get("name", "")) == _export_queue[0]: first = e; break
+        var fd: Vector2 = first.get("design", Vector2.ZERO)
+        var d: Vector2 = entry["design"]
+        if d != fd:
+            _status.text = "cannot queue %s: %dx%d canvas, queue is %dx%d" % [
+                nm, int(d.x), int(d.y), int(fd.x), int(fd.y)]
+            return
+
+    _export_queue.append(nm)
+    _status.text = "queued %s  [queued: %d]" % [nm, _export_queue.size()]
 
 
 ## Fire a signal by number while playing. This is the only interactive way to
@@ -410,7 +488,7 @@ func _update_status() -> void:
             return
     else:
         _replay_hold = 0.0
-    _status.text = "t %.2f / %.2fs%s" % [t, tot, extra]
+    _status.text = "t %.2f / %.2fs%s%s" % [t, tot, extra, _queue_suffix()]
 
 
 func _unhandled_input(ev: InputEvent) -> void:
@@ -425,6 +503,15 @@ func _unhandled_input(ev: InputEvent) -> void:
     elif ev.is_action_pressed("zen_options"):
         if _view == View.GALLERY:
             _open_options()
+            get_viewport().set_input_as_handled()
+    elif ev.is_action_pressed("zen_export_queue"):
+        if _view in [View.GALLERY, View.PLAYING]:
+            _queue_current()
+            get_viewport().set_input_as_handled()
+    elif ev.is_action_pressed("zen_export") \
+         and not (ev is InputEventKey and (ev as InputEventKey).ctrl_pressed):
+        if _view in [View.GALLERY, View.PLAYING]:
+            _open_export()
             get_viewport().set_input_as_handled()
     elif ev.is_action_pressed("zen_play"):
         if _view == View.GALLERY:

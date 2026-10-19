@@ -95,33 +95,6 @@ theme_override_colors/font_color = Color(0.816, 0.835, 0.867, 1)
 theme_override_font_sizes/font_size = 28
 autowrap_mode = 2
 
-[node name="Sep2" type="HSeparator" parent="Margin/Rows/Body/PreviewCol"]
-layout_mode = 2
-
-[node name="ExportLabel" type="Label" parent="Margin/Rows/Body/PreviewCol"]
-layout_mode = 2
-text = "export"
-theme_override_colors/font_color = Color(0.38, 0.686, 0.937, 1)
-
-[node name="ScaleRow" type="HBoxContainer" parent="Margin/Rows/Body/PreviewCol"]
-layout_mode = 2
-theme_override_constants/separation = 8
-
-[node name="ScaleLabel" type="Label" parent="Margin/Rows/Body/PreviewCol/ScaleRow"]
-layout_mode = 2
-text = "default scale"
-theme_override_colors/font_color = Color(0.816, 0.835, 0.867, 1)
-
-[node name="Value" type="Label" parent="Margin/Rows/Body/PreviewCol/ScaleRow"]
-layout_mode = 2
-text = "x4"
-theme_override_colors/font_color = Color(0.898, 0.753, 0.482, 1)
-
-[node name="Resolution" type="Label" parent="Margin/Rows/Body/PreviewCol"]
-layout_mode = 2
-text = ""
-theme_override_colors/font_color = Color(0.816, 0.835, 0.867, 1)
-
 [node name="Sep3" type="HSeparator" parent="Margin/Rows"]
 layout_mode = 2
 

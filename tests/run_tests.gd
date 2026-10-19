@@ -56,6 +56,13 @@ func _run() -> void:
     await test_canvas_idle_until_played()
     test_imported_scenes_inert()
     test_export_pause_holds()
+    test_chain_frame_plan()
+    test_chain_rejects_size_mismatch()
+    test_single_link_plan_matches_legacy()
+    test_estimate_bytes_shape()
+    test_cutout_snaps_alpha()
+    test_ffmpeg_args_per_format()
+    await test_job_cancel_png()
     test_props_registry_agrees()
     test_blend_keyed()
     test_signal_u_normalization()
@@ -88,6 +95,7 @@ func _run() -> void:
     test_seek_stays_in_section()
     await test_loop_play_separate_from_smooth()
     test_zen_settings()
+    test_export_dialog_preview()
     print("\n%d checks, %d failures" % [checks, fails])
     quit(1 if fails > 0 else 0)
 
@@ -1098,6 +1106,213 @@ func test_export_pause_holds() -> void:
     c.free()
 
 
+## A bare canvas with a known free-running length, for the chain tests.
+func _chain_canvas(size := Vector2(320, 180)) -> ZenCanvas:
+    var c := ZenCanvas.new()
+    c.design_size = size
+    c.duration = 2.0
+    c.outro_start = 2.0
+    c.live_playback = false
+    return c
+
+
+## Chaining several animations into one file: the frame plan is the part that
+## decides the output, and the join beat is the part that is easy to get wrong
+## (it belongs BETWEEN links, so the last one never has one).
+func test_chain_frame_plan() -> void:
+    var a := _chain_canvas()
+    var b := _chain_canvas()
+    var s := ZenExport.Settings.new()
+    s.fps = 10
+    s.show_intro = true
+    s.pause_hold = 1.0          # 10 frames at 10fps
+
+    var links := [{"canvas": a}, {"canvas": b}]
+
+    var loose := ZenExport.plan_chain(links, s, false)
+    check(bool(loose["ok"]), "a two-link chain plans")
+    var lt: Dictionary = ZenExport.chain_totals(loose["segments"])
+    check(int(lt["total"]) == 40, "no join pause: 20 + 20 frames (got %d)" % int(lt["total"]))
+    check(int(lt["held"]) == 0, "and nothing is held")
+
+    var joined := ZenExport.plan_chain(links, s, true)
+    var jt: Dictionary = ZenExport.chain_totals(joined["segments"])
+    check(int(jt["total"]) == 50, "one join adds one hold (got %d)" % int(jt["total"]))
+    check(int(jt["held"]) == 10, "and those 10 frames count as held")
+    var segs: Array = joined["segments"]
+    check((segs[0] as ZenExport.ChainSegment).join_hold == 10, "the join sits after link 1")
+    check((segs[1] as ZenExport.ChainSegment).join_hold == 0,
+          "the LAST link gets no join - there is nothing after it")
+
+    # An in-document pause marker and a join are both holds, and they add up.
+    var marked := ZenExport.plan_chain([{"canvas": a, "pauses": [1.0]}, {"canvas": b}], s, true)
+    var mt: Dictionary = ZenExport.chain_totals(marked["segments"])
+    check(int(mt["total"]) == 60, "marker hold + join hold both land (got %d)" % int(mt["total"]))
+    check(int(mt["held"]) == 20, "and both count as held (got %d)" % int(mt["held"]))
+
+    a.free()
+    b.free()
+
+
+## Mixing canvas sizes in one chain is refused, and refused BEFORE any encoder
+## opens - there is no right answer for compositing 320x180 next to 640x360,
+## and a half-written file is worse than a clear no.
+func test_chain_rejects_size_mismatch() -> void:
+    var a := _chain_canvas()
+    var b := _chain_canvas(Vector2(640, 360))
+    var s := ZenExport.Settings.new()
+
+    var r := ZenExport.plan_chain([{"canvas": a}, {"canvas": b}], s, false)
+    check(not bool(r["ok"]), "a mismatched canvas size is refused")
+    check(String(r["error"]).contains("640x360"), "and the error names the offender")
+    check((r["segments"] as Array).is_empty(), "and no segments come back")
+
+    check(not bool(ZenExport.plan_chain([], s, false)["ok"]), "an empty chain is refused")
+
+    var too_many: Array = []
+    for i in ZenExport.MAX_CHAIN + 1: too_many.append({"canvas": a})
+    check(not bool(ZenExport.plan_chain(too_many, s, false)["ok"]),
+          "a chain past MAX_CHAIN is refused")
+
+    a.free()
+    b.free()
+
+
+## The single-animation door must plan exactly what the old direct path did -
+## one encoder loop now serves both, so the one-link case has to stay put.
+func test_single_link_plan_matches_legacy() -> void:
+    var c := _chain_canvas()
+    var s := ZenExport.Settings.new()
+    s.fps = 12
+    s.show_intro = true
+    s.pause_hold = 0.5
+
+    var legacy := ZenExport.frame_times(c, s, [1.0])
+    var plan := ZenExport.plan_chain([{"canvas": c, "pauses": [1.0]}], s, false)
+    var seg := (plan["segments"] as Array)[0] as ZenExport.ChainSegment
+    check(seg.times == legacy, "a one-link chain plans the legacy frame list")
+    check(seg.join_hold == 0, "and a lone link never gets a join beat")
+    check(int(ZenExport.chain_totals(plan["segments"])["total"]) == legacy.size(),
+          "and the total is just that list's length")
+    c.free()
+
+
+## The size estimate is calibrated, not derived (zen_export.c:619-692), so what
+## is pinned here is its SHAPE: the directions it must move in, and the one
+## format where it is exact arithmetic rather than a guess.
+func test_estimate_bytes_shape() -> void:
+    for fmt in ["gif", "png", "avi", "mp4", "webm"]:
+        var small := ZenExport.estimate_bytes(fmt, 320, 180, 1, 50, 0, 16, 70)
+        var longer := ZenExport.estimate_bytes(fmt, 320, 180, 1, 100, 0, 16, 70)
+        var bigger := ZenExport.estimate_bytes(fmt, 320, 180, 4, 50, 0, 16, 70)
+        check(longer > small, "%s: more frames estimates larger" % fmt)
+        check(bigger > small, "%s: a deeper upscale estimates larger" % fmt)
+
+    # AVI is uncompressed: 3 bytes per pixel per frame, exactly.
+    check_near(ZenExport.estimate_bytes("avi", 320, 180, 2, 10, 0, 16, 70),
+               640.0 * 360.0 * 10.0 * 3.0, "avi is exact arithmetic", 1.0)
+
+    # Held frames are pixel-identical to the one before, so the formats that
+    # difference between frames charge them at a tenth.
+    for fmt in ["gif", "mp4", "webm"]:
+        check(ZenExport.estimate_bytes(fmt, 320, 180, 2, 100, 50, 16, 70)
+              < ZenExport.estimate_bytes(fmt, 320, 180, 2, 100, 0, 16, 70),
+              "%s: held frames are discounted" % fmt)
+    for fmt in ["png", "avi"]:
+        check_near(ZenExport.estimate_bytes(fmt, 320, 180, 2, 100, 50, 16, 70),
+                   ZenExport.estimate_bytes(fmt, 320, 180, 2, 100, 0, 16, 70),
+                   "%s: a duplicate frame costs full price" % fmt, 1.0)
+
+    # Both quality knobs move their own format's estimate.
+    check(ZenExport.estimate_bytes("gif", 320, 180, 2, 50, 0, 4, 70)
+          < ZenExport.estimate_bytes("gif", 320, 180, 2, 50, 0, 16, 70),
+          "gif: a shallower palette estimates smaller")
+    check(ZenExport.estimate_bytes("mp4", 320, 180, 2, 50, 0, 16, 20)
+          < ZenExport.estimate_bytes("mp4", 320, 180, 2, 50, 0, 16, 90),
+          "mp4: lower quality estimates smaller")
+
+
+## GIF transparency is one bit, so a soft edge has to be decided one way or the
+## other. Everything at or above the threshold goes opaque, everything below
+## goes fully clear - and colour must survive untouched.
+func test_cutout_snaps_alpha() -> void:
+    var img := Image.create(3, 1, false, Image.FORMAT_RGBA8)
+    img.set_pixel(0, 0, Color(1, 0, 0, 100.0 / 255.0))
+    img.set_pixel(1, 0, Color(0, 1, 0, 128.0 / 255.0))
+    img.set_pixel(2, 0, Color(0, 0, 1, 200.0 / 255.0))
+
+    ZenExport.cutout(img, 128)
+    check_near(img.get_pixel(0, 0).a, 0.0, "below the threshold goes clear", 0.01)
+    check_near(img.get_pixel(1, 0).a, 1.0, "exactly at the threshold goes opaque", 0.01)
+    check_near(img.get_pixel(2, 0).a, 1.0, "above the threshold goes opaque", 0.01)
+    check_near(img.get_pixel(2, 0).b, 1.0, "and the colour is untouched", 0.01)
+
+
+## Each format's ffmpeg arguments. Cheap to check and easy to break: AVI is the
+## one format with no quality control at all, and the GIF palette depth must
+## only appear when it is actually reduced.
+func test_ffmpeg_args_per_format() -> void:
+    var s := ZenExport.Settings.new()
+    s.fmt = "avi"
+    var avi := " ".join(ZenExport._args(s, 640, 360, "/tmp/x.avi"))
+    check(avi.contains("rawvideo"), "avi encodes rawvideo")
+    check(not avi.contains("-crf"), "avi has no quality control")
+
+    s.fmt = "gif"
+    s.quality_gif = 16
+    check(not " ".join(ZenExport._args(s, 640, 360, "/tmp/x.gif")).contains("max_colors"),
+          "gif at full quality asks for no palette reduction")
+    s.quality_gif = 8
+    check(" ".join(ZenExport._args(s, 640, 360, "/tmp/x.gif")).contains("max_colors=128"),
+          "gif at half quality halves the palette")
+
+    s.fmt = "mp4"
+    s.quality = 100
+    check(" ".join(ZenExport._args(s, 640, 360, "/tmp/x.mp4")).contains("-crf 18"),
+          "full quality is the best CRF")
+    check(ZenExport.crf(0) == 34, "and zero quality is the worst")
+
+
+## Cancelling. The check sits at the top of the frame loop, so a job cancelled
+## before its first frame must come back having written nothing - and the
+## partial-file cleanup must not run off and delete anything else.
+##
+## Deliberately the no-frames case: rendering needs a real display
+## (frame_post_draw never fires headless), so a mid-export cancel is a
+## VISUAL_CHECKS item, not a suite one.
+func test_job_cancel_png() -> void:
+    var c := _chain_canvas()
+    var s := ZenExport.Settings.new()
+    s.fmt = "png"
+    s.fps = 10
+    s.show_intro = true
+    s.out_dir = "user://test_exports"
+
+    var plan := ZenExport.plan_chain([{"canvas": c}], s, false)
+    check(bool(plan["ok"]), "the cancel fixture plans")
+
+    var job := ZenExport.Job.new()
+    job.cancel_requested = true
+    # Merged, not assigned: a lambda captures a local BY VALUE, so rebinding
+    # `got` inside it would never reach this scope. A Dictionary is a reference.
+    var got := {}
+    job.finished.connect(func(r: Dictionary): got.merge(r, true))
+    var r: Dictionary = await job.run(root, plan["segments"], s, "cancel_probe")
+
+    check(bool(r["cancelled"]), "a cancelled job says so")
+    check(not bool(r["ok"]), "and does not report success")
+    check(int(r["frames"]) == 0, "and wrote no frames (got %d)" % int(r["frames"]))
+    check(job.total == 20, "while still knowing what it was going to do")
+    check(bool(got.get("cancelled", false)), "and the finished signal carries the same result")
+
+    var dir := DirAccess.open(ProjectSettings.globalize_path("user://test_exports/cancel_probe"))
+    check(dir != null and dir.get_files().is_empty(), "no png landed on disk")
+    if dir != null:
+        DirAccess.remove_absolute(ProjectSettings.globalize_path("user://test_exports/cancel_probe"))
+        DirAccess.remove_absolute(ProjectSettings.globalize_path("user://test_exports"))
+    c.free()
+
+
 # ---------------------------------------------------------------------------
 #  Signal integration: the override layer against real scenes.
 # ---------------------------------------------------------------------------
@@ -1887,7 +2102,7 @@ func test_anim_player_mirrors_keys() -> void:
 ## Generated by tools/gen_input_map.gd into project.godot's [input] section.
 func test_input_actions_declared() -> void:
     var names := ["zen_play", "zen_back", "zen_restart", "zen_prev", "zen_next",
-                  "zen_options", "zen_scale_down", "zen_scale_up"]
+                  "zen_options", "zen_export", "zen_export_queue"]
     for i in range(1, 10): names.append("zen_signal_%d" % i)
     for n in names:
         check(InputMap.has_action(n), "action %s is declared" % n)
@@ -1924,6 +2139,18 @@ func test_zen_settings() -> void:
     ZenSettings.set_font_name("")
     check(ZenText.default_font() == bundled, "clearing the override restores the bundled default")
 
+    var orig_export := ZenSettings.export_defaults()
+    ZenSettings.set_export_defaults({"fmt": "mp4", "fps": 24})
+    var got := ZenSettings.export_defaults()
+    check(String(got["fmt"]) == "mp4", "export default fmt round-trips")
+    check(int(got["fps"]) == 24, "export default fps round-trips")
+    check(got.has("quality_gif") and int(got["quality_gif"]) == 16,
+          "a field not passed to set_export_defaults keeps its default")
+    got["fmt"] = "avi"
+    check(String(ZenSettings.export_defaults()["fmt"]) != "avi",
+          "export_defaults() returns a copy, not the live Dictionary")
+    ZenSettings.set_export_defaults(orig_export)
+
     ZenSettings.set_font_name(orig_font)
     ZenSettings.set_export_scale(orig_scale)
 
@@ -1932,6 +2159,48 @@ func test_zen_settings() -> void:
     ev.pressed = true
     check(ev.is_action_pressed("zen_restart"),
           "a synthetic physical_keycode=KEY_R event reports zen_restart pressed")
+
+
+## The Export dialog's frame-count/size preview is built from the gallery's
+## scanned metadata, never from instantiating scenes while the chain is being
+## edited (see ZenExportDialog's class doc). This pins that arithmetic
+## headless, with no display and no .tscn load needed for the dialog itself.
+func test_export_dialog_preview() -> void:
+    var ps := load("res://tools/zen_export_dialog.tscn") as PackedScene
+    var dlg := ps.instantiate()
+    root.add_child(dlg)
+
+    var entries := [
+        {"name": "a", "ok": true, "design": Vector2(320, 180),
+         "intro_end": 0.0, "play_start": 0.0, "play_end": 1.0, "pauses": 0},
+        {"name": "b", "ok": true, "design": Vector2(320, 180),
+         "intro_end": 0.5, "play_start": 0.5, "play_end": 2.0, "pauses": 1},
+    ]
+    dlg.open(entries, ["a"])
+    # Explicit, not whatever ZenSettings.export_defaults() last persisted - a
+    # real export run writes its format back, so this test must not depend
+    # on what a previous interactive session left in user://zen_settings.cfg.
+    dlg._s.fmt = "gif"
+    dlg._s.fps = 10
+    dlg._refresh()
+    check(dlg._frames_label.text == "10 frames - 1.00s (0 held)",
+          "single-link preview matches play_end-play_start * fps with no holds")
+
+    dlg._chain.append("b")
+    dlg._s.join_pause = true
+    dlg._s.pause_hold = 1.0   # 10 held frames per marker/join at fps=10
+    dlg._refresh()
+    # a: 10 base + 10 join_hold.  b: 15 base (1.5s*10) + 10 marker_hold (1 pause).
+    check(dlg._frames_label.text == "45 frames - 4.50s (20 held)",
+          "chained preview adds base frames plus join and pause-marker holds")
+
+    check(dlg._default_name() == "a_chain",
+          "default export name for a multi-link chain is <first>_chain")
+    dlg._name_edit.text = ""
+    check(dlg._resolved_path_preview() == "res://exports/a_chain.gif",
+          "empty name field previews the resolved default-name path")
+
+    dlg.queue_free()
 
 
 ## pause_menu is the discriminator: its intro (1.513) is longer than its body

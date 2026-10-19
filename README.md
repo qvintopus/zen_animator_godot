@@ -73,6 +73,12 @@ same as a test that looks at a pixel.
 
 Needs a real display: `--headless` cannot render (`frame_post_draw` never fires).
 
+The **Export dialog** (press `E` in the gallery, or `Ctrl+E` to queue an animation onto a
+chain without opening it) is the primary export path - every option below, plus chaining
+multiple animations, AVI, a GIF alpha cutout, a size estimate, and progress/cancel. See
+`docs/plans/export-dialog.md`. The CLI below is the scripted/batch door onto the exact same
+engine (`ZenExport.plan_chain()` + `Job`), useful for CI or a one-off from a terminal.
+
 ```sh
 ./Godot_v4.7.2-stable_linux.x86_64 --path . --rendering-driver opengl3 \
     tools/export_scene.tscn -- --anim=mouse_ripple --fps=60 --fmt=webm --scale=2
@@ -81,13 +87,19 @@ Needs a real display: `--headless` cannot render (`frame_post_draw` never fires)
 | Flag | Default | Notes |
 |---|---|---|
 | `--anim=` | `mouse_ripple` | scene basename in `anims/` |
-| `--fmt=` | `webm` | `webm` \| `mp4` \| `gif` \| `png` |
+| `--chain=a,b,c` | - | overrides `--anim=`; every link must share one `design_size` |
+| `--fmt=` | `webm` | `webm` \| `mp4` \| `gif` \| `avi` \| `png` |
 | `--fps=` | `30` | capped at 60 for gif, 120 for video |
 | `--scale=` | `4` | 1..8, nearest-neighbour upscale (320x180 x4 = 1280x720) |
-| `--quality=` | `70` | 0..100, mapped to codec CRF 34..18 |
+| `--quality=` | `70` | 0..100, mapped to codec CRF 34..18 (webm/mp4 only) |
+| `--quality_gif=` | `16` | 1..16 palette depth (gif only) |
+| `--cutout=` | `128` | 1..255 alpha threshold (gif + `--transparent` only) |
 | `--intro` | off | include the intro (one-shot); omit for a seamless loop |
 | `--transparent` | off | gif/png only - VP9 decodes `yuva420p` opaque |
-| `--pause_hold=` | `2.0` | seconds a pause marker freezes for |
+| `--pause_hold=` | `2.0` | seconds a pause marker (or a chain join) freezes for |
+| `--join_pause` | off | freeze on each join between chained animations |
+| `--name=` | first anim name | output basename |
+| `--out=` | `res://exports` | output directory |
 
 Boolean flags take a bare form (`--intro`) or a value (`--intro=true`, `--intro=0`).
 
@@ -159,8 +171,11 @@ addons/zen/runtime/    zen_easing, zen_curve, zen_sampler, zen_canvas (clock + p
 addons/zen/fonts/      bundled fonts (LICENSES.md) - ZenText's project-default font
 addons/zen/importer/   zen_cfg_parse (grammar), zen_cfg_build (nodes), zen_cfg_import (entry)
 zen_gallery.tscn       the main scene (F5): browse, inspect and play animations
-tools/                 zen_gallery.gd, zen_export.gd, export_scene.tscn, build_ripple.gd,
-                       compare_ripple.gd, dump_scene.gd, test_render.tscn,
+tools/                 zen_gallery.gd, zen_options.gd (font picker), zen_export.gd (the
+                       engine: plan_chain + Job), zen_export_dialog.gd/.tscn (the Export
+                       screen, E / Ctrl+E), export_scene.tscn (CLI door onto the same
+                       engine), build_ripple.gd, compare_ripple.gd, dump_scene.gd,
+                       test_render.tscn,
                        signal_shots.tscn (renders what an export cannot show),
                        gen_ease_ref.gd (regenerates tests/ease_ref.txt),
                        gen_input_map.gd (regenerates project.godot's [input] section)

@@ -2,33 +2,22 @@
 class_name ZenOptions
 extends Control
 ##
-## Options screen, reachable from the gallery with O (zen_options). Two
-## settings live here, both through ZenSettings so they persist to
-## user://zen_settings.cfg and so other entry points (the exporter) pick them
-## up without this screen ever having run:
+## Options screen, reachable from the gallery with O (zen_options). Creation-
+## time defaults only - everything export-related (including scale) lives on
+## the Export dialog instead (E / Ctrl+E), since a document's real export
+## resolution depends on its own design_size, not a setting here.
 ##
 ##   - FONT: applied process-wide via ZenText's static override, so every
 ##     element with no per-element `font` picks it up with no .tscn edit.
 ##     "Default" is the bundled Source Sans 3; everything else is a real
 ##     installed font looked up by family name through Godot's SystemFont -
 ##     no bundling needed to offer actual choice.
-##   - EXPORT SCALE: the multiplier tools/export_scene.gd uses when --scale
-##     is not given on the command line. Shown resolved against the 320x180
-##     design canvas every current animation uses (ZenCanvas.design_size's
-##     own default) so the number on screen is the number ffmpeg will see.
 ##
 
 signal closed
 
-## ZenCanvas.design_size's own default - shown here so the resolution line
-## means something; a document with a different canvas will export at a
-## different size regardless, this is just the common case.
-const CANVAS_SIZE := Vector2(320, 180)
-
 @onready var _font_list: VBoxContainer = $Margin/Rows/Body/FontCol/FontScroll/FontList
 @onready var _preview: Label = $Margin/Rows/Body/PreviewCol/Preview
-@onready var _res_label: Label = $Margin/Rows/Body/PreviewCol/Resolution
-@onready var _scale_value: Label = $Margin/Rows/Body/PreviewCol/ScaleRow/Value
 @onready var _hint: Label = $Margin/Rows/Foot/Hint
 
 ## "" is the bundled default; the rest are whatever OS.get_system_fonts()
@@ -43,8 +32,7 @@ func _ready() -> void:
     _fonts.append_array(OS.get_system_fonts())
     _build_font_list()
     _select(maxi(_fonts.find(ZenSettings.font_name()), 0))
-    _update_scale_label()
-    _hint.text = "  UP/DOWN  font      LEFT/RIGHT  export scale      ESC  back"
+    _hint.text = "  UP/DOWN  font      ESC  back"
 
 
 func _build_font_list() -> void:
@@ -72,18 +60,6 @@ func _select(i: int) -> void:
     _preview.add_theme_font_override("font", ZenText.default_font())
 
 
-func _bump_scale(delta: int) -> void:
-    ZenSettings.set_export_scale(ZenSettings.export_scale() + delta)
-    _update_scale_label()
-
-
-func _update_scale_label() -> void:
-    var s := ZenSettings.export_scale()
-    _scale_value.text = "x%d" % s
-    _res_label.text = "export resolution  %d x %d  (320x180 canvas x%d)" % [
-        int(CANVAS_SIZE.x) * s, int(CANVAS_SIZE.y) * s, s]
-
-
 func _unhandled_input(ev: InputEvent) -> void:
     if ev.is_echo(): return
     if ev.is_action_pressed("zen_back"):
@@ -94,10 +70,4 @@ func _unhandled_input(ev: InputEvent) -> void:
         get_viewport().set_input_as_handled()
     elif ev.is_action_pressed("zen_next"):
         _select(_sel + 1)
-        get_viewport().set_input_as_handled()
-    elif ev.is_action_pressed("zen_scale_down"):
-        _bump_scale(-1)
-        get_viewport().set_input_as_handled()
-    elif ev.is_action_pressed("zen_scale_up"):
-        _bump_scale(1)
         get_viewport().set_input_as_handled()

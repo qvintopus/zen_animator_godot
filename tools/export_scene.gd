@@ -7,9 +7,10 @@ extends Node
 ##   Godot --path . --rendering-driver opengl3 tools/export_scene.tscn -- \
 ##         --anim=mouse_ripple --fps=60 --fmt=webm --scale=2
 ##
-
-var _sub: SubViewport = null
-
+## A thin caller over ZenExport.plan_chain()/Job - the same engine the Export
+## dialog drives, so this is a scripted/batch door onto it, not a second
+## implementation. `--chain=a,b,c` overrides `--anim=` for multi-link exports.
+##
 
 func _ready() -> void:
     # Vsync pins the loop to the monitor: ~200x slower (1.2 fps vs 234).
@@ -19,57 +20,51 @@ func _ready() -> void:
     ZenSettings.apply_startup()
 
     var a := _args()
-    var anim := String(a.get("anim", "mouse_ripple"))
+    var names := _chain_names(a)
+
     var s := ZenExport.Settings.new()
     s.fmt = String(a.get("fmt", "webm"))
     s.fps = int(a.get("fps", 30))
     s.scale = clampi(int(a.get("scale", ZenSettings.export_scale())), 1, ZenExport.MAX_SCALE)
     s.quality = int(a.get("quality", 70))
+    s.quality_gif = clampi(int(a.get("quality_gif", 16)), 1, 16)
+    s.cutout = clampi(int(a.get("cutout", 128)), 1, 255)
     s.show_intro = _flag(a, "intro")
     s.transparent = _flag(a, "transparent")
     s.pause_hold = float(a.get("pause_hold", 2.0))
+    s.join_pause = _flag(a, "join_pause")
+    if a.has("out"): s.out_dir = String(a["out"])
 
     var cap := ZenExport.max_fps(s.fmt)
     if s.fps > cap:
         print("fps %d above %s cap, clamping to %d" % [s.fps, s.fmt, cap])
         s.fps = cap
 
-    var path := "res://anims/%s.tscn" % anim
-    if not ResourceLoader.exists(path):
-        push_error("no such animation: " + path)
+    var links := []
+    for anim in names:
+        var link := ZenExport.build_link(self, anim, s.transparent)
+        if link.is_empty():
+            push_error("no such animation: " + anim)
+            get_tree().quit(1)
+            return
+        links.append(link)
+
+    var plan := ZenExport.plan_chain(links, s, s.join_pause)
+    if not bool(plan["ok"]):
+        push_error("export failed: " + String(plan["error"]))
         get_tree().quit(1)
         return
 
-    var canvas: ZenCanvas = (load(path) as PackedScene).instantiate()
-
-    # BEFORE the canvas enters the tree. _ready() is what builds and plays the
-    # live AnimationPlayer, and Godot defers _ready() to after add_child(), so
-    # clearing the flag later (ZenExport.run does it too, belt and braces) would
-    # be a race on exactly when that deferred call lands. An export must never
-    # have a clock of its own: it poses at explicit times from its frame list.
-    canvas.live_playback = false
-
-    # Render into a SubViewport at the NATIVE canvas size; the finished frame is
-    # upscaled afterwards. Drawing into a larger viewport would reposition every
-    # element, because Zen geometry is a fraction of the canvas.
-    _sub = SubViewport.new()
-    _sub.size = Vector2i(canvas.design_size)
-    _sub.transparent_bg = s.transparent
-    _sub.render_target_update_mode = SubViewport.UPDATE_ONCE
-    if not s.transparent:
-        var bg := ColorRect.new()
-        bg.size = canvas.design_size
-        bg.color = canvas.clear_color
-        _sub.add_child(bg)
-    _sub.add_child(canvas)
-    add_child(_sub)
-
+    var name := String(a.get("name", names[0] if names.size() == 1 else "%s_chain" % names[0]))
+    var first_canvas: ZenCanvas = links[0]["canvas"]
     print("exporting %s -> %s  %dx%d @%dfps" % [
-        anim, s.fmt, int(canvas.design_size.x) * s.scale,
-        int(canvas.design_size.y) * s.scale, s.fps])
+        ",".join(names), s.fmt, int(first_canvas.design_size.x) * s.scale,
+        int(first_canvas.design_size.y) * s.scale, s.fps])
 
+    var job := ZenExport.Job.new()
+    job.verbose = true
     var t0 := Time.get_ticks_msec()
-    var r: Dictionary = await ZenExport.run(self, canvas, _sub, s, anim)
+    var r: Dictionary = await job.run(self, plan["segments"], s, name)
     var secs := float(Time.get_ticks_msec() - t0) / 1000.0
 
     if r.get("ok", false):
@@ -78,6 +73,17 @@ func _ready() -> void:
     else:
         push_error("export failed: " + String(r.get("error", "unknown")))
         get_tree().quit(1)
+
+
+## `--chain=a,b,c` overrides `--anim=`; a bare `--anim=` is a one-link chain.
+func _chain_names(a: Dictionary) -> PackedStringArray:
+    if a.has("chain"):
+        var out := PackedStringArray()
+        for part in String(a["chain"]).split(","):
+            var nm := part.strip_edges()
+            if nm != "": out.append(nm)
+        if not out.is_empty(): return out
+    return PackedStringArray([String(a.get("anim", "mouse_ripple"))])
 
 
 ## A boolean flag. `--intro` (bare) and `--intro=true/1/yes` are all true;

@@ -2,19 +2,32 @@
 class_name ZenSettings
 extends RefCounted
 ##
-## Persisted user preferences: which font text renders with, and the default
-## export scale. Stored at user://zen_settings.cfg - a handful of values read
-## once at process start and written only when the Options screen changes
-## them, so no autoload is needed; the gallery and the exporter each call
-## apply_startup() for themselves.
+## Persisted user preferences. Stored at user://zen_settings.cfg - a handful
+## of values read once at process start and written only when a screen
+## changes them, so no autoload is needed; the gallery and the exporter each
+## call apply_startup() for themselves.
+##
+## Two groups, matching who owns what (see docs/plans/export-dialog.md):
+##   - FONT + export scale: creation-time defaults, edited on the Options
+##     screen, read by every entry point.
+##   - EXPORT DEFAULTS: everything else export-related, edited on the Export
+##     dialog and remembered as one Dictionary so a new field never needs a
+##     new accessor pair.
 ##
 
 const CFG_PATH := "user://zen_settings.cfg"
 const SECTION := "zen"
 
+const EXPORT_DEFAULTS := {
+    "fmt": "gif", "fps": 30, "show_intro": false, "transparent": false,
+    "quality_gif": 16, "quality_video": 70, "cutout": 128,
+    "pause_hold": 0.0, "join_pause": true,
+}
+
 static var _loaded := false
 static var _font_name := ""      # "" => bundled default; else a system font family
 static var _export_scale := 4
+static var _export: Dictionary = EXPORT_DEFAULTS.duplicate()
 
 
 static func _ensure_loaded() -> void:
@@ -24,6 +37,11 @@ static func _ensure_loaded() -> void:
     if cfg.load(CFG_PATH) == OK:
         _font_name = String(cfg.get_value(SECTION, "font_name", ""))
         _export_scale = int(cfg.get_value(SECTION, "export_scale", 4))
+        # merge(), not assign: an older .cfg (or a field added after this one
+        # was saved) must not drop keys this version expects to find.
+        var saved: Dictionary = cfg.get_value(SECTION, "export", {})
+        _export = EXPORT_DEFAULTS.duplicate()
+        _export.merge(saved, true)
 
 
 static func font_name() -> String:
@@ -34,6 +52,13 @@ static func font_name() -> String:
 static func export_scale() -> int:
     _ensure_loaded()
     return clampi(_export_scale, 1, 8)
+
+
+## A copy, never the live Dictionary - callers may freely mutate it before
+## calling set_export_defaults() without this class seeing half an edit.
+static func export_defaults() -> Dictionary:
+    _ensure_loaded()
+    return _export.duplicate()
 
 
 static func set_font_name(name: String) -> void:
@@ -49,10 +74,18 @@ static func set_export_scale(scale: int) -> void:
     _save()
 
 
+static func set_export_defaults(d: Dictionary) -> void:
+    _ensure_loaded()
+    _export = EXPORT_DEFAULTS.duplicate()
+    _export.merge(d, true)
+    _save()
+
+
 static func _save() -> void:
     var cfg := ConfigFile.new()
     cfg.set_value(SECTION, "font_name", _font_name)
     cfg.set_value(SECTION, "export_scale", _export_scale)
+    cfg.set_value(SECTION, "export", _export)
     cfg.save(CFG_PATH)
 
 

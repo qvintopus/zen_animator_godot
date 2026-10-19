@@ -130,7 +130,7 @@ The seam is now pinned automatically by `tools/test_render.tscn`
 ```sh
 B=./Godot_v4.7.2-stable_linux.x86_64
 $B --path . --rendering-driver opengl3 tools/export_scene.tscn -- \
-    --anim=main_menu --fps=30 --fmt=webm
+	--anim=main_menu --fps=30 --fmt=webm
 mpv --loop exports/main_menu.webm
 ```
 
@@ -142,9 +142,9 @@ nothing should step. Measured: mean channel delta across the wrap fell from **0.
 
 ```sh
 $B --path . --rendering-driver opengl3 tools/export_scene.tscn -- \
-    --anim=pause_menu --fps=30 --fmt=png                 # 14 frames: loop body only
+	--anim=pause_menu --fps=30 --fmt=png                 # 14 frames: loop body only
 $B --path . --rendering-driver opengl3 tools/export_scene.tscn -- \
-    --anim=pause_menu --fps=30 --fmt=png --intro=true    # 60 frames: with the run-in
+	--anim=pause_menu --fps=30 --fmt=png --intro=true    # 60 frames: with the run-in
 ```
 
 `pause_menu` is mostly intro (`intro_end` 1.513 of a 1.987 play length), so the two
@@ -366,3 +366,40 @@ Check the stage is **crisp, not blurred** (nearest-neighbour) and that **nothing
 clipped** - both teal diagonals in `main_menu` must reach the frame corners. The stage
 keeps the document's own aspect, so a non-16:9 window letterboxes rather than cropping;
 Zen geometry is fractional, so cropping silently hides elements instead of scaling them.
+
+
+## 11. Export dialog (E / Ctrl+E)
+
+```sh
+./Godot_v4.7.2-stable_linux.x86_64 --path . --rendering-driver opengl3
+```
+
+- **E** opens the Export dialog from the gallery list or from a playing animation; **ESC**
+  closes it (cancelling a running job first if one is in flight, closing on a second ESC).
+- **Ctrl+E** tags the selected (or playing) animation onto an export queue **without**
+  opening the dialog - the gallery's status line should show `[queued: N]`. Queueing a
+  second animation with a different canvas size must be **refused** with a reason in the
+  status line, not silently dropped.
+- Opening the dialog with a non-empty queue should seed the chain list with it; a
+  successful export should clear the queue (check by re-opening E afterwards).
+- **+ Add animation** opens a search popup; an animation whose canvas does not match the
+  chain's first link must appear **disabled, not hidden**, with a tooltip explaining why.
+  The chain is capped at 8 links - the Add button should disable past that.
+- Switching **format** should disable (not hide) ffmpeg-only formats with a visible hint
+  when ffmpeg is not on the machine running the build, and re-cap the fps field (GIF: 60).
+- **Scale** buttons 1x-8x should update the resolution line using the chain's *first
+  link's own* canvas size, not a hardcoded 320x180.
+- Build a 2-link chain of two same-size animations: the frame/duration line and the size
+  estimate should update live as format, scale, fps, and quality change. GIF/PNG read
+  "Estimated size:", MP4/WebM read "Rough guess:", AVI reads "Output size:" (exact).
+- Export a GIF with transparency and a cutout threshold change, then an MP4 with a changed
+  quality slider - both should produce a real file in `exports/` and the status line
+  should report the frame count and path.
+- **Cancel mid-export** (press the button again while it reads "Cancel") and confirm **no
+  partial file** is left in `exports/` for a video format, and that every setting control
+  was frozen (greyed out / non-interactive) for the duration of the run.
+- **Folder** button opens `exports/` in the OS file manager; it should be disabled until
+  that directory actually exists (i.e. before the first export in a fresh checkout).
+- Reopen the dialog after closing it: every field should come back exactly as left
+  (`ZenSettings.set_export_defaults()`), except scale, which was already shared with
+  Options and format/fps.
