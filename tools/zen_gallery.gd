@@ -43,7 +43,9 @@ const NEW_ASSET_ROW := "+ new asset..."
 
 var _view: View = View.GALLERY
 var _entries: Array = []            # [{path, name, canvas_data...}]
-var _sel := 0
+var _sel := 0                       # the cursor row; mirrors _anim_sel.cursor
+## Shift/Ctrl multi-selection of animations (delete, export as a chain).
+var _anim_sel := ZenListSelection.new()
 var _playing: ZenCanvas = null
 var _sub: SubViewport = null
 var _options: Control = null
@@ -53,7 +55,12 @@ var _section: Section = Section.ANIMS
 ## [{name, path}] from ZenAssets, sorted. Asset ROW i is _assets[i - 1]; row 0
 ## is NEW_ASSET_ROW.
 var _assets: Array = []
-var _sel_asset := 0
+var _sel_asset := 0                 # mirrors _asset_sel.cursor
+## Row 0 ("+ new asset") is a command, so it is never marked.
+var _asset_sel := ZenListSelection.new(1)
+## Delete confirmation; `_confirm_action` runs on OK.
+var _confirm: ConfirmationDialog
+var _confirm_action := Callable()
 var _prev_view: View = View.GALLERY   # EXPORT returns here on close
 
 ## Names queued with Ctrl+E, in order. Duplicates allowed (chaining an
@@ -90,6 +97,11 @@ var _help := ZenHotkeyHelp.new()
 func _ready() -> void:
 	ZenSettings.apply_startup()
 	add_child(_help)
+	_confirm = ConfirmationDialog.new()
+	_confirm.title = "Delete"
+	_confirm.ok_button_text = "Move to trash"
+	_confirm.confirmed.connect(func(): if _confirm_action.is_valid(): _confirm_action.call())
+	add_child(_confirm)
 	_anim_header.pressed.connect(_set_section.bind(Section.ANIMS))
 	_asset_header.pressed.connect(_set_section.bind(Section.ASSETS))
 	_scan()
@@ -198,10 +210,14 @@ func _build_list() -> void:
 ## the clicked animation rather than stopping back to the metadata panel:
 ## clicking through a gallery is browsing, and dropping out of playback on every
 ## click (then needing R to start again) made it unusable.
+##
+## Shift+click extends the selection and Ctrl+click toggles a row; neither
+## switches playback - they are gathering rows to delete or export.
 func _on_row(i: int) -> void:
+	var m := ZenUI.held_modifiers()
 	var was_playing := _view == View.PLAYING
-	_select(i)
-	if was_playing:
+	_select(i, m["shift"], m["ctrl"])
+	if was_playing and not (m["shift"] or m["ctrl"]):
 		_play(i)
 
 
@@ -213,12 +229,37 @@ func _on_row_double(i: int) -> void:
 	_play(i)
 
 
-func _select(i: int) -> void:
+func _select(i: int, shift := false, ctrl := false) -> void:
 	if _entries.is_empty(): return
-	_sel = clampi(i, 0, _entries.size() - 1)
-	ZenUI.mark_selected(_list, _sel)
-	if _section == Section.ANIMS: _info.text = _render_info(_entries[_sel])
+	_anim_sel.resize(_entries.size())
+	_anim_sel.pick(i, shift, ctrl)
+	_refresh_anim_selection()
+
+
+## Redraw the animations selection without changing it.
+func _refresh_anim_selection() -> void:
+	if _entries.is_empty(): return
+	_anim_sel.resize(_entries.size())
+	_sel = _anim_sel.cursor
+	ZenUI.show_selection(_list, _anim_sel)
+	if _section == Section.ANIMS:
+		_info.text = _render_multi_info() if _anim_sel.is_multi() else _render_info(_entries[_sel])
+		if _view == View.GALLERY: _hint.text = _gallery_hint()
 	ZenUI.scroll_to(_list_scroll, _list, _sel)
+
+
+## The marked animations' names, in list order.
+func _marked_anims() -> Array[String]:
+	var out: Array[String] = []
+	for r in _anim_sel.rows(): out.append(String(_entries[r]["name"]))
+	return out
+
+
+## The marked assets' names, in list order.
+func _marked_assets() -> Array[String]:
+	var out: Array[String] = []
+	for r in _asset_sel.rows(): out.append(String(_assets[r - 1]["name"]))
+	return out
 
 
 # ---------------------------------------------------------------- sections
@@ -236,8 +277,9 @@ func _set_section(sec: Section) -> void:
 		_stop()
 	if _view in [View.GALLERY, View.PLAYING] and not (anims and _view == View.PLAYING):
 		_show_gallery()
-	if anims: _select(_sel)
-	else: _select_asset(_sel_asset)
+	# Switching sections keeps each section's selection.
+	if anims: _refresh_anim_selection()
+	else: _refresh_asset_selection()
 
 
 func _scan_assets() -> void:
@@ -250,7 +292,12 @@ func _scan_assets() -> void:
 func _build_asset_list() -> void:
 	var labels: Array = [NEW_ASSET_ROW]
 	for a in _assets: labels.append(String(a["name"]))
-	ZenUI.fill_list(_asset_list, labels, _select_asset, _on_asset_double)
+	ZenUI.fill_list(_asset_list, labels, _on_asset_row, _on_asset_double)
+
+
+func _on_asset_row(i: int) -> void:
+	var m := ZenUI.held_modifiers()
+	_select_asset(i, m["shift"], m["ctrl"])
 
 
 func _on_asset_double(i: int) -> void:
@@ -258,11 +305,23 @@ func _on_asset_double(i: int) -> void:
 	_open_shape_editor()
 
 
-func _select_asset(i: int) -> void:
-	_sel_asset = clampi(i, 0, _assets.size())
-	ZenUI.mark_selected(_asset_list, _sel_asset)
+func _select_asset(i: int, shift := false, ctrl := false) -> void:
+	_asset_sel.resize(_assets.size() + 1)
+	_asset_sel.pick(i, shift, ctrl)
+	_refresh_asset_selection()
+
+
+func _refresh_asset_selection() -> void:
+	_asset_sel.resize(_assets.size() + 1)
+	_sel_asset = _asset_sel.cursor
+	ZenUI.show_selection(_asset_list, _asset_sel)
 	ZenUI.scroll_to(_asset_scroll, _asset_list, _sel_asset)
 	if _section != Section.ASSETS: return
+	if _view == View.GALLERY: _hint.text = _gallery_hint()
+	if _asset_sel.is_multi():
+		_asset_preview.shape = null
+		_info.text = _render_multi_asset_info()
+		return
 	if _sel_asset == 0:
 		_asset_preview.shape = null
 		_info.text = "[b][color=#e5c07b]new asset[/color][/b]\n\n" \
@@ -290,12 +349,51 @@ func _render_asset_info(a: Dictionary, px: ZenPixelShape) -> String:
 	L.append("[color=#61afef]size[/color]  %d x %d cells" % [px.size.x, px.size.y])
 	L.append("[color=#61afef]cells[/color]  %d fill, %d outline" % [
 		px.count(ZenPixelShape.FILL), px.count(ZenPixelShape.OUTLINE)])
-	var users: Array = []
-	for e in _entries:
-		if (e.get("shapes", []) as Array).has(nm): users.append(String(e["name"]))
+	var users := _users_of(nm)
 	L.append("[color=#61afef]used by[/color]  %s" % (", ".join(users) if not users.is_empty()
 			 else "[color=#5c6370]no animation[/color]"))
 	L.append("    [color=#5c6370]press ENTER or double-click to edit[/color]")
+	return "\n".join(L)
+
+
+## The animations whose scenes draw shape `nm`.
+func _users_of(nm: String) -> Array:
+	var users: Array = []
+	for e in _entries:
+		if (e.get("shapes", []) as Array).has(nm): users.append(String(e["name"]))
+	return users
+
+
+func _render_multi_info() -> String:
+	var names := _marked_anims()
+	var L: Array = ["[b][color=#e5c07b]%d animations selected[/color][/b]" % names.size(), ""]
+	var sizes := {}
+	for r in _anim_sel.rows():
+		var e: Dictionary = _entries[r]
+		var d: Vector2 = e.get("design", Vector2.ZERO)
+		sizes[d] = true
+		L.append("  %s  [color=#5c6370]%d x %d, %.2fs[/color]" % [String(e["name"]),
+				 int(d.x), int(d.y), float(e.get("play_end", 0.0)) - float(e.get("play_start", 0.0))])
+	L.append("")
+	L.append("[color=#61afef]%s[/color]  export them as one chain, in this order" % ZenHotkeyHelp.key("zen_export"))
+	if names.size() > ZenExport.MAX_CHAIN:
+		L.append("    [color=#e06c75]a chain holds %d at most - the first %d are used[/color]"
+				 % [ZenExport.MAX_CHAIN, ZenExport.MAX_CHAIN])
+	if sizes.size() > 1:
+		L.append("    [color=#e06c75]canvas sizes differ - a chain needs one size[/color]")
+	L.append("[color=#61afef]%s[/color]  move them to the trash" % ZenHotkeyHelp.key("zen_delete"))
+	return "\n".join(L)
+
+
+func _render_multi_asset_info() -> String:
+	var names := _marked_assets()
+	var L: Array = ["[b][color=#e5c07b]%d assets selected[/color][/b]" % names.size(), ""]
+	for nm in names:
+		var users := _users_of(nm)
+		L.append("  %s%s" % [nm, "" if users.is_empty()
+				 else "  [color=#e06c75]used by %s[/color]" % ", ".join(users)])
+	L.append("")
+	L.append("[color=#61afef]%s[/color]  move them to the trash" % ZenHotkeyHelp.key("zen_delete"))
 	return "\n".join(L)
 
 
@@ -368,15 +466,29 @@ func _show_gallery() -> void:
 	_info.visible = true
 	_asset_preview.visible = _section == Section.ASSETS
 	_title.text = "Zen Animator"
+	_hint.text = _gallery_hint()
 	if _section == Section.ASSETS:
 		_status.text = "%d assets%s" % [_assets.size(), _queue_suffix()]
-		_hint.text = ZenHotkeyHelp.footer([["zen_play", "edit"], ["zen_tab", "animations"],
-				["zen_help", "(hold) all hotkeys"], ["zen_back", "quit"]])
 		return
 	_status.text = "%d animations%s" % [_entries.size(), _queue_suffix()]
-	_hint.text = ZenHotkeyHelp.footer([["zen_play", "play"], ["zen_tab", "assets"],
-			["zen_help", "(hold) all hotkeys"], ["zen_back", "quit"]])
 	_status.text += "   " + _toggle_badges(null)
+
+
+## The gallery footer. A multi-selection swaps in its own keys - what can be
+## done with several rows - and ESC then clears it rather than quitting.
+func _gallery_hint() -> String:
+	if _section == Section.ASSETS:
+		if _asset_sel.is_multi():
+			return ZenHotkeyHelp.footer([["zen_delete", "delete %d" % _asset_sel.marks.size()],
+					["zen_help", "(hold) all hotkeys"], ["zen_back", "clear selection"]])
+		return ZenHotkeyHelp.footer([["zen_play", "edit"], ["zen_tab", "animations"],
+				["zen_help", "(hold) all hotkeys"], ["zen_back", "quit"]])
+	if _anim_sel.is_multi():
+		var n := _anim_sel.marks.size()
+		return ZenHotkeyHelp.footer([["zen_export", "export %d" % n], ["zen_delete", "delete %d" % n],
+				["zen_help", "(hold) all hotkeys"], ["zen_back", "clear selection"]])
+	return ZenHotkeyHelp.footer([["zen_play", "play"], ["zen_tab", "assets"],
+			["zen_help", "(hold) all hotkeys"], ["zen_back", "quit"]])
 
 
 func _show_playing(nm: String) -> void:
@@ -413,18 +525,28 @@ func _show_help() -> void:
 			["zen_back", "back to the gallery"]])
 		_help.show_rows(_title.text, rows)
 		return
+	var multi: Array = [["Shift+click, Shift+Up/Down", "select a range"],
+		["Ctrl+click", "add / remove one row"]]
 	if _section == Section.ASSETS:
 		rows = [["zen_play", "edit the asset (row 1: new asset)"], ["double-click", "edit the asset"],
-			["zen_prev", "previous"], ["zen_next", "next"], ["zen_tab", "switch to animations"],
-			["zen_restart", "reload the lists"], ["zen_options", "options"], ["zen_back", "quit"]]
+			["zen_prev", "previous"], ["zen_next", "next"]]
+		rows.append_array(multi)
+		rows.append_array([["zen_delete", "delete the selected assets"],
+			["zen_tab", "switch to animations"],
+			["zen_restart", "reload the lists"], ["zen_options", "options"],
+			["zen_back", "clear the selection, then quit"]])
 	else:
 		rows = [["zen_play", "play"], ["double-click", "play"],
-			["zen_prev", "previous"], ["zen_next", "next"], ["zen_tab", "switch to assets"],
+			["zen_prev", "previous"], ["zen_next", "next"]]
+		rows.append_array(multi)
+		rows.append_array([["zen_delete", "delete the selected animations"],
+			["zen_tab", "switch to assets"],
 			["zen_restart", "reload the lists"],
 			["zen_toggle_intro", "intro on / off (now %s)" % ("on" if ZenSettings.play_intro() else "off")],
 			["zen_toggle_loop", "loop on / off (now %s)" % ("on" if ZenSettings.play_loop() else "off")],
-			["zen_options", "options"], ["zen_export", "export..."],
-			["zen_export_queue", "add to the export queue"], ["zen_back", "quit"]]
+			["zen_options", "options"], ["zen_export", "export... (the selection, as a chain)"],
+			["zen_export_queue", "add the selection to the export queue"],
+			["zen_back", "clear the selection, then quit"]])
 	_help.show_rows("Gallery - " + ("assets" if _section == Section.ASSETS else "animations"), rows)
 
 
@@ -523,7 +645,11 @@ func _back() -> void:
 	elif _view == View.PLAYING:
 		_stop()
 		_show_gallery()
+		_refresh_anim_selection()
+	elif _section == Section.ANIMS and _anim_sel.is_multi():
 		_select(_sel)
+	elif _section == Section.ASSETS and _asset_sel.is_multi():
+		_select_asset(_sel_asset)
 	else:
 		get_tree().quit()
 
@@ -571,7 +697,8 @@ func _close_shape_editor() -> void:
 	var row := 0
 	for i in _assets.size():
 		if String(_assets[i]["name"]) == nm: row = i + 1
-	_sel_asset = row
+	_asset_sel.resize(_assets.size() + 1)
+	_asset_sel.pick(row)
 	# Animations may now draw a changed shape; their usage lists still hold.
 	_set_section(Section.ASSETS)
 
@@ -585,7 +712,10 @@ func _open_export() -> void:
 	_export_dialog.closed.connect(_close_export)
 	add_child(_export_dialog)
 	var chain: Array = _export_queue.duplicate()
-	if chain.is_empty():
+	if _anim_sel.is_multi():
+		# A multi-selection is an explicit "these" - it replaces the queue.
+		chain = _marked_anims().slice(0, ZenExport.MAX_CHAIN)
+	elif chain.is_empty():
 		var current := _playing.scene_file_path.get_file().get_basename() \
 					   if _playing != null else String(_entries[_sel].get("name", ""))
 		if current != "": chain = [current]
@@ -612,18 +742,27 @@ func _close_export() -> void:
 ## so mixing sizes is refused rather than guessed at (ZenExport.plan_chain
 ## enforces the same rule when the chain actually runs).
 func _queue_current() -> void:
+	if _view == View.GALLERY and _anim_sel.is_multi():
+		for nm in _marked_anims():
+			if not _queue_name(nm): return
+		return
 	var nm := _playing.scene_file_path.get_file().get_basename() \
 			  if _view == View.PLAYING and _playing != null \
 			  else String(_entries[_sel].get("name", "")) if not _entries.is_empty() else ""
-	if nm == "": return
+	if nm != "": _queue_name(nm)
+
+
+## Append one animation to the queue; false (with the reason in the status)
+## when it cannot go on.
+func _queue_name(nm: String) -> bool:
 	var entry := {}
 	for e in _entries:
 		if String(e.get("name", "")) == nm: entry = e; break
-	if entry.is_empty() or not bool(entry.get("ok", false)): return
+	if entry.is_empty() or not bool(entry.get("ok", false)): return false
 
 	if _export_queue.size() >= ZenExport.MAX_CHAIN:
 		_status.text = "queue is full (%d max)" % ZenExport.MAX_CHAIN
-		return
+		return false
 	if not _export_queue.is_empty():
 		var first := {}
 		for e in _entries:
@@ -633,10 +772,80 @@ func _queue_current() -> void:
 		if d != fd:
 			_status.text = "cannot queue %s: %dx%d canvas, queue is %dx%d" % [
 				nm, int(d.x), int(d.y), int(fd.x), int(fd.y)]
-			return
+			return false
 
 	_export_queue.append(nm)
 	_status.text = "queued %s  [queued: %d]" % [nm, _export_queue.size()]
+	return true
+
+
+# ---------------------------------------------------------------- delete
+
+## DEL: move the selected rows' files to the trash, after a confirmation that
+## lists every file. An animation takes its .cfg source with it, or the next
+## import would bring it straight back; an asset still drawn by an animation
+## is named, since that animation then draws the missing-shape box.
+func _ask_delete() -> void:
+	var files: Array[String] = []
+	var L: Array = []
+	if _section == Section.ANIMS:
+		var names := _marked_anims()
+		if names.is_empty(): return
+		for nm in names:
+			files.append("%s/%s.tscn" % [ANIM_DIR, nm])
+			var src := _source_cfg(nm)
+			if src != "": files.append(src)
+		L.append("Move %s to the trash?" % ("animation %s" % names[0] if names.size() == 1
+				 else "%d animations" % names.size()))
+	else:
+		var names := _marked_assets()
+		if names.is_empty(): return
+		var paths := ZenAssets.shape_paths()
+		var used: Array = []
+		for nm in names:
+			files.append(String(paths[nm]))
+			if not _users_of(nm).is_empty(): used.append(nm)
+		L.append("Move %s to the trash?" % ("asset %s" % names[0] if names.size() == 1
+				 else "%d assets" % names.size()))
+		if not used.is_empty():
+			L.append("Still drawn by an animation (it will show the missing-shape box): %s"
+					 % ", ".join(used))
+	L.append("")
+	for f in files: L.append("  " + f)
+	_confirm.dialog_text = "\n".join(L)
+	_confirm_action = _delete_files.bind(files)
+	_confirm.popup_centered()
+
+
+## The anims_src/*.cfg an animation was imported from, or "".
+func _source_cfg(nm: String) -> String:
+	var importer: Script = load("res://addons/zen/importer/zen_cfg_import.gd")
+	var d := DirAccess.open(importer.SRC_DIR)
+	if d == null: return ""
+	for f in d.get_files():
+		if f.ends_with(".cfg") and not f.begins_with("_") and importer.scene_name(f) == nm:
+			return "%s/%s" % [importer.SRC_DIR, f]
+	return ""
+
+
+func _delete_files(files: Array[String]) -> void:
+	var failed: Array = []
+	for f in files:
+		if ZenAssets.trash(f) != OK: failed.append(f.get_file())
+	var anims := _section == Section.ANIMS
+	var first := (_anim_sel.rows() if anims else _asset_sel.rows())[0]
+	_scan()
+	_build_list()
+	_scan_assets()
+	_build_asset_list()
+	var left := _entries.map(func(e): return String(e["name"]))
+	_export_queue = _export_queue.filter(func(nm): return left.has(nm))
+	_set_section(_section)
+	if anims: _select(first)
+	else: _select_asset(mini(first, _assets.size()))
+	_status.text = "moved %d file%s to the trash" % [files.size() - failed.size(),
+				   "" if files.size() - failed.size() == 1 else "s"]
+	if not failed.is_empty(): _status.text += "   could not delete: %s" % ", ".join(failed)
 
 
 ## Fire a signal by number while playing. This is the only interactive way to
@@ -703,6 +912,7 @@ func _unhandled_input(ev: InputEvent) -> void:
 	if ev.is_action_released("zen_help"):
 		_help.visible = false
 		return
+	if _confirm.visible: return
 	if ev.is_echo(): return
 	if ev.is_action_pressed("zen_help"):
 		if _view in [View.GALLERY, View.PLAYING]:
@@ -729,6 +939,10 @@ func _unhandled_input(ev: InputEvent) -> void:
 		if _view in [View.GALLERY, View.PLAYING]:
 			_open_export()
 			get_viewport().set_input_as_handled()
+	elif ev.is_action_pressed("zen_delete"):
+		if _view == View.GALLERY:
+			_ask_delete()
+			get_viewport().set_input_as_handled()
 	elif ev.is_action_pressed("zen_tab"):
 		if _view in [View.GALLERY, View.PLAYING]:
 			_set_section(Section.ASSETS if _section == Section.ANIMS else Section.ANIMS)
@@ -748,13 +962,15 @@ func _unhandled_input(ev: InputEvent) -> void:
 			get_viewport().set_input_as_handled()
 	elif ev.is_action_pressed("zen_prev"):
 		if _view == View.GALLERY:
-			if _section == Section.ASSETS: _select_asset(_sel_asset - 1)
-			else: _select(_sel - 1)
+			var shift := (ev as InputEventKey).shift_pressed if ev is InputEventKey else false
+			if _section == Section.ASSETS: _select_asset(_sel_asset - 1, shift)
+			else: _select(_sel - 1, shift)
 			get_viewport().set_input_as_handled()
 	elif ev.is_action_pressed("zen_next"):
 		if _view == View.GALLERY:
-			if _section == Section.ASSETS: _select_asset(_sel_asset + 1)
-			else: _select(_sel + 1)
+			var shift := (ev as InputEventKey).shift_pressed if ev is InputEventKey else false
+			if _section == Section.ASSETS: _select_asset(_sel_asset + 1, shift)
+			else: _select(_sel + 1, shift)
 			get_viewport().set_input_as_handled()
 	else:
 		# zen_signal_1..9 fire the nth signal of the playing document.

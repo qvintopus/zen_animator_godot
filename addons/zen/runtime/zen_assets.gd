@@ -80,6 +80,16 @@ static func delete_shape(name: String) -> Error:
     return DirAccess.remove_absolute(ProjectSettings.globalize_path(p))
 
 
+## Move a project file to the OS trash, so a delete from the gallery can be
+## undone from the file manager. Falls back to deleting it outright where
+## there is no trash.
+static func trash(path: String) -> Error:
+    var g := ProjectSettings.globalize_path(path)
+    if not FileAccess.file_exists(path): return ERR_FILE_NOT_FOUND
+    if OS.move_to_trash(g) == OK: return OK
+    return DirAccess.remove_absolute(g)
+
+
 ## The name a shape resource is known by: its file basename.
 static func name_of(shape: ZenPixelShape) -> String:
     if shape == null or shape.resource_path.is_empty(): return ""

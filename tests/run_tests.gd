@@ -100,6 +100,8 @@ func _run() -> void:
     test_shp_migration()
     test_custom_shape_resolution()
     test_options_font_sort_filter()
+    test_list_selection()
+    await test_gallery_multi_select()
     await test_shape_editor()
     test_zen_settings()
     test_export_dialog_preview()
@@ -2147,7 +2149,8 @@ func test_anim_player_mirrors_keys() -> void:
 func test_input_actions_declared() -> void:
     var names := ["zen_play", "zen_back", "zen_restart", "zen_prev", "zen_next",
                   "zen_options", "zen_export", "zen_export_queue",
-                  "zen_toggle_intro", "zen_toggle_loop", "zen_tab", "zen_help"]
+                  "zen_toggle_intro", "zen_toggle_loop", "zen_tab", "zen_help",
+                  "zen_delete"]
     for i in range(1, 10): names.append("zen_signal_%d" % i)
     for n in names:
         check(InputMap.has_action(n), "action %s is declared" % n)
@@ -2448,6 +2451,62 @@ func test_options_font_sort_filter() -> void:
     check(ZenOptions.filter_fonts(f, "") == [0, 1, 2, 3], "empty search shows all")
     check(ZenOptions.filter_fonts(f, "AL") == [1], "search is case-insensitive")
     check(ZenOptions.filter_fonts(f, "source") == [0], "default matches on its label")
+
+
+## Gallery multi-selection rules: plain pick is single, Shift is a range from
+## the anchor, Ctrl toggles, and rows below `first` are never marked.
+func test_list_selection() -> void:
+    var s := ZenListSelection.new(1)
+    s.resize(6)
+    s.pick(0)
+    check(s.rows().is_empty() and s.shows(0), "the command row shows selected but is not marked")
+    s.pick(2)
+    s.pick(4, true)
+    check(s.rows() == [2, 3, 4], "shift extends a range from the anchor (%s)" % [s.rows()])
+    s.pick(0, true)
+    check(s.rows() == [1, 2], "a range never takes the command row (%s)" % [s.rows()])
+    s.pick(5, false, true)
+    check(s.rows() == [1, 2, 5] and s.is_multi(), "ctrl adds a row")
+    s.pick(2, false, true)
+    check(s.rows() == [1, 5], "ctrl removes a row")
+    s.move(-1, true)
+    check(s.cursor == 1 and s.rows() == [1, 2], "shift+up extends from the ctrl anchor (%s)" % [s.rows()])
+    s.resize(2)
+    check(s.rows() == [1], "rows past a shrunk list drop out")
+    s.collapse()
+    check(not s.is_multi() and s.rows() == [1], "collapse keeps only the cursor")
+
+
+## The gallery's selection drives export and delete: a multi-selection
+## becomes the export chain, and DEL lists exactly the selected files.
+func test_gallery_multi_select() -> void:
+    var g: Node = (load("res://zen_gallery.tscn") as PackedScene).instantiate()
+    root.add_child(g)
+    await process_frame
+    g._select(0)
+    g._select(2, true)
+    check(g._marked_anims().size() == 3, "shift+click marks a range of animations")
+    check(String(g._hint.text).contains("export 3"), "the footer offers the selection's keys")
+    g._ask_delete()
+    var listed: String = g._confirm.dialog_text
+    var ok := true
+    for nm in g._marked_anims(): ok = ok and listed.contains("res://anims/%s.tscn" % nm)
+    check(ok and g._confirm.visible, "delete asks first, listing every scene")
+    check(g._source_cfg("pause_menu") == "res://anims_src/PAUSE_MENU.cfg",
+          "an animation's delete takes its .cfg source too")
+    g._confirm.hide()
+    g._open_export()
+    check(g._export_dialog.get_chain() == g._marked_anims(), "export opens with the selection as the chain")
+    g._close_export()
+    g._back()
+    check(not g._anim_sel.is_multi() and g.is_inside_tree(), "ESC clears a multi-selection before quitting")
+    g._set_section(1)
+    g._select_asset(1)
+    g._select_asset(2, false, true)
+    check(g._marked_assets().size() == 2 and String(g._info.text).contains("2 assets selected"),
+          "ctrl+click marks several assets")
+    g.queue_free()
+    await process_frame
 
 
 ## The shape editor end to end, headless: a stroke is one undo step, redo

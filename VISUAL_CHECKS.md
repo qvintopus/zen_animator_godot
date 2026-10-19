@@ -433,3 +433,9 @@ $G --path .          # F5: the gallery
   for that screen and releasing H hides it; the same in the shape editor.
 - **Options.** Opens scrolled to the saved font, fonts A-Z, the search field sits on the
   "font" row and filters as you type; ESC clears the search, a second ESC closes.
+- **Multi-select.** Click `game_start`, Shift+click `main_menu`: three rows highlight, the
+  right pane lists them, the footer shows `E export 3  Delete delete 3`. E opens Export with
+  that chain; ESC there and ESC again clears the selection (it does not quit). Ctrl+click
+  toggles single rows; Shift+DOWN extends. Delete on copies only: the dialog lists the
+  `.tscn` and its `.cfg`, and "Move to trash" puts both in the OS trash. In assets, a
+  shape used by an animation is named in the dialog.

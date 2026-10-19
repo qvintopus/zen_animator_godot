@@ -36,6 +36,13 @@ The left column is an accordion: **animations** (open by default) and **assets (
 Clicking a header (or **zen_tab**, TAB) opens that section and collapses the other; each
 header stays pinned while its own list scrolls, and the selection is kept in view.
 
+Both lists **multi-select**: Shift+click or Shift+UP/DOWN selects a range, Ctrl+click adds
+or removes one row, ESC clears the selection before it quits. **Delete** (**zen_delete**)
+moves the selected rows to the OS trash after a confirmation listing every file - an
+animation takes its `anims_src/*.cfg` with it so a re-import cannot bring it back, and an
+asset still drawn by an animation is named. **E** on several animations opens Export with
+them as the chain, in list order; **Ctrl+E** appends them all to the export queue.
+
 Each screen's footer names only its essential keys (a full legend in one Label set the
 window's minimum width and pushed the gallery off both sides of the screen). **Hold H**
 (**zen_help**) for a sheet of every hotkey of the current screen - gallery, playback or
@@ -206,6 +213,7 @@ tools/                 zen_gallery.gd, zen_options.gd (font picker), zen_shape_e
                        + zen_pixel_canvas.gd + zen_shape_preview.gd (shape editor),
                        zen_hotkey_help.gd (the hold-H hotkey sheet), zen_ui.gd (shared
                        palette, screen shell and selectable-row list),
+                       zen_list_selection.gd (Shift/Ctrl multi-selection),
                        import_shp.gd (.shp -> .tres), zen_export.gd (the
                        engine: plan_chain + Job), zen_export_dialog.gd/.tscn (the Export
                        screen, E / Ctrl+E), export_scene.tscn (CLI door onto the same

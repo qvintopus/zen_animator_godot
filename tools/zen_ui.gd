@@ -92,6 +92,19 @@ static func mark_selected(list: VBoxContainer, i: int) -> void:
         (list.get_child(j) as Button).button_pressed = j == i
 
 
+## Highlight every row a multi-row selection shows as selected.
+static func show_selection(list: VBoxContainer, sel: ZenListSelection) -> void:
+    for j in list.get_child_count():
+        (list.get_child(j) as Button).button_pressed = sel.shows(j)
+
+
+## Shift / Ctrl as held right now, for a row's `pressed` (which carries no
+## modifiers of its own).
+static func held_modifiers() -> Dictionary:
+    return {"shift": Input.is_key_pressed(KEY_SHIFT),
+            "ctrl": Input.is_key_pressed(KEY_CTRL) or Input.is_key_pressed(KEY_META)}
+
+
 ## Scroll row `i` into view. Waits a frame: rows built this frame have no
 ## layout yet, and ensure_control_visible would aim at zero.
 static func scroll_to(scroll: ScrollContainer, list: VBoxContainer, i: int) -> void:
