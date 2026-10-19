@@ -13,10 +13,6 @@ extends PanelContainer
 ## resolved to its keys; anything else (mouse gestures, "1-9") is shown as is.
 ##
 
-const C_KEY := Color(0.898, 0.753, 0.482, 1)
-const C_TEXT := Color(0.816, 0.835, 0.867, 1)
-const C_HEAD := Color(0.38, 0.686, 0.937, 1)
-
 var _grid: GridContainer
 var _title: Label
 
@@ -38,7 +34,7 @@ func _init() -> void:
     col.add_theme_constant_override("separation", 10)
     add_child(col)
     _title = Label.new()
-    _title.add_theme_color_override("font_color", C_HEAD)
+    _title.add_theme_color_override("font_color", ZenUI.LABEL)
     col.add_child(_title)
     _grid = GridContainer.new()
     _grid.columns = 2
@@ -56,11 +52,11 @@ func show_rows(title: String, rows: Array) -> void:
     for r in rows:
         var k := Label.new()
         k.text = keys(String(r[0]))
-        k.add_theme_color_override("font_color", C_KEY)
+        k.add_theme_color_override("font_color", ZenUI.TITLE)
         _grid.add_child(k)
         var d := Label.new()
         d.text = String(r[1])
-        d.add_theme_color_override("font_color", C_TEXT)
+        d.add_theme_color_override("font_color", ZenUI.TEXT)
         _grid.add_child(d)
     reset_size()
     visible = true

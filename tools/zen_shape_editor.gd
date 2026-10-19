@@ -27,12 +27,6 @@ extends Control
 
 signal closed
 
-const C_TITLE := Color(0.898, 0.753, 0.482, 1)
-const C_LABEL := Color(0.38, 0.686, 0.937, 1)
-const C_TEXT := Color(0.816, 0.835, 0.867, 1)
-const C_DIM := Color(0.36, 0.39, 0.44, 1)
-const C_WARN := Color(0.878, 0.424, 0.459, 1)
-
 const NEW_SIZE := Vector2i(24, 16)
 ## Reference samples per cell axis for Convert: a box average over k*k.
 const REF_SAMPLES := 3
@@ -185,36 +179,16 @@ func _do_redo() -> void:
 func _build_ui() -> void:
     # Created first: the panel's controls are wired straight to it.
     _canvas = ZenPixelCanvas.new()
-    anchor_right = 1.0
-    anchor_bottom = 1.0
-    var bg := Panel.new()
-    bg.anchor_right = 1.0
-    bg.anchor_bottom = 1.0
-    var sb := StyleBoxFlat.new()
-    sb.bg_color = Color(0.0862745, 0.0941176, 0.1137255, 1)
-    bg.add_theme_stylebox_override("panel", sb)
-    add_child(bg)
-
-    var margin := MarginContainer.new()
-    margin.anchor_right = 1.0
-    margin.anchor_bottom = 1.0
-    for side in ["left", "right"]: margin.add_theme_constant_override("margin_" + side, 18)
-    margin.add_theme_constant_override("margin_top", 14)
-    margin.add_theme_constant_override("margin_bottom", 12)
-    add_child(margin)
-
-    var rows := VBoxContainer.new()
-    rows.add_theme_constant_override("separation", 8)
-    margin.add_child(rows)
+    var rows := ZenUI.build_shell(self)
 
     var head := HBoxContainer.new()
     _title = Label.new()
     _title.size_flags_horizontal = SIZE_EXPAND_FILL
-    _title.add_theme_color_override("font_color", C_TITLE)
+    _title.add_theme_color_override("font_color", ZenUI.TITLE)
     _title.add_theme_font_size_override("font_size", 22)
     head.add_child(_title)
     _cell_label = Label.new()
-    _cell_label.add_theme_color_override("font_color", C_DIM)
+    _cell_label.add_theme_color_override("font_color", ZenUI.DIM)
     head.add_child(_cell_label)
     rows.add_child(head)
     rows.add_child(HSeparator.new())
@@ -250,10 +224,10 @@ func _build_ui() -> void:
 
     rows.add_child(HSeparator.new())
     _status = Label.new()
-    _status.add_theme_color_override("font_color", C_TEXT)
+    _status.add_theme_color_override("font_color", ZenUI.TEXT)
     rows.add_child(_status)
     _hint = Label.new()
-    _hint.add_theme_color_override("font_color", C_DIM)
+    _hint.add_theme_color_override("font_color", ZenUI.DIM)
     # Essentials only; the full list is the hold-H sheet. A long legend here
     # would set the window's minimum width.
     _hint.text = "  LMB paint      RMB erase      " + ZenHotkeyHelp.footer([
@@ -270,7 +244,7 @@ func _build_ui() -> void:
 func _section(parent: Control, text: String) -> void:
     var l := Label.new()
     l.text = text
-    l.add_theme_color_override("font_color", C_LABEL)
+    l.add_theme_color_override("font_color", ZenUI.LABEL)
     parent.add_child(l)
 
 
@@ -307,7 +281,7 @@ func _slider(parent: Control, text: String, lo: float, hi: float, step: float,
     var l := Label.new()
     l.text = text
     l.custom_minimum_size = Vector2(70, 0)
-    l.add_theme_color_override("font_color", C_TEXT)
+    l.add_theme_color_override("font_color", ZenUI.TEXT)
     r.add_child(l)
     var s := HSlider.new()
     s.min_value = lo
@@ -380,7 +354,7 @@ func _build_panel(p: VBoxContainer) -> void:
     _button(rr, "load...", func(): _ref_dialog.popup_centered_ratio(0.7), "Or drop an image on the window")
     _ref_controls.append(_button(rr, "remove", _clear_ref))
     _ref_name = Label.new()
-    _ref_name.add_theme_color_override("font_color", C_DIM)
+    _ref_name.add_theme_color_override("font_color", ZenUI.DIM)
     _ref_name.clip_text = true
     _ref_name.custom_minimum_size = Vector2(240, 0)
     p.add_child(_ref_name)
@@ -455,7 +429,7 @@ func _build_preview(side: VBoxContainer) -> void:
     var note := Label.new()
     note.text = "Preview only: an animation tints the shape with its own color tracks."
     note.autowrap_mode = TextServer.AUTOWRAP_WORD
-    note.add_theme_color_override("font_color", C_DIM)
+    note.add_theme_color_override("font_color", ZenUI.DIM)
     note.custom_minimum_size = Vector2(190, 0)
     side.add_child(note)
 
@@ -485,7 +459,7 @@ func _build_dialogs() -> void:
     _name_w = _spin(_name_size_row, 1, ZenPixelShape.GRID_MAX)
     _name_h = _spin(_name_size_row, 1, ZenPixelShape.GRID_MAX)
     _name_error = Label.new()
-    _name_error.add_theme_color_override("font_color", C_WARN)
+    _name_error.add_theme_color_override("font_color", ZenUI.WARN)
     col.add_child(_name_error)
     _name_dialog.add_child(col)
     _name_dialog.confirmed.connect(_on_name_confirmed)

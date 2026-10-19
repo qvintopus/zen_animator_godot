@@ -120,37 +120,8 @@ func exported_ok() -> bool:
 # ---------------------------------------------------------------- UI build
 
 func _build_ui() -> void:
-    anchor_right = 1.0
-    anchor_bottom = 1.0
-    grow_horizontal = Control.GROW_DIRECTION_BOTH
-    grow_vertical = Control.GROW_DIRECTION_BOTH
-
-    var bg := Panel.new()
-    bg.anchor_right = 1.0
-    bg.anchor_bottom = 1.0
-    var sb := StyleBoxFlat.new()
-    sb.bg_color = Color(0.0862745, 0.0941176, 0.1137255, 1)
-    bg.add_theme_stylebox_override("panel", sb)
-    add_child(bg)
-
-    var margin := MarginContainer.new()
-    margin.anchor_right = 1.0
-    margin.anchor_bottom = 1.0
-    margin.add_theme_constant_override("margin_left", 18)
-    margin.add_theme_constant_override("margin_top", 14)
-    margin.add_theme_constant_override("margin_right", 18)
-    margin.add_theme_constant_override("margin_bottom", 12)
-    add_child(margin)
-
-    var rows := VBoxContainer.new()
-    rows.add_theme_constant_override("separation", 8)
-    margin.add_child(rows)
-
-    var title := Label.new()
-    title.text = "Export"
-    title.add_theme_color_override("font_color", Color(0.898, 0.753, 0.482, 1))
-    title.add_theme_font_size_override("font_size", 22)
-    rows.add_child(title)
+    var rows := ZenUI.build_shell(self)
+    rows.add_child(ZenUI.label("Export", ZenUI.TITLE, 22))
     rows.add_child(HSeparator.new())
 
     var scroll := ScrollContainer.new()
@@ -184,7 +155,7 @@ func _build_ui() -> void:
 
     _status_label = Label.new()
     _status_label.text = ""
-    _status_label.add_theme_color_override("font_color", Color(0.816, 0.835, 0.867, 1))
+    _status_label.add_theme_color_override("font_color", ZenUI.TEXT)
     rows.add_child(_status_label)
 
     var foot := HBoxContainer.new()
@@ -214,7 +185,7 @@ func _build_chain_section(parent: VBoxContainer) -> void:
     col.add_theme_constant_override("separation", 4)
     var lbl := Label.new()
     lbl.text = "chain"
-    lbl.add_theme_color_override("font_color", Color(0.38, 0.686, 0.937, 1))
+    lbl.add_theme_color_override("font_color", ZenUI.LABEL)
     col.add_child(lbl)
 
     _chain_box = VBoxContainer.new()
@@ -268,7 +239,7 @@ func _build_options_section(parent: VBoxContainer) -> void:
         srow.add_child(b)
         _scale_buttons.append(b)
     _res_label = Label.new()
-    _res_label.add_theme_color_override("font_color", Color(0.816, 0.835, 0.867, 1))
+    _res_label.add_theme_color_override("font_color", ZenUI.TEXT)
     parent.add_child(_res_label)
 
     # FPS
@@ -311,7 +282,7 @@ func _build_options_section(parent: VBoxContainer) -> void:
     parent.add_child(_join_row)
 
     _frames_label = Label.new()
-    _frames_label.add_theme_color_override("font_color", Color(0.816, 0.835, 0.867, 1))
+    _frames_label.add_theme_color_override("font_color", ZenUI.TEXT)
     parent.add_child(_frames_label)
 
     # Per-format rows
@@ -356,7 +327,7 @@ func _build_options_section(parent: VBoxContainer) -> void:
     parent.add_child(_avi_label)
 
     _size_label = Label.new()
-    _size_label.add_theme_color_override("font_color", Color(0.816, 0.835, 0.867, 1))
+    _size_label.add_theme_color_override("font_color", ZenUI.TEXT)
     _size_label.tooltip_text = "Video size is a rough guess: compression depends on how much the animation actually moves."
     parent.add_child(_size_label)
 
@@ -367,7 +338,7 @@ func _labeled_row(parent: VBoxContainer, text: String) -> HBoxContainer:
     var l := Label.new()
     l.text = text
     l.custom_minimum_size = Vector2(90, 0)
-    l.add_theme_color_override("font_color", Color(0.38, 0.686, 0.937, 1))
+    l.add_theme_color_override("font_color", ZenUI.LABEL)
     row.add_child(l)
     parent.add_child(row)
     return row

@@ -204,7 +204,8 @@ addons/zen/importer/   zen_cfg_parse (grammar), zen_cfg_build (nodes), zen_cfg_i
 zen_gallery.tscn       the main scene (F5): browse, inspect and play animations
 tools/                 zen_gallery.gd, zen_options.gd (font picker), zen_shape_editor.gd/.tscn
                        + zen_pixel_canvas.gd + zen_shape_preview.gd (shape editor),
-                       zen_hotkey_help.gd (the hold-H hotkey sheet),
+                       zen_hotkey_help.gd (the hold-H hotkey sheet), zen_ui.gd (shared
+                       palette, screen shell and selectable-row list),
                        import_shp.gd (.shp -> .tres), zen_export.gd (the
                        engine: plan_chain + Job), zen_export_dialog.gd/.tscn (the Export
                        screen, E / Ctrl+E), export_scene.tscn (CLI door onto the same

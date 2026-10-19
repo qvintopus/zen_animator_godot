@@ -191,19 +191,7 @@ func _describe(path: String, base: String) -> Dictionary:
 
 
 func _build_list() -> void:
-	for ch in _list.get_children(): ch.queue_free()
-	for i in _entries.size():
-		var e: Dictionary = _entries[i]
-		var b := Button.new()
-		b.text = "  %s" % String(e["name"])
-		b.alignment = HORIZONTAL_ALIGNMENT_LEFT
-		b.focus_mode = Control.FOCUS_NONE
-		b.toggle_mode = true
-		b.pressed.connect(_on_row.bind(i))
-		# Double-click plays. `pressed` already fired for the first click, so
-		# this only has to start playback - the row is selected by then.
-		b.gui_input.connect(_on_row_input.bind(i))
-		_list.add_child(b)
+	ZenUI.fill_list(_list, _entries.map(func(e): return e["name"]), _on_row, _on_row_double)
 
 
 ## A row click selects. While something is already playing it also SWITCHES to
@@ -220,30 +208,17 @@ func _on_row(i: int) -> void:
 ## Double-click anywhere on a row plays it, which is what a gallery is expected
 ## to do. Single click still just selects, so the metadata can be read without
 ## committing to playback.
-func _on_row_input(ev: InputEvent, i: int) -> void:
-	if not (ev is InputEventMouseButton): return
-	var mb := ev as InputEventMouseButton
-	if mb.button_index != MOUSE_BUTTON_LEFT or not mb.double_click: return
+func _on_row_double(i: int) -> void:
 	_select(i)
 	_play(i)
-	accept_event()
 
 
 func _select(i: int) -> void:
 	if _entries.is_empty(): return
 	_sel = clampi(i, 0, _entries.size() - 1)
-	for j in _list.get_child_count():
-		(_list.get_child(j) as Button).button_pressed = j == _sel
+	ZenUI.mark_selected(_list, _sel)
 	if _section == Section.ANIMS: _info.text = _render_info(_entries[_sel])
-	_keep_visible(_list_scroll, _list, _sel)
-
-
-## Scroll a list so row `i` is on screen. Deferred a frame: rows built this
-## frame have no layout yet, and ensure_control_visible would aim at zero.
-func _keep_visible(scroll: ScrollContainer, list: VBoxContainer, i: int) -> void:
-	await get_tree().process_frame
-	if i >= 0 and i < list.get_child_count():
-		scroll.ensure_control_visible(list.get_child(i))
+	ZenUI.scroll_to(_list_scroll, _list, _sel)
 
 
 # ---------------------------------------------------------------- sections
@@ -273,36 +248,20 @@ func _scan_assets() -> void:
 
 
 func _build_asset_list() -> void:
-	for ch in _asset_list.get_children():
-		_asset_list.remove_child(ch)
-		ch.queue_free()
 	var labels: Array = [NEW_ASSET_ROW]
 	for a in _assets: labels.append(String(a["name"]))
-	for i in labels.size():
-		var b := Button.new()
-		b.text = "  %s" % labels[i]
-		b.alignment = HORIZONTAL_ALIGNMENT_LEFT
-		b.focus_mode = Control.FOCUS_NONE
-		b.toggle_mode = true
-		b.pressed.connect(_select_asset.bind(i))
-		b.gui_input.connect(_on_asset_row_input.bind(i))
-		_asset_list.add_child(b)
+	ZenUI.fill_list(_asset_list, labels, _select_asset, _on_asset_double)
 
 
-func _on_asset_row_input(ev: InputEvent, i: int) -> void:
-	if not (ev is InputEventMouseButton): return
-	var mb := ev as InputEventMouseButton
-	if mb.button_index != MOUSE_BUTTON_LEFT or not mb.double_click: return
+func _on_asset_double(i: int) -> void:
 	_select_asset(i)
 	_open_shape_editor()
-	accept_event()
 
 
 func _select_asset(i: int) -> void:
 	_sel_asset = clampi(i, 0, _assets.size())
-	for j in _asset_list.get_child_count():
-		(_asset_list.get_child(j) as Button).button_pressed = j == _sel_asset
-	_keep_visible(_asset_scroll, _asset_list, _sel_asset)
+	ZenUI.mark_selected(_asset_list, _sel_asset)
+	ZenUI.scroll_to(_asset_scroll, _asset_list, _sel_asset)
 	if _section != Section.ASSETS: return
 	if _sel_asset == 0:
 		_asset_preview.shape = null

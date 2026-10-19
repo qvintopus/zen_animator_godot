@@ -71,27 +71,10 @@ static func filter_fonts(fonts: Array, query: String) -> Array[int]:
 
 func _rebuild() -> void:
     _shown = filter_fonts(_fonts, _search.text)
-    for ch in _font_list.get_children():
-        _font_list.remove_child(ch)
-        ch.queue_free()
-    for i in _shown:
-        var nm: String = _fonts[i]
-        var b := Button.new()
-        b.text = "  %s" % (DEFAULT_LABEL if nm == "" else nm)
-        b.alignment = HORIZONTAL_ALIGNMENT_LEFT
-        b.focus_mode = Control.FOCUS_NONE
-        b.toggle_mode = true
-        b.button_pressed = i == _sel
-        b.pressed.connect(_select.bind(i))
-        _font_list.add_child(b)
-    _scroll_later()
-
-
-## Fresh rows have no size until the container has laid them out, so the
-## scroll to the selected font (on open, and after a search) waits a frame.
-func _scroll_later() -> void:
-    await get_tree().process_frame
-    if is_inside_tree(): _scroll_to_sel()
+    var labels := _shown.map(func(i): return DEFAULT_LABEL if _fonts[i] == "" else _fonts[i])
+    # Rows are indexed by position in the FILTERED list; map back to _fonts.
+    ZenUI.fill_list(_font_list, labels, func(row): _select(_shown[row]))
+    _mark_sel()
 
 
 ## Selecting a row applies the font immediately - a static override on
@@ -100,17 +83,16 @@ func _scroll_later() -> void:
 func _select(i: int) -> void:
     if _fonts.is_empty(): return
     _sel = clampi(i, 0, _fonts.size() - 1)
-    for j in _font_list.get_child_count():
-        (_font_list.get_child(j) as Button).button_pressed = j < _shown.size() and _shown[j] == _sel
     ZenSettings.set_font_name(_fonts[_sel])
     _preview.add_theme_font_override("font", ZenText.default_font())
-    _scroll_to_sel()
+    _mark_sel()
 
 
-func _scroll_to_sel() -> void:
+## Highlight and scroll to the applied font's row, if the search shows it.
+func _mark_sel() -> void:
     var row := _shown.find(_sel)
-    if row < 0 or row >= _font_list.get_child_count(): return
-    _font_scroll.ensure_control_visible(_font_list.get_child(row))
+    ZenUI.mark_selected(_font_list, row)
+    ZenUI.scroll_to(_font_scroll, _font_list, row)
 
 
 ## UP/DOWN step through the FILTERED rows. When the applied font is filtered

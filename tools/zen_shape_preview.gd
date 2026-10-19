@@ -10,11 +10,11 @@ extends Control
 
 @export var shape: ZenPixelShape:
     set(v):
-        if shape != null and shape.changed.is_connected(queue_redraw):
-            shape.changed.disconnect(queue_redraw)
+        if shape != null and shape.changed.is_connected(_on_shape_changed):
+            shape.changed.disconnect(_on_shape_changed)
         shape = v
-        if shape != null: shape.changed.connect(queue_redraw)
-        queue_redraw()
+        if shape != null: shape.changed.connect(_on_shape_changed)
+        _on_shape_changed()
 @export var fill_color := Color(0.96, 0.96, 0.96, 1):
     set(v):
         fill_color = v
@@ -27,9 +27,21 @@ extends Control
 @export var zoom := 0.0:
     set(v):
         zoom = v
-        queue_redraw()
+        _on_shape_changed()
 ## A faint plate behind the shape's box, so empty margins read as part of it.
 @export var plate := Color(1, 1, 1, 0.04)
+
+
+## At a fixed zoom the shape needs its full size on screen; a fitted preview
+## takes whatever it is given.
+func _get_minimum_size() -> Vector2:
+    if zoom <= 0.0 or shape == null: return Vector2.ZERO
+    return Vector2(shape.size) * zoom + Vector2(8, 8)
+
+
+func _on_shape_changed() -> void:
+    update_minimum_size()
+    queue_redraw()
 
 
 func _ready() -> void:
