@@ -49,7 +49,7 @@ static func is_color(prop_name: String) -> bool:
 
 
 ## Every scalar prop a kind can animate. Used by the tests to assert the blend
-## reaches all of them - the plan's risk 4.
+## reaches all of them.
 static func scalars_for(kind: String) -> Array:
     match kind:
         "text": return TEXT

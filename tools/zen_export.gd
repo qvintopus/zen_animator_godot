@@ -141,7 +141,7 @@ static func pause_times(canvas: ZenCanvas) -> Array:
 static func run(host: Node, canvas: ZenCanvas, sub: SubViewport,
                 s: Settings, name: String, pauses := []) -> Dictionary:
     # An empty `pauses` means "take them from the scene". Passing them stays
-    # supported so the tests can plan a frame list without building a player.
+    # supported so a test can plan a frame list without a canvas's pauses set.
     var marks: Array = pauses if not pauses.is_empty() else pause_times(canvas)
     var times := frame_times(canvas, s, marks)
 
@@ -149,9 +149,9 @@ static func run(host: Node, canvas: ZenCanvas, sub: SubViewport,
     # thing that could break that mid-render: the global ZenSignals autoload
     # outlives any one scene, and this canvas is in the `zen_canvas` group like
     # any other, so a stray emit from editor tooling would otherwise reach it.
-    # Silence the bus for the whole render. (Phase 4's own regression was this
-    # shape: a player ticking inside the capture await re-posed the canvas and
-    # every frame came out identical.)
+    # Silence the bus for the whole render - a clock or a fired signal ticking
+    # inside the capture await would re-pose the canvas and every frame would
+    # come out identical.
     var bus := canvas.bus()
     if bus != null: bus.inert = true
 

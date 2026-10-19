@@ -93,4 +93,60 @@ suite is insufficient evidence) - please look at `main_menu`/`pause_menu`/
 (cleaned up after each check) - re-export with `tools/export_scene.tscn` to
 look, or run the gallery (F5) once a display is attached.
 
-## Task 4 (comments/docs) - appended live as decisions are made
+## Task 4 (comments/docs) - commit TBD
+
+Mechanical-ish pass per the plan's editorial rule (keep a comment only if it
+answers "does a reader changing this code need this to not break it",
+otherwise delete or rewrite without the narrative). Applied the plan's named
+table where it still matched post-Task-1/2 line numbers, then grepped
+repo-wide for the deletion triggers (`Phase \d`, `REGRESSION:`, `used to`,
+`previously`, `Before this`, etc.) and fixed every hit that was either a
+stale/false claim (e.g. "Godot's looping always restarts at 0" - no longer
+true once `AnimationPlayer` sections are in play) or pure process narrative.
+
+**Judgment calls, not strictly mechanical:**
+
+- Left two brief `ZenPlayer` mentions in `tests/run_tests.gd` (around
+  `test_canvas_clock` / `test_canvas_pauses`) as short "replaces X" lineage
+  notes rather than deleting them outright - they're one line each and orient
+  a reader who remembers the old class, without reviving false claims about
+  current behavior. Low confidence this is the "right" call per the plan's
+  letter; easy to delete further if you disagree.
+- `VISUAL_CHECKS.md`: did the renumbering/header part of "restructure by
+  subject, not find-and-replace" (dropped `## Phase 4` / `## Phase 5`
+  headers, renumbered 1-10 sequentially, collapsed the two-paragraph
+  Phase-run-history preamble into one "last run" line) and fixed every
+  stale/false claim inside sections (the raylib glyph-width-table claim, the
+  `ZenPlayer.rewind()` mention). Did NOT physically reorder the file's
+  sections into new subject groupings (ripple export / menus / alpha / frame
+  alignment / loop seam / signals / easings / F6 / gallery) - the existing
+  order already roughly tracks that grouping and a full reshuffle felt like
+  content-free risk for a file whose job is being read top-to-bottom during a
+  manual check, not grepped. Flagging this as a plan item I consciously
+  under-delivered on.
+- Did not attempt the "measurement target: 24-26% comment density" the plan
+  mentions - re-ran no line-counting tool. The plan itself says not to chase
+  the number, so I didn't.
+
+**Verification:** `grep -rn "Phase" --include=*.gd --include=*.md .` (excluding
+this log and the plan doc itself, which are historical records) returns
+nothing. Suite 1062/0, compare_ripple 2657/0, test_render 26/0 - comment-only
+changes, as expected nothing moved.
+
+## What's left, for the morning
+
+- **Your own eyes on Task 2** (fonts/text) - the plan is explicit a green
+  suite isn't enough evidence there. `main_menu`/`pause_menu`/`game_start`.
+- **`pause_menu`'s live loop behavior change** (Task 1c) - F6 it and watch it
+  loop back into its body instead of freezing.
+- **F5 gallery, every key, every scene** - the plan's own manual step I
+  cannot do headless. `InputMap` actions (Task 3) are rebindable now, worth
+  trying a rebind too.
+- **Two scope cuts to review**: Task 2's bundled-fonts set (only Source Sans
+  3, see above) and Task 4's `VISUAL_CHECKS.md` section reordering (not done,
+  see above).
+- All other peer-session traffic tonight was two different Claude sessions
+  (`observer-sessions-ec`, then `observer-sessions-fb`) apparently also
+  poking at this same checkout; I asked both to hold off and saw no
+  conflicting file changes land. Worth asking what those were, in case it
+  wasn't actually asked for.

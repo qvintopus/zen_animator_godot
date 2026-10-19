@@ -21,11 +21,15 @@ extends RefCounted
 ## pure function of (scene, t), which is what lets the exporter render frames
 ## out of order.
 ##
-## WHAT THIS BUYS over ZenPlayer alone: F6 plays the scene; Godot's animation
-## panel shows the clock with intro_end / outro_start as draggable markers;
-## dragging the playhead scrubs the real animation. The markers are DATA, not
-## decoration - `ZenCanvas` reads its own exported fields, and a future
-## authoring tool writes them back from the markers.
+## WHAT THIS BUYS: F6 plays the scene; Godot's animation panel shows the clock
+## with intro_end / outro_start as draggable markers; dragging the playhead
+## scrubs the real animation. The markers are DATA, not decoration -
+## `ZenCanvas` reads its own exported fields, and a future authoring tool
+## writes them back from the markers. They also drive the live wrap: a loop
+## with an intro plays through once, then `ZenCanvas._process` narrows the
+## AnimationPlayer's own section to [intro_end, outro_start) via
+## `set_section_with_markers`, so Godot's section-loop API restarts the body
+## there and never at 0.
 ##
 ## KEY POPULATION (`populate_keys`) is the groundwork for that tool: it mirrors
 ## each Zen track into a real, visible, draggable Godot track. Those tracks are
@@ -44,18 +48,20 @@ const M_INTRO := "intro_end"
 const M_OUTRO := "outro_start"
 
 
-## Build the Animation for `canvas`. `looping` decides whether the method track
-## asks for the smooth-loop blend, matching ZenPlayer.apply().
+## Build the Animation for `canvas`. `looping` decides whether the method
+## track's _anim_pose call asks for the smooth-loop blend.
 static func build(canvas: ZenCanvas, looping := true) -> Animation:
     var anim := Animation.new()
     # The FULL clock, not the play section: the outro must be visible on the
     # timeline (it is authored data) even though it is never rendered. Trimming
-    # is the player's job, not the animation's.
+    # is ZenCanvas's job, not the animation's.
     anim.length = maxf(canvas.duration, 0.0001)
     anim.step = 0.0166667                                  # 1/60, the edit grid
-    # LOOP_NONE even when looping: Zen's loop restarts at intro_end, which
-    # Godot's own looping cannot express (it always restarts at 0). ZenPlayer
-    # owns that rule; see its header.
+    # Placeholder default - ZenCanvas.setup_animation_player sets the real
+    # value (LOOP_LINEAR vs LOOP_NONE) once it knows loop_play and has_intro(),
+    # since a section only auto-loops under LOOP_LINEAR (measured on 4.7.2;
+    # LOOP_NONE plays a section once and holds, regardless of which
+    # play_section variant started it).
     anim.loop_mode = Animation.LOOP_NONE
 
     _add_markers(anim, canvas)

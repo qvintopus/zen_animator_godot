@@ -5,8 +5,12 @@ Animations are authored as Godot scenes and exported to video.
 
 ## Status
 
-**Phase 5 complete** (pending visual sign-off): signals override the timeline per-property,
-so `crumble` and the cursor-anchored ripple are reachable for the first time.
+What works: the one-shot `.cfg` importer (shape/text/global elements); intro/loop/outro
+trim with a smooth-loop blend and pause markers; signals (a named transition that
+overrides the timeline per-property, so `crumble` and the cursor-anchored ripple are
+reachable); frame-exact video export; and a gallery (F5) and live playback (F6) built on
+Godot's own `AnimationPlayer`. Live interactive UI (wiring a signal to a button, a stage
+running several copies of one document) is not built yet.
 
 **F5 opens a gallery.** `zen_gallery.tscn` is the project's main scene: it lists every
 animation in `anims/`, shows what each one actually contains (clock, elements, tracks,
@@ -21,35 +25,26 @@ since an export never fires one. Clicking another row while playing switches str
 it, and a finished one-shot replays after holding its last frame, so the gallery always
 shows motion.
 
-Before this, F5 ran `tools/export_scene.tscn`, a batch tool that reads `--anim=` off the
-command line - so pressing F5 in the editor started an exporter with no arguments.
-
-**Scenes now play on F6.** A `ZenCanvas` builds a real Godot `AnimationPlayer` for itself,
-so opening a scene and running it animates, and `intro_end` / `outro_start` appear as
-draggable markers on Godot's own timeline. Before this, the only clock was `ZenPlayer`,
-whose `autoplay` defaults false and was written into no scene - every scene opened static.
-
-| Phase | State |
-|---|---|
-| 0 skeleton | done |
-| 1 export pipeline + `mouse_ripple` | done |
-| 2 one-shot `.cfg` importer | done |
-| 3 text + global elements, MAIN_MENU / PAUSE_MENU | done |
-| 4 intro/loop/outro, smooth blend, pauses | done |
-| 5 signals (override layer) | **done**, one render check outstanding |
-| 6 live interactive UI | next |
+**Scenes play on F6.** A `ZenCanvas` builds a real Godot `AnimationPlayer` for itself, so
+opening a scene and running it animates, and `intro_end` / `outro_start` appear as
+draggable markers on Godot's own timeline. The live clock is driven entirely through
+Godot's `AnimationPlayer` section API (`play_section` / `play_section_with_markers`): a
+document with an intro plays through once, then `ZenCanvas._process` narrows the
+AnimationPlayer's own section to `[intro_end, outro_start)`, so Godot's native section-loop
+restarts the body there and never at 0 - see the design note below.
 
 Easings are now **Godot's own** (`Tween.interpolate_value`), not the raylib port - see
 the design note below for what that changed and why.
 
-The menus match the raylib reference in layout, size and timing (SSIM 0.90 against
-`MAIN_MENU.webm`, the residual being letterforms). The loop seam is now closed: on
+The menus match the raylib reference in layout, size and timing - raylib is a historical
+reference now, not a fidelity target (text in particular renders through a real Godot font,
+not raylib's bitmap metrics; see the design note below). The loop seam is closed: on
 `main_menu` the wrap went from a mean channel delta of **0.587 to 0.019**, which is the
 same order as an ordinary adjacent frame pair (0.007).
 
-The suite stands at **1152 numeric checks** and **26 render checks**, all green. Crumble and
-the cursor-anchored ripple render correctly and are shown in `exports/signal_shots/`;
-`VISUAL_CHECKS.md` lists what to look at. Final sign-off is the user's.
+The suite stands at **1062 numeric checks** and **26 render checks**, all green. Crumble and
+the cursor-anchored ripple render correctly; `VISUAL_CHECKS.md` lists what to look at.
+Final sign-off is the user's.
 
 Five bugs so far that only a *rendered pixel* could find, all now pinned by
 `tools/test_render.tscn`:
@@ -61,9 +56,9 @@ Five bugs so far that only a *rendered pixel* could find, all now pinned by
    an interval in which nothing consulted it. Every property-level test passed while the
    renderer blended nothing. The weight is now captured *into* the element by `pose()`
    and read back during `_draw()`.
-4. a signal's `replay` flag called `ZenPlayer.play()`, which starts the live clock - so the
-   player ticked during the exporter's `await` and re-posed the canvas to its own `t`. Every
-   property read back correctly while the frame came out black.
+4. a signal's `replay` flag used to start the live clock outright - so it ticked during the
+   exporter's `await` and re-posed the canvas to its own `t`. Every property read back
+   correctly while the frame came out black.
 5. `_draw_glyph` called `draw_set_transform`, which **replaces** the canvas transform rather
    than composing with it - so it overwrote the per-glyph placement the crumble path had just
    set, and the whole title collapsed into one smear in the top-left corner. Every crumble
@@ -156,18 +151,19 @@ Visual checks needing a display are collected in `VISUAL_CHECKS.md`.
 ## Layout
 
 ```
-addons/zen/runtime/    zen_easing, zen_curve, zen_sampler, zen_canvas, zen_element,
-                       zen_shape, zen_text, zen_text_metrics, zen_global,
-                       zen_player (clock), zen_props (property registry),
-                       zen_signal_player (override eval), zen_signal_bus (per-canvas
-                       dispatch), zen_signals (global relay autoload),
-                       zen_anim_builder (Godot AnimationPlayer + timeline markers)
+addons/zen/runtime/    zen_easing, zen_curve, zen_sampler, zen_canvas (clock + pauses),
+                       zen_element, zen_shape, zen_text, zen_text_metrics, zen_global,
+                       zen_props (property registry), zen_signal_player (override eval),
+                       zen_signal_bus (per-canvas dispatch), zen_signals (global relay
+                       autoload), zen_anim_builder (Godot AnimationPlayer + timeline markers)
+addons/zen/fonts/      bundled fonts (LICENSES.md) - ZenText's project-default font
 addons/zen/importer/   zen_cfg_parse (grammar), zen_cfg_build (nodes), zen_cfg_import (entry)
 zen_gallery.tscn       the main scene (F5): browse, inspect and play animations
 tools/                 zen_gallery.gd, zen_export.gd, export_scene.tscn, build_ripple.gd,
                        compare_ripple.gd, dump_scene.gd, test_render.tscn,
                        signal_shots.tscn (renders what an export cannot show),
-                       gen_ease_ref.gd (regenerates tests/ease_ref.txt)
+                       gen_ease_ref.gd (regenerates tests/ease_ref.txt),
+                       gen_input_map.gd (regenerates project.godot's [input] section)
 anims/                 authored Godot scenes (source of truth)
 anims_src/             the original .cfg files, input to the one-shot importer
 tests/                 run_tests.gd + the generated easing reference
@@ -204,8 +200,10 @@ override), so there is no `Node2D.position` to key; a value track per property w
 a second resolver that drifts from the first. `ZenAnimBuilder.populate_keys()` can mirror
 the Zen tracks onto the timeline as real draggable keys for authoring, and
 `sync_from_keys()` reads them back - but those tracks are an editing surface, never the
-render path. The intro-skip-on-loop rule stays hand-written: Godot's looping always
-restarts at 0, Zen's restarts at `intro_end`.
+render path. The intro-skip-on-loop rule *is* expressible on Godot's own clock (added in
+4.4): `AnimationPlayer.play_section_with_markers()` loops strictly inside a marker range and
+wraps to its start marker, never to 0 - what `Animation.loop_mode` alone cannot do. See the
+next note for how `ZenCanvas` drives it.
 
 **Text is drawn through a real Godot font**, bundled at `addons/zen/fonts/` (Source Sans 3
 Regular, SIL OFL 1.1, the raylib template's own default - see `LICENSES.md` there).
@@ -222,18 +220,32 @@ exactly and squeezing each Godot glyph into its cell - is gone; a pixel-exact ra
 font remains a possible future per-animation font choice, not built in this pass (see
 `docs/plans/session-2026-10-19-log.md`).
 
-**The clock is Zen's, not `AnimationPlayer`'s.** A Zen document is
-`[0,intro_end)` + `[intro_end,outro_start)` + a trimmed outro. The intro is a one-shot
-lead-in: it plays on the first pass and is skipped on *every* pass after it, and no
-`AnimationPlayer` loop mode expresses that - Godot restarts at 0. So `zen_player.gd` owns
-the clock, wraps with `fmod` (an overshoot carries into the next cycle rather than being
-dropped), and holds at pause markers until released. The exporter ignores the player
-entirely and builds an explicit frame list, which is what keeps a frame a pure function of
+**The live clock is `AnimationPlayer`'s own section, narrowed at the right moment.** A Zen
+document is `[0,intro_end)` + `[intro_end,outro_start)` + a trimmed outro, and the intro is
+a one-shot lead-in: it plays on the first pass and is skipped on *every* pass after it.
+`ZenCanvas.setup_animation_player` starts a document with an intro via
+`play_section(ANIM, 0.0, play_end())` under `Animation.loop_mode = LOOP_NONE` (plays once,
+holds at the end); `ZenCanvas._process` watches for that section's end and, on the first
+crossing, flips `loop_mode` to `LOOP_LINEAR` and calls
+`play_section_with_markers(ANIM, "intro_end", "outro_start")` (or `set_section` as a
+fallback when a marker is absent) - which both resumes playback AND restarts it at
+`intro_end`, exactly the wrap target. Two behaviours here are measured on 4.7.2, not
+documented anywhere: a section only auto-loops under `LOOP_LINEAR` (`LOOP_NONE` plays once
+and holds, regardless of which `play_section` variant started it), and `is_playing()`
+already reports `false` on the very frame a `LOOP_NONE` section reaches its own end - not
+one frame later - so the handover cannot be gated on "still playing". Pause markers
+(`ZenCanvas.pauses`) hold the AnimationPlayer at the marker's own instant
+(`_seek_safe` + `pause()`) until `release_pause()`. The exporter ignores all of this and
+builds an explicit frame list instead, which is what keeps a frame a pure function of
 `(scene, t)` and renderable out of order.
 
-A player is **inert until played** - `set_process(false)` until `play()`. That is load
-bearing, not tidiness: a player ticking inside the exporter's `await` re-posed the canvas
-to its own clock, and all 78 frames of a render came out byte-identical at `t=0`.
+A live scene's `AnimationPlayer` is driven by `live_playback` - `false` disarms it
+entirely, which is load bearing, not tidiness: a clock ticking inside the exporter's
+`await` re-poses the canvas to its own time, and every frame of a render would come out
+byte-identical. `AnimationPlayer.seek()` does NOT clamp into whatever section is currently
+active (measured: section `[0.5,1.5]`, `seek(0.1)` lands at `1.1`, not `0.5`) - `ZenCanvas`
+funnels every seek through `_seek_safe()`, the one place in the project allowed to call
+`_ap.seek()` directly, which widens the section first when the target falls outside it.
 
 **The smooth-loop blend lives in `ZenElement.prop()`.** Keys clamp at the last key, so a
 looping document holds its final pose and then snaps. Over the last `loop_blend` seconds
@@ -268,13 +280,13 @@ node, because the `signal` keyword cannot carry Zen's names (`signal TV-out` is 
 error, and user signals do not survive `PackedScene.pack()`, so the data is an exported
 Array re-declared at runtime). Everything downstream - capture, eval, seq, anchor - is
 plain data and method calls. The payoff is real: `await bus.terminal_finished`, and every
-Zen signal appearing in Godot's Signals dock so a Phase 6 button can be wired by dragging.
+Zen signal appearing in Godot's Signals dock so a future button can be wired by dragging.
 
 Evaluation is **per canvas**, and a thin `ZenSignals` autoload only fans a name out over
 the `zen_canvas` group. That split is the C's own (`signal.c` / `anim_signal.c`) and it is
 load bearing: one emit must reach every live instance with each blending from its *own*
-pose, which a global bus owning evaluation state could not express. Phase 6 runs
-`zooming_box` three times at once and needs exactly this.
+pose, which a global bus owning evaluation state could not express - a stage running
+`zooming_box` three times at once needs exactly this.
 
 Four ordering rules carry the weight, in `prop()`, in the C's order:
 **stepped props return before the override is consulted** (they key a pool index, so a
@@ -284,15 +296,14 @@ additive offsets - seq and pos-anchor - apply **even when the signal did not dri
 property** (`zooming_box` seq-targets a `scale` that has no plain target); and pos-params
 **outrank** plain targets.
 
-And the Phase 4 trap again, which is the highest-risk detail in the phase: elements read
+And the same `_draw()`-is-deferred trap again, the highest-risk detail here: elements read
 properties inside `_draw()`, which Godot defers to the rendered frame, so `pose()` must
 **capture** the signal's contribution into the element rather than let `_draw()` ask the
 bus. The obvious implementation reads correctly and passes every property-level test while
 the renderer shows nothing.
 
-Export purity needed one more guard than expected. `ZenPlayer.rewind()` exists because the
-`replay` flag used to call `play()`, which calls `set_process(true)` - the live clock then
-ticked inside the exporter's `await` and re-posed the canvas to its own `t`. That is the
-Phase 4 regression (78 identical frames) resurfacing through a new path, and it was caught
-by a pixel, not by a property. Exports are guarded three ways now: `inert` on every bus,
-`set_process(false)` until fired, and `rewind()` rather than `play()`.
+Export purity needed one more guard than expected. A signal's `replay` flag calls
+`ZenCanvas.rewind_timeline()`, never anything that would start the live clock - a `play()`
+there would tick inside the exporter's `await` and re-pose the canvas to its own `t`,
+caught by a pixel, not by a property. Exports are guarded three ways: `inert` on every bus,
+`set_process(false)` until fired, and `rewind_timeline()` rather than any path that plays.

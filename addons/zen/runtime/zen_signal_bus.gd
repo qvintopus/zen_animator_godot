@@ -33,9 +33,8 @@ extends Node
 ##
 
 ## Emitted on the completion EDGE of a `terminal` signal, naming it. Declared
-## (not a user signal) because it is ours, not the document's - so Phase 6 can
-## `await bus.terminal_finished`. Following ZenPlayer's finished/paused
-## precedent.
+## (not a user signal) because it is ours, not the document's, so a caller can
+## `await bus.terminal_finished`.
 signal terminal_finished(signal_name: String)
 
 ## Emitted whenever any authored signal fires, naming it. The one hook that does
@@ -67,9 +66,8 @@ var running_name := ""
 
 func _ready() -> void:
     _ensure_ready()
-    # Idle until something fires. Same contract as ZenPlayer, and load bearing
-    # for the same reason: a clock ticking inside the exporter's await would
-    # re-pose the canvas and make every frame identical.
+    # Idle until something fires: a clock ticking inside the exporter's await
+    # would re-pose the canvas and make every frame identical.
     set_process(false)
 
 
@@ -269,12 +267,13 @@ func _doc_time() -> float:
 
 
 ## The stage sequence index for the sequence offset. 0 means "not sequenced",
-## which is the only value a standalone canvas can have; Phase 6's stage sets it.
+## which is the only value a standalone canvas can have; a stage running
+## several copies of one document sets it per copy.
 func _seq_index() -> int:
     return seq
 
 
-## Set by the stage (Phase 6) when it runs several copies of one document.
+## Set by a stage when it runs several copies of one document at once.
 @export var seq := 0
 
 

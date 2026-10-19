@@ -10,8 +10,8 @@ extends Node
 ## is not minimalism for its own sake - the C gives EVERY instance its own
 ## AnimSignalPlayer so that one emit reaches all of them, "each blending from
 ## its own pose" (anim_stage.c:155-159). A bus owning evaluation state could not
-## express that, and Phase 6 runs zooming_box three times at once, which is
-## precisely the case that needs it.
+## express that - a stage running one document three times at once needs
+## exactly this.
 ##
 ## So: dispatch is global, evaluation is per-canvas. canvas.bus().fire(...) stays
 ## the direct path and is what the tests call; this is for "broadcast to

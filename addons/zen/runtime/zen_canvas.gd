@@ -104,11 +104,12 @@ func _join_group() -> void:
 ## The `t` and loop flag of the most recent pose.
 ##
 ## A signal captures the pose that is ON SCREEN at fire time, so it needs the
-## time the canvas was last posed at - NOT a clock. Reading it from the
-## ZenPlayer would be wrong in two ways: the exporter poses without a player at
-## all (so the capture would silently read t=0), and an editor preview poses at
-## a scrubbed t the player knows nothing about. The canvas is the only thing
-## that knows what is actually being shown.
+## time the canvas was last posed at - NOT the AnimationPlayer's own clock.
+## Reading the AP's clock directly would be wrong in two ways: the exporter
+## poses with the AP stopped entirely (so the capture would silently read
+## wherever the AP happens to sit), and an editor preview poses at a scrubbed t
+## the AP's own position does not reflect. The canvas is the only thing that
+## knows what is actually being shown.
 ##
 ## Not exported: it is the record of a call, not authored data.
 var pose_time := 0.0
@@ -143,22 +144,20 @@ func pose(t: float) -> void:
 ## Should this canvas build and run a Godot AnimationPlayer, so the scene plays
 ## on F6 and scrubs on Godot's timeline?
 ##
-## ON by default, because "open the scene, press F6, watch it play" is the
-## baseline expectation of a Godot scene and the port previously failed it: the
-## only clock was ZenPlayer, whose `autoplay` defaults false and is written into
-## no scene, so every scene opened static.
+## ON by default: "open the scene, press F6, watch it play" is the baseline
+## expectation of a Godot scene.
 ##
-## The EXPORTER turns this off (zen_export.gd), for the same reason it leaves
-## ZenPlayer idle: a player ticking during the exporter's await would re-pose
-## the canvas to its own clock and every frame would come out at the same
-## instant - the Phase 4 regression that blanked all 78 frames of a render.
+## The EXPORTER turns this off (zen_export.gd): a clock ticking during the
+## exporter's await would re-pose the canvas to its own time and every frame
+## would come out at the same instant, which a frame-by-frame export must
+## never risk - see the purity invariants under setup_animation_player/_process.
 @export var live_playback := true
 
 ## Does playback WRAP at play_end(), or hold the last pose? Separate from
 ## loop_smooth, which only decides whether the wrap is BLENDED - a document can
 ## wrap hard (loop_smooth=false) or hold without wrapping at all. Explicit, not
 ## derived: the importer (zen_cfg_build.gd) sets it from `loop_smooth or
-## intro_end > 0.0`, matching the rule the old ZenPlayer.looping used.
+## intro_end > 0.0`.
 @export var loop_play := false
 
 ## Mirror the Zen tracks onto the AnimationPlayer as real Godot tracks.
@@ -248,8 +247,8 @@ func animation_player() -> AnimationPlayer:
 
 
 ## The method track's target. Poses the canvas at the AnimationPlayer's own
-## clock, trimming the outro and skipping the intro on later cycles the way
-## ZenPlayer does - the rules live there, this just applies them.
+## clock, trimmed to the play section the AP itself is bounded to (see
+## setup_animation_player and _process).
 ##
 ## A method track fires only at its KEY, so this is called once per play rather
 ## than once per frame; the per-frame pose comes from _process below. The key
@@ -305,7 +304,7 @@ func _process(_delta: float) -> void:
             if not was_held:
                 # Pin exactly to the marker's own instant, not wherever the
                 # frame delta happened to land - a pause freezes the picture
-                # AT the marker, matching the old ZenPlayer's clamp.
+                # AT the marker.
                 raw = float(pauses[held_pause]["t"])
                 _seek_safe(raw)
             _ap.pause()

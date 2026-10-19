@@ -1,8 +1,8 @@
 extends Node
 ##
-## Phase 5 visual evidence. Signals never fire during an export (that is the
-## purity guard), so the only way to SEE crumble and the cursor-anchored ripple
-## is to fire one on a live canvas and save the frame.
+## Visual evidence for the signal override. Signals never fire during an
+## export (that is the purity guard), so the only way to SEE crumble and the
+## cursor-anchored ripple is to fire one on a live canvas and save the frame.
 ##
 ## Writes exports/_signal_shots/*.png and exits.
 

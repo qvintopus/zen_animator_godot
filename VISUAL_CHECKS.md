@@ -1,24 +1,15 @@
 # Visual checks
 
-**Status: Phases 1-4 were run on 2026-10-18 and pass.** They found two real bugs
-(an inherited vertical flip, and a 4x-wrong design canvas), both fixed and now
-pinned by `tools/test_render.tscn`, which runs them automatically.
+**Last run: 2026-10-18, all sections pass.** Six pixel-only bugs were found this way
+(vertical flip, 4x-wrong design canvas, loop-blend timing, a live clock ticking during
+export, the crumble transform, and the signal override) - all now pinned automatically by
+`tools/test_render.tscn`. Final sign-off is the user's.
 
-**Phase 5's visual checks were run on 2026-10-18 and pass**, and found a sixth
-pixel-only bug (the crumble transform, below). Final sign-off is the user's.
-
-**Two changes since then need an eye** (2026-10-18, both user decisions):
-easings now come from Godot's `Tween` family rather than the raylib port, and scenes
-build a real `AnimationPlayer` so they play on F6. See sections 6 and 7.
-
-**Text rendering changed (2026-10-19, docs/plans/godot-integration.md Task 2):** glyphs now
-draw through a real Godot font (Source Sans 3) instead of raylib's bitmap-font metrics
-squeezed into Godot glyphs. Any PNG/webm exported before this date is NOT byte-comparable
-against a fresh export - letterforms differ even though layout (centring, line breaks,
-crumble rhythm) is unchanged. `pause_menu` also changed its LIVE loop behaviour the same
-day (Task 1): it now loops back into its body instead of freezing at its outro, per a
-user-approved plan decision. Neither is yet confirmed by eye - see
-`docs/plans/session-2026-10-19-log.md`.
+**Needs a fresh eye (2026-10-19, not yet confirmed):** text now draws through a real Godot
+font instead of raylib's bitmap metrics (section 3), and `pause_menu`'s live loop behaviour
+changed - it now loops back into its body instead of freezing at its outro (section 6). Any
+PNG/webm exported before 2026-10-19 is NOT byte-comparable to a fresh export of the same
+scene. See `docs/plans/session-2026-10-19-log.md` for what changed and why.
 
 Keep this list for re-checking after changes that touch rendering.
 
@@ -33,7 +24,7 @@ EXPORT="$G --path . --rendering-driver opengl3 tools/export_scene.tscn --"
 
 ---
 
-## 1. Phase 1 re-confirm — ripple still exports
+## 1. Ripple still exports
 
 ```sh
 $EXPORT --anim=mouse_ripple --fps=60 --fmt=webm --scale=2
@@ -45,7 +36,7 @@ ffprobe -v error -count_frames \
 Expect at `--scale=2`: `vp9 640 360 60/1 120` (the canvas is 320x180). Watch it: a thin ring expands from the centre
 and fades out over 2s. No flicker, no pop at the start.
 
-## 2. Phase 2 — imported vs hand-built ripple
+## 2. Imported vs hand-built ripple
 
 The importer's output must match the hand-built scene that was already verified.
 `tools/compare_ripple.gd` does this numerically and headlessly (see below), but
@@ -61,7 +52,7 @@ ffmpeg -v error -i /tmp/hand.png -i /tmp/imp.png -lavfi ssim -f null -
 Expect: SSIM `All:1.000000` - verified byte-identical. Anything below ~0.99 means the
 importer changed the animation.
 
-## 3. Phase 3 — the two menus
+## 3. The two menus
 
 ```sh
 $EXPORT --anim=main_menu  --fps=60 --fmt=webm --scale=2            # seamless loop
@@ -78,20 +69,20 @@ Check against the raylib reference `../raylib_base_template/anims/exports/MAIN_M
 - two teal diagonals cross behind everything, static;
 - in the LOOP render (no `--intro`) the wrap must be invisible - the ball's bob and
   the bar's colour both resolve through the 0.3s smooth-loop blend. A visible jump
-  at the loop point means the Phase 4 blend is wrong.
+  at the loop point means the blend is wrong.
 
-Text will NOT be pixel-identical to the reference. Layout IS exact - the raylib
-glyph-width table is reproduced, so the text box, centring and line breaks match -
-but the letterforms come from a Godot font. What to look for:
+Text will NOT be pixel-identical to the raylib reference any more (2026-10-19): glyphs now
+draw through a real Godot font (Source Sans 3) instead of raylib's bitmap metrics. What to
+look for:
 
-- is the text centred where the reference centres it? (layout - must match)
-- do the letterforms look acceptable? (taste - decides whether to embed raylib's
-  bitmap atlas in a later pass)
+- is the text centred, and does `\n` still break correctly? (layout - should still match)
+- do the letterforms look acceptable? (taste - decides whether a pixel-exact raylib
+  bitmap-font option is worth building as a future per-animation font choice)
 
 ### Crumble
 
 `TV-out` drives the title/subtitle crumble, so it is only visible once a signal is
-fired - see Phase 5 below. An ordinary export never fires one (that is the purity
+fired - see the signals section below. An ordinary export never fires one (that is the purity
 guard), so crumble does not appear in any of the renders above. That is correct,
 not a missing feature.
 
@@ -129,7 +120,7 @@ shows a visible ring, the seek is landing one frame ahead.
 
 ---
 
-## Phase 4 - loop seam, intro trim, pauses
+## 6. Loop seam, intro trim, pauses
 
 The seam is now pinned automatically by `tools/test_render.tscn`
 (`test_loop_seam_pixels`), so these are confirmations rather than the only safety net.
@@ -173,7 +164,7 @@ from after 3.211 - the tail exists in the document for the editor's benefit only
 
 ---
 
-## Phase 5 - signals (override layer)
+## 7. Signals (override layer)
 
 A signal overrides the timeline per-property, easing from the pose on screen *right
 now* into its authored keys. Three of these checks are pinned automatically by
@@ -271,16 +262,16 @@ $B --path . --rendering-driver opengl3 tools/export_scene.tscn -- \
     --anim=main_menu --fps=30 --fmt=webm
 ```
 
-Must be byte-identical to the Phase 4 artifact. All five scenes now carry a
-`Signals` node, and a bus that ticked during the exporter's `await` would re-pose
-the canvas to its own clock - the Phase 4 regression, which blanked all 78 frames of
-a render. Guarded three ways: `inert` during export, `set_process(false)` until
-fired, and `ZenPlayer.rewind()` (not `play()`) on the `replay` path.
+Must be byte-identical to an earlier export of the same scene/settings. All five scenes
+carry a `Signals` node, and a bus that ticked during the exporter's `await` would re-pose
+the canvas to its own clock, which would blank every frame of a render to the same
+instant. Guarded three ways: `inert` during export, `set_process(false)` until fired, and
+`ZenCanvas.rewind_timeline()` (never a path that plays) on the `replay` path.
 
 
 ---
 
-## 6. Easings are Godot's now
+## 8. Easings are Godot's now
 
 `ZenEasing` is backed by `Tween.interpolate_value`, not the raylib/Penner port. The
 raylib `.webm` is NO LONGER the fidelity target - a visual diff against it will show real
@@ -313,7 +304,7 @@ Note: Godot's expo does not reach its endpoint (`expoIn(1.0) = 0.999`). On `paus
 slide-in that leaves the element 0.07px short on a 320px canvas, corrected by the next
 key. Invisible, but it is why the endpoint test allows a wider tolerance for `expo*`.
 
-## 7. Scenes play on F6
+## 9. Scenes play on F6
 
 This is the one that had no coverage at all before: every scene opened **static**.
 
@@ -344,13 +335,12 @@ first, which is worth recording:
   sharply (1.5230 correct vs 0.1010 buggy).
 
 The exporter must stay unaffected: `live_playback` is cleared BEFORE the canvas enters
-the tree (`export_scene.gd`), because `_ready()` is what starts the player and Godot
-defers `_ready()` past `add_child()`. Pinned by the 78-distinct-frames check - a live
-clock during the export await collapses every frame to the same instant, which is
-precisely the Phase 4 regression.
+the tree (`export_scene.gd`), because `_ready()` is what starts the clock and Godot
+defers `_ready()` past `add_child()`. Pinned by the distinct-frames check - a live clock
+during the export await collapses every frame to the same instant.
 
 
-## 8. The gallery (F5)
+## 10. The gallery (F5)
 
 ```sh
 ./Godot_v4.7.2-stable_linux.x86_64 --path . --rendering-driver opengl3
@@ -361,7 +351,7 @@ Expect a dark two-pane window: the animation list on the left, metadata on the r
 - **ENTER** or **double-click** plays the selected animation; **single click only
   selects**, so metadata can be read without committing to playback.
 - While one is playing, **clicking another row switches straight to it** and keeps
-  playing. (It used to stop back to the metadata panel and need R to start again.)
+  playing.
 - A **one-shot replays** after holding its final frame for ~0.9s, with `[ended]` shown in
   the status while it holds. `mouse_ripple` and `game_start` are the one-shots. This is a
   gallery affordance only - an export must never loop a one-shot, and does not.

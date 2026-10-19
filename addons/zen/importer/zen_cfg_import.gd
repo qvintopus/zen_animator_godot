@@ -11,7 +11,7 @@ extends SceneTree
 ## Native Godot scenes are the source of truth from here on - this tool exists
 ## to carry the existing documents across ONCE, not to be a round-trip format.
 ## It is kept (rather than deleted after the run) only so the import can be
-## re-run when the node layer gains a feature, e.g. when text lands in Phase 3.
+## re-run when the node layer gains a feature the importer did not support yet.
 ##
 
 const SRC_DIR := "res://anims_src"

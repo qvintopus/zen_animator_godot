@@ -184,7 +184,7 @@ func _mean_diff(a: Image, b: Image) -> float:
 
 
 # ---------------------------------------------------------------------------
-#  Phase 5: the signal override, IN PIXELS.
+#  The signal override, IN PIXELS.
 #
 #  These are not belt-and-braces. Twice now a property-level suite has been
 #  fully green while the renderer did nothing - the loop blend was armed for a
@@ -268,15 +268,14 @@ static func _modal_color(img: Image) -> Color:
 
 
 ## CRUMBLE, RENDERED. MAIN_MENU's TV-out drives `title crumble` to 1.0, and
-## nothing else in any document drives crumble at all - so until signals existed
-## this code path (~35 lines of _draw_crumbled) was unreachable in a render.
+## nothing else in any document drives crumble at all.
 ##
 ## WHAT THE CONTENT ACTUALLY DOES, measured rather than assumed: MAIN_MENU
 ## authors no `crumble_fx` line, so the defaults apply - direction 90 (straight
 ## DOWN) in a 12-degree cone, dist 0.5, spin 90. So the glyphs do not scatter
-## outward; they slide down together, tumbling, while fading. An earlier version
-## of this test asserted a growing bounding box and failed with the box
-## unchanged to the pixel, because the whole word translates as one.
+## outward; they slide down together, tumbling, while fading - NOT a growing
+## bounding box, which stays unchanged to the pixel because the whole word
+## translates as one.
 ##
 ## Three INDEPENDENT observables, so a coincidental pass on all of them is
 ## implausible:
@@ -416,15 +415,14 @@ func test_crumble_renders() -> void:
     # function of (scene, t). The scatter therefore hashes the GLYPH INDEX and
     # never the clock.
     #
-    # Two routes were tried before this one and BOTH were wrong, in ways worth
-    # recording because each looked right:
+    # Two things that look like they'd test determinism here do NOT:
     #
     # 1. Grab twice at an unchanged t with an unrelated pose in between.
     #    Measured on 4.7.2: `queue_redraw()` does not re-execute `_draw()`
     #    before the next capture when nothing the renderer tracks has changed,
-    #    so the second grab returns the FIRST frame's bytes. That check passed
-    #    with `randf() * 180.0` injected into the glyph angle - structurally
-    #    incapable of failing.
+    #    so the second grab returns the FIRST frame's bytes regardless of
+    #    whether the hash is actually deterministic - structurally incapable
+    #    of catching a clock-dependent hash.
     #
     # 2. Re-fire the signal and advance back to the same u. The scatter comes
     #    back identical (same ink count, same energy) but the frame is shifted
@@ -574,11 +572,9 @@ func _ink_centroid(img: Image, design: Vector2) -> Vector2:
 
 ## EXPORT PURITY with a bus present. A frame must stay a pure function of
 ## (scene, t): same t, same bytes, regardless of what was rendered in between
-## and regardless of the global ZenSignals autoload being alive.
-##
-## Phase 4's own regression was this shape - a ZenPlayer ticking inside the
-## capture await re-posed the canvas and all 78 frames came out identical - so
-## it is asserted, not assumed.
+## and regardless of the global ZenSignals autoload being alive. A clock or a
+## signal ticking during the capture await would re-pose the canvas and every
+## frame would come out identical - so this is asserted, not assumed.
 func test_signal_export_purity_pixels() -> void:
     var st := _stage("res://anims/main_menu.tscn", Color.BLACK)
     var canvas: ZenCanvas = st["canvas"]

@@ -266,9 +266,8 @@ static func blend_weight(t: float) -> float:
 #  That reads correctly and passes every property-level test - and renders
 #  nothing, because elements read their properties inside _draw(), which Godot
 #  defers to the frame being rendered. By then the player's clock has moved on
-#  (or the signal has finished and been torn down). This is the EXACT shape of
-#  the Phase 4 loop-blend bug, which passed its whole numeric suite while the
-#  renderer blended nothing at all.
+#  (or the signal has finished and been torn down): a test calling the same
+#  function the renderer calls is not the same as a test that looks at a pixel.
 #
 #  So pose() resolves the signal's contribution to concrete values here, and
 #  _draw() reads only these dictionaries. They are the ONLY path from an

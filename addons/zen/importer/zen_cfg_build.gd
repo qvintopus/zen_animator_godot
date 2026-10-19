@@ -4,10 +4,9 @@ extends RefCounted
 ##
 ## Turns a parsed .cfg document (ZenCfgParse.parse_doc) into a ZenCanvas tree.
 ##
-## Element kinds the node layer does not implement yet are SKIPPED and reported
+## Element kinds the node layer does not implement are SKIPPED and reported
 ## rather than half-built: a text element silently rendering as nothing would
-## look like a broken animation, whereas a named deferral is a to-do. Phase 3
-## adds text, which is what MAIN_MENU and PAUSE_MENU need.
+## look like a broken animation, whereas a named deferral is a to-do.
 ##
 
 ## Element kinds that currently have a node.

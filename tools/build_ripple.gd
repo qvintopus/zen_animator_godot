@@ -2,10 +2,9 @@ extends SceneTree
 ##
 ## Hand-build mouse_ripple.tscn from the values in anims_src/mouse_ripple.cfg.
 ##
-## Deliberately hand-written rather than imported: Phase 1 is validating the
-## node layer and the export pipeline, and a hand-built scene keeps a bug in
-## the (not yet written) .cfg parser from being mistaken for a rendering bug.
-## The importer reproduces this file in Phase 2, and the two are diffed.
+## Deliberately hand-written rather than imported, so the export pipeline is
+## validated against data that does not depend on the .cfg parser at all.
+## `compare_ripple.gd` diffs this against the importer's own output.
 ##
 
 func k(t: float, v: float, e := "linear") -> Dictionary:
