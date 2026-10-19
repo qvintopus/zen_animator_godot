@@ -71,13 +71,12 @@ Check against the raylib reference `../raylib_base_template/anims/exports/MAIN_M
   the bar's colour both resolve through the 0.3s smooth-loop blend. A visible jump
   at the loop point means the blend is wrong.
 
-Text will NOT be pixel-identical to the raylib reference any more (2026-10-19): glyphs now
-draw through a real Godot font (Source Sans 3) instead of raylib's bitmap metrics. What to
-look for:
+Text draws through a real Godot font, by default raylib's own bitmap font rebuilt glyph for
+glyph (2026-10-19, `tools/gen_raylib_font.gd`). What to look for:
 
-- is the text centred, and does `\n` still break correctly? (layout - should still match)
-- do the letterforms look acceptable? (taste - decides whether a pixel-exact raylib
-  bitmap-font option is worth building as a future per-animation font choice)
+- is the text centred, and does `\n` still break correctly? (layout)
+- do the letters look like the raylib editor's - blocky, crisp, no blur or stray pixels
+  from neighbouring atlas cells, at export scale 1 and 4?
 
 ### Crumble
 
@@ -259,7 +258,7 @@ the ripple from the beginning.
 
 ```sh
 $B --path . --rendering-driver opengl3 tools/export_scene.tscn -- \
-    --anim=main_menu --fps=30 --fmt=webm
+	--anim=main_menu --fps=30 --fmt=webm
 ```
 
 Must be byte-identical to an earlier export of the same scene/settings. All five scenes

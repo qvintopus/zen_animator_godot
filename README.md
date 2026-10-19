@@ -74,8 +74,8 @@ Easings are now **Godot's own** (`Tween.interpolate_value`), not the raylib port
 the design note below for what that changed and why.
 
 The menus match the raylib reference in layout, size and timing - raylib is a historical
-reference now, not a fidelity target (text in particular renders through a real Godot font,
-not raylib's bitmap metrics; see the design note below). The loop seam is closed: on
+reference now, not a fidelity target (text renders through a Godot font - by default
+raylib's own bitmap font, rebuilt glyph for glyph; see the design note below). The loop seam is closed: on
 `main_menu` the wrap went from a mean channel delta of **0.587 to 0.019**, which is the
 same order as an ordinary adjacent frame pair (0.007).
 
@@ -165,7 +165,7 @@ bundled documents import complete.
 Headless is fine - nothing here renders.
 
 ```sh
-# 1196 checks
+# 1228 checks
 ./Godot_v4.7.2-stable_linux.x86_64 --headless --path . --script res://tests/run_tests.gd
 
 # importer fidelity: 2657 sampled comparisons, must be 0 mismatches
@@ -221,6 +221,7 @@ tools/                 zen_gallery.gd, zen_options.gd (font picker), zen_shape_e
                        test_render.tscn,
                        signal_shots.tscn (renders what an export cannot show),
                        gen_ease_ref.gd (regenerates tests/ease_ref.txt),
+                       gen_raylib_font.gd (regenerates the default raylib font),
                        gen_input_map.gd (regenerates project.godot's [input] section)
 assets/shapes/         pixel-shape assets (ZenPixelShape .tres)
 anims/                 authored Godot scenes (source of truth)
@@ -264,9 +265,14 @@ render path. The intro-skip-on-loop rule *is* expressible on Godot's own clock (
 wraps to its start marker, never to 0 - what `Animation.loop_mode` alone cannot do. See the
 next note for how `ZenCanvas` drives it.
 
-**Text is drawn through a real Godot font**, bundled at `addons/zen/fonts/` (Source Sans 3
-Regular, SIL OFL 1.1, the raylib template's own default - see `LICENSES.md` there).
-`ZenText.font` is a per-element override; null falls back to the project default. A text
+**Text is drawn through a real Godot font**, bundled at `addons/zen/fonts/` - see
+`LICENSES.md` there. The default is **raylib's built-in 10px bitmap font**, the one the
+original editor drew every text with (`GetFontDefault()`, `anim.c:1149`): a `FontFile`
+generated from raylib's own `rtext.c` data by `tools/gen_raylib_font.gd`, each glyph
+advancing `charsWidth + 1` (raylib's one-pixel spacing, so `measure()` drops the trailing
+one like `MeasureTextEx`), sampled nearest so it stays blocky at any size. Source Sans 3
+(SIL OFL 1.1) is bundled as an alternative, and any installed font can be picked on the
+Options screen. `ZenText.font` is a per-element override; null falls back to that choice. A text
 element's position is its CENTRE, so `ZenTextMetrics.measure()` decides where the box
 lands - and that box is a LAYOUT rule (`size_px * lines + LINE_SPACING * (lines-1)`), not a
 font metric: `Font.get_string_size()` ignores `\n` entirely (measured on 4.7.2) and a real
@@ -274,10 +280,7 @@ font's ascent+descent does not equal `size_px` the way a fixed-size bitmap font'
 deriving the box from the font would move every text element on every font swap, defeating
 the point of making the font a choice. Each line's own baseline is placed proportionally
 inside its slot instead (`ZenText._baseline_offset`), so swapping fonts changes letterforms
-without moving anything. The old approach - reproducing raylib's bitmap-font width table
-exactly and squeezing each Godot glyph into its cell - is gone; a pixel-exact raylib bitmap
-font remains a possible future per-animation font choice, not built in this pass (see
-`docs/plans/session-2026-10-19-log.md`).
+without moving anything.
 
 **The live clock is `AnimationPlayer`'s own section, narrowed at the right moment.** A Zen
 document is `[0,intro_end)` + `[intro_end,outro_start)` + a trimmed outro, and the intro is

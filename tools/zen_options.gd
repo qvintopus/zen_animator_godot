@@ -9,14 +9,15 @@ extends Control
 ##
 ##   - FONT: applied process-wide via ZenText's static override, so every
 ##     element with no per-element `font` picks it up with no .tscn edit.
-##     "Default" is the bundled Source Sans 3; everything else is a real
+##     "Default" is the original editor's raylib pixel font; next come the
+##     other bundled fonts (ZenSettings.BUNDLED_FONTS), then every real
 ##     installed font looked up by family name through Godot's SystemFont -
 ##     no bundling needed to offer actual choice.
 ##
 
 signal closed
 
-const DEFAULT_LABEL := "Default (Source Sans 3)"
+const DEFAULT_LABEL := "Default (original Zen pixel font)"
 
 @onready var _font_list: VBoxContainer = $Margin/Rows/Body/FontCol/FontScroll/FontList
 @onready var _font_scroll: ScrollContainer = $Margin/Rows/Body/FontCol/FontScroll
@@ -26,7 +27,7 @@ const DEFAULT_LABEL := "Default (Source Sans 3)"
 
 ## "" is the bundled default; the rest are whatever OS.get_system_fonts()
 ## reports on this machine, so the list is never stale against what the font
-## picker can actually resolve. Sorted A-Z, default pinned first.
+## picker can actually resolve. Sorted A-Z, default and bundled pinned first.
 var _fonts: Array = []
 ## Indices into _fonts that match the search, in display order.
 var _shown: Array[int] = []
@@ -39,14 +40,15 @@ func _ready() -> void:
     _search.text_changed.connect(func(_t): _rebuild())
     _search.text_submitted.connect(_on_search_submitted)
     _rebuild()
-    _preview.add_theme_font_override("font", ZenText.default_font())
+    _show_preview()
     _hint.text = "  UP/DOWN  font      type  search      ESC  clear search / back"
     # Typing filters straight away; the arrows still move the selection.
     _search.grab_focus()
 
 
-## Default first, then the system families A-Z, case-insensitively and with
-## duplicates dropped (some platforms report a family once per style).
+## Default first, then the other bundled fonts, then the system families A-Z,
+## case-insensitively and with duplicates dropped (some platforms report a
+## family once per style).
 static func sorted_fonts(system: Array) -> Array:
     var uniq := {}
     for f in system:
@@ -54,6 +56,7 @@ static func sorted_fonts(system: Array) -> Array:
     var names := uniq.keys()
     names.sort_custom(func(a, b): return String(a).naturalnocasecmp_to(String(b)) < 0)
     var out: Array = [""]
+    out.append_array(ZenSettings.BUNDLED_FONTS.keys())
     out.append_array(names)
     return out
 
@@ -84,8 +87,17 @@ func _select(i: int) -> void:
     if _fonts.is_empty(): return
     _sel = clampi(i, 0, _fonts.size() - 1)
     ZenSettings.set_font_name(_fonts[_sel])
-    _preview.add_theme_font_override("font", ZenText.default_font())
+    _show_preview()
     _mark_sel()
+
+
+## The preview in the applied font - sampled nearest for the pixel font, as
+## ZenText draws it, so it reads crisp rather than blurred.
+func _show_preview() -> void:
+    var f := ZenText.default_font()
+    _preview.add_theme_font_override("font", f)
+    _preview.texture_filter = TEXTURE_FILTER_NEAREST if ZenTextMetrics.is_bitmap(f) \
+        else TEXTURE_FILTER_PARENT_NODE
 
 
 ## Highlight and scroll to the applied font's row, if the search shows it.

@@ -100,6 +100,7 @@ func _run() -> void:
     test_shp_migration()
     test_custom_shape_resolution()
     test_options_font_sort_filter()
+    test_raylib_font()
     test_list_selection()
     await test_gallery_multi_select()
     await test_shape_editor()
@@ -2184,6 +2185,10 @@ func test_zen_settings() -> void:
         check(f is SystemFont, "a named system font overrides the bundled default")
         check((f as SystemFont).font_names[0] == nm, "override carries the chosen family name")
 
+    ZenSettings.set_font_name("Source Sans 3 (bundled)")
+    check(ZenText.default_font() is FontFile and not ZenTextMetrics.is_bitmap(ZenText.default_font()),
+          "the bundled Source Sans name loads the TTF, not a SystemFont")
+
     ZenSettings.set_font_name("")
     check(ZenText.default_font() == bundled, "clearing the override restores the bundled default")
 
@@ -2447,10 +2452,40 @@ func test_custom_shape_resolution() -> void:
 ## the search filter matches the default by its label.
 func test_options_font_sort_filter() -> void:
     var f := ZenOptions.sorted_fonts(["beta", "Alpha", "gamma", "Alpha"])
-    check(f == ["", "Alpha", "beta", "gamma"], "fonts sorted A-Z, default first, deduped (%s)" % [f])
-    check(ZenOptions.filter_fonts(f, "") == [0, 1, 2, 3], "empty search shows all")
-    check(ZenOptions.filter_fonts(f, "AL") == [1], "search is case-insensitive")
-    check(ZenOptions.filter_fonts(f, "source") == [0], "default matches on its label")
+    var src := "Source Sans 3 (bundled)"
+    check(f == ["", src, "Alpha", "beta", "gamma"],
+          "fonts sorted A-Z, default then bundled first, deduped (%s)" % [f])
+    check(ZenOptions.filter_fonts(f, "") == [0, 1, 2, 3, 4], "empty search shows all")
+    check(ZenOptions.filter_fonts(f, "ALP") == [2], "search is case-insensitive")
+    check(ZenOptions.filter_fonts(f, "original") == [0], "default matches on its label")
+    check(ZenOptions.filter_fonts(f, "source") == [1], "bundled Source Sans matches by name")
+
+
+## The default font IS raylib's built-in bitmap font, rebuilt by
+## tools/gen_raylib_font.gd. At its native 10px every glyph advances
+## charsWidth[i] + 1 (raylib's one-pixel spacing), and a measured run drops
+## the trailing pixel exactly as MeasureTextEx does - that is what puts text
+## where the original editor put it.
+func test_raylib_font() -> void:
+    var f := load(ZenText.DEFAULT_FONT_PATH) as FontFile
+    check(f != null and f.fixed_size == 10, "default font is the 10px raylib bitmap font")
+    if f == null: return
+    check(ZenTextMetrics.is_bitmap(f), "raylib font is recognised as a bitmap font")
+    check(not ZenTextMetrics.is_bitmap(load("res://addons/zen/fonts/SourceSans3-Regular.ttf")),
+          "a TTF is not a bitmap font")
+    # charsWidth[] samples, straight from raylib's rtext.c.
+    for pair in [[" ", 3], ["!", 1], ["A", 6], ["M", 7], ["i", 1], ["g", 5], ["~", 4]]:
+        var adv := f.get_string_size(pair[0], HORIZONTAL_ALIGNMENT_LEFT, -1, 10).x
+        check_near(adv, float(pair[1]) + 1.0, "'%s' advances charsWidth + 1" % pair[0])
+    # "Hello": 6+5+2+2+5 glyph pixels + 4 gaps = 24, as MeasureTextEx reports.
+    check_near(ZenTextMetrics.measure("Hello", 10.0, f).x, 24.0,
+               "measure matches raylib MeasureTextEx at 10px")
+    check_near(ZenTextMetrics.measure("Hello", 40.0, f).x, 96.0,
+               "and scales linearly with size, like raylib's")
+    # has_char() reports false for every glyph of a data-less FontFile, so the
+    # Latin-1 half (glyphs 128..255) is checked by its advance instead.
+    check_near(f.get_string_size("é", HORIZONTAL_ALIGNMENT_LEFT, -1, 10).x, 6.0,
+               "Latin-1 glyphs are present ('é' is charsWidth[201] + 1)")
 
 
 ## Gallery multi-selection rules: plain pick is single, Shift is a range from

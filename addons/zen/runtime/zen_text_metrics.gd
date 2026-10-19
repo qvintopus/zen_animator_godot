@@ -34,6 +34,12 @@ static func spacing_for(size_px: float) -> float:
     return size_px / float(BASE_SIZE)
 
 
+## A fixed-size bitmap font - the raylib default (tools/gen_raylib_font.gd).
+## It scales its atlas, so it wants nearest sampling and raylib's spacing rule.
+static func is_bitmap(f: Font) -> bool:
+    return f is FontFile and (f as FontFile).fixed_size > 0
+
+
 ## The text block's size at `size_px` against `font`. Empty text measures
 ## {0,0} - not a degenerate run of the per-line loop, which would still give a
 ## correct {0,0} but needlessly asks the font for an empty string's size.
@@ -42,7 +48,12 @@ static func measure(text: String, size_px: float, font: Font) -> Vector2:
     var lines := text.split("\n")
     var ps := int(round(size_px))
     var w := 0.0
+    # A bitmap font's advance carries raylib's one-base-pixel spacing after
+    # EVERY glyph; MeasureTextEx counts it only BETWEEN glyphs, so drop the
+    # trailing one to centre exactly where the original editor did.
+    var trail := size_px / float(font.fixed_size) if is_bitmap(font) else 0.0
     for line in lines:
-        w = maxf(w, font.get_string_size(line, HORIZONTAL_ALIGNMENT_LEFT, -1, ps).x)
+        if line.is_empty(): continue
+        w = maxf(w, font.get_string_size(line, HORIZONTAL_ALIGNMENT_LEFT, -1, ps).x - trail)
     var h := size_px * lines.size() + LINE_SPACING * (lines.size() - 1)
     return Vector2(w, h)

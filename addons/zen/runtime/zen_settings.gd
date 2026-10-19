@@ -118,11 +118,20 @@ static func _save() -> void:
     cfg.save(CFG_PATH)
 
 
+## Bundled fonts other than the default, by the name the Options list shows
+## and the settings file stores. Names a system family is unlikely to have.
+const BUNDLED_FONTS := {
+    "Source Sans 3 (bundled)": "res://addons/zen/fonts/SourceSans3-Regular.ttf",
+}
+
+
 ## "" resolves to the bundled default (ZenText.default_font() already handles
-## that); anything else is a SYSTEM font looked up by family name through
-## Godot's SystemFont - no bundling needed to offer real font choice.
+## that); a BUNDLED_FONTS name loads that file; anything else is a SYSTEM font
+## looked up by family name through Godot's SystemFont - no bundling needed to
+## offer real font choice.
 static func build_font(name: String) -> Font:
     if name == "": return null
+    if BUNDLED_FONTS.has(name): return load(BUNDLED_FONTS[name])
     var f := SystemFont.new()
     f.font_names = [name]
     return f
