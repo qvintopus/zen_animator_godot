@@ -141,6 +141,24 @@ func is_running() -> bool:
     return not player.is_done()
 
 
+## Still shaping the pose: running, or holding a finished TERMINAL signal's
+## end pose (ZenSignalPlayer.held). What the elements ask at pose time.
+func is_overriding() -> bool:
+    return player.is_overriding()
+
+
+## True while a terminal signal's end pose is being held.
+func is_holding() -> bool:
+    return player.held and not player.playing
+
+
+## Hand the elements back to the timeline after a held terminal end pose.
+func release_hold() -> void:
+    if not player.held: return
+    player.release()
+    _repose()
+
+
 ## Start the override. Called by the user signal, so an external `emit_signal`
 ## on the bus works identically to fire().
 func _on_fire(params: Dictionary, index: int) -> void:
@@ -199,7 +217,9 @@ func advance(delta: float) -> void:
         set_process(false)
         if terminal:
             # The instance stops here, having played the authored transition
-            # through, rather than being cut off.
+            # through, rather than being cut off. The player keeps HOLDING
+            # its end pose (ZenSignalPlayer.held), so the caller's _repose()
+            # draws where the signal finished, not the frozen timeline pose.
             if canvas != null: canvas.stop_timeline()
             terminal_finished.emit(nm)
 

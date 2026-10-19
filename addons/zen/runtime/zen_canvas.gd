@@ -160,6 +160,24 @@ func pose(t: float) -> void:
 ## intro_end > 0.0`.
 @export var loop_play := false
 
+## Viewer overrides for LIVE playback (the gallery's I / L toggles). Not
+## exported and not document data: they say how this viewer wants to watch,
+## not how the animation is authored, and the exporter never reads them.
+## Set before the canvas enters the tree, or call setup_animation_player()
+## again after changing them.
+var play_intro := true   ## false: start at intro_end, as if the intro were spent
+var play_loop := true    ## false: play through once and hold the last frame
+
+
+## Does live playback wrap? The authored flag, gated by the viewer override.
+func loops() -> bool:
+    return loop_play and play_loop
+
+
+## Is the intro being skipped by the viewer?
+func skips_intro() -> bool:
+    return not play_intro and has_intro()
+
 ## Mirror the Zen tracks onto the AnimationPlayer as real Godot tracks.
 ##
 ## OFF by default: they are an EDITING surface, not the render path (see
@@ -229,10 +247,15 @@ func setup_animation_player(autostart := true) -> AnimationPlayer:
         # with LOOP_NONE a section plays once and holds at its end, regardless
         # of play_section vs play_section_with_markers). LOOP_NONE is what one
         # intro pass needs - looping into it would replay the lead-in.
-        if loop_play and has_intro():
+        if skips_intro():
+            # Straight into the body: the intro counts as already spent.
+            anim.loop_mode = Animation.LOOP_LINEAR if loops() else Animation.LOOP_NONE
+            _ap.play_section(ZenAnimBuilder.ANIM, play_start(), play_end())
+            _intro_done = true
+        elif loops() and has_intro():
             anim.loop_mode = Animation.LOOP_NONE
             _ap.play_section(ZenAnimBuilder.ANIM, 0.0, play_end())
-        elif loop_play:
+        elif loops():
             anim.loop_mode = Animation.LOOP_LINEAR
             _ap.play_section(ZenAnimBuilder.ANIM, play_start(), play_end())
             _intro_done = true
@@ -292,7 +315,7 @@ func _process(_delta: float) -> void:
     # not one frame later. Bailing out here, as a plain "still playing" guard
     # would, means the intro->body handover (and the final pause-hold) never
     # runs at all.
-    var pending_handover := loop_play and has_intro() and not _intro_done
+    var pending_handover := loops() and has_intro() and not _intro_done
     if not _ap.is_playing() and not pending_handover and held_pause < 0:
         return
     var raw := _anim_time()
@@ -334,7 +357,16 @@ func _process(_delta: float) -> void:
     # Re-pose every frame from the AnimationPlayer's clock. The AP owns TIME;
     # this owns the resolve. Deliberately not a method key per frame - that
     # would be thousands of keys for no gain.
-    pose_looping(raw, loop_smooth)
+    pose_looping(raw, loop_smooth and play_loop)
+
+
+## True once live playback has run out and is holding its last pose: a
+## one-shot (or loop toggled off) at its end, or a terminal signal having
+## stopped the timeline. A held PAUSE MARKER is not finished - it resumes.
+func is_finished() -> bool:
+    if _ap == null or held_pause >= 0: return false
+    if loops() and has_intro() and not _intro_done: return false   # handover frame
+    return not _ap.is_playing()
 
 
 ## Pose at `t` with the smooth-loop blend armed iff `looping`.
@@ -408,7 +440,11 @@ func rewind_timeline() -> void:
     _intro_done = false
     held_pause = -1
     _spent.clear()
-    _seek_safe(0.0)
+    if skips_intro():
+        _seek_safe(play_start())
+        _intro_done = true
+    else:
+        _seek_safe(0.0)
 
 
 ## Stop live playback outright, holding the current pose.

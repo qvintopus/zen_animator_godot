@@ -10,6 +10,7 @@ extends RefCounted
 ## Two groups, matching who owns what (see docs/plans/export-dialog.md):
 ##   - FONT + export scale: creation-time defaults, edited on the Options
 ##     screen, read by every entry point.
+##   - PLAYBACK: the gallery's intro (I) and loop (L) toggles.
 ##   - EXPORT DEFAULTS: everything else export-related, edited on the Export
 ##     dialog and remembered as one Dictionary so a new field never needs a
 ##     new accessor pair.
@@ -28,6 +29,8 @@ static var _loaded := false
 static var _font_name := ""      # "" => bundled default; else a system font family
 static var _export_scale := 4
 static var _export: Dictionary = EXPORT_DEFAULTS.duplicate()
+static var _play_intro := true
+static var _play_loop := true
 
 
 static func _ensure_loaded() -> void:
@@ -37,6 +40,8 @@ static func _ensure_loaded() -> void:
     if cfg.load(CFG_PATH) == OK:
         _font_name = String(cfg.get_value(SECTION, "font_name", ""))
         _export_scale = int(cfg.get_value(SECTION, "export_scale", 4))
+        _play_intro = bool(cfg.get_value(SECTION, "play_intro", true))
+        _play_loop = bool(cfg.get_value(SECTION, "play_loop", true))
         # merge(), not assign: an older .cfg (or a field added after this one
         # was saved) must not drop keys this version expects to find.
         var saved: Dictionary = cfg.get_value(SECTION, "export", {})
@@ -59,6 +64,28 @@ static func export_scale() -> int:
 static func export_defaults() -> Dictionary:
     _ensure_loaded()
     return _export.duplicate()
+
+
+static func play_intro() -> bool:
+    _ensure_loaded()
+    return _play_intro
+
+
+static func play_loop() -> bool:
+    _ensure_loaded()
+    return _play_loop
+
+
+static func set_play_intro(on: bool) -> void:
+    _ensure_loaded()
+    _play_intro = on
+    _save()
+
+
+static func set_play_loop(on: bool) -> void:
+    _ensure_loaded()
+    _play_loop = on
+    _save()
 
 
 static func set_font_name(name: String) -> void:
@@ -86,6 +113,8 @@ static func _save() -> void:
     cfg.set_value(SECTION, "font_name", _font_name)
     cfg.set_value(SECTION, "export_scale", _export_scale)
     cfg.set_value(SECTION, "export", _export)
+    cfg.set_value(SECTION, "play_intro", _play_intro)
+    cfg.set_value(SECTION, "play_loop", _play_loop)
     cfg.save(CFG_PATH)
 
 

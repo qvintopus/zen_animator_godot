@@ -31,6 +31,12 @@ const KEYS_MAX := 8
 var sig: Dictionary = {}          ## the authored signal (ZenCfgParse shape)
 var clock := 0.0
 var playing := false
+## True once a TERMINAL signal has run to its end: the player keeps answering
+## with its final (u=1) pose instead of handing the elements back to the
+## timeline. The canvas has stopped by then (ZenSignalBus.advance), so the
+## end pose of e.g. pause_menu's `exit` is what stays on screen rather than
+## the frozen timeline pose underneath it. Cleared by start() and release().
+var held := false
 var seq := 0                      ## stage sequence index, 0 = not sequenced
 var params: Dictionary = {}       ## {"pos": Vector2}; presence of "pos" IS has_pos
 
@@ -71,6 +77,7 @@ func start(signal_data: Dictionary, p: Dictionary, seq_index: int,
     sig = signal_data
     clock = 0.0
     playing = false
+    held = false
     seq = seq_index
     params = p.duplicate()
     _from_value = []
@@ -124,10 +131,21 @@ func update(dt: float) -> void:
     if clock >= len_s:
         clock = len_s
         playing = false
+        held = bool(sig.get("terminal", false))
 
 
 func is_done() -> bool:
     return not playing
+
+
+## Still contributing to the pose: running, or holding a terminal end pose.
+func is_overriding() -> bool:
+    return (playing or held) and not sig.is_empty()
+
+
+## Drop a held end pose, handing the elements back to the timeline.
+func release() -> void:
+    held = false
 
 
 ## The scalar value this signal drives for (elem, prop), or null if it drives
@@ -135,7 +153,7 @@ func is_done() -> bool:
 ## outright (anim.c:1683), and `ripple_old` has both a posparam and a plain `w`
 ## target on the same element, where the posparam must win.
 func eval(elem: String, prop: String) -> Variant:
-    if not playing or sig.is_empty(): return null
+    if not is_overriding(): return null
 
     var pv: Variant = _pos_param_eval(elem, prop)
     if pv != null: return pv
@@ -153,7 +171,7 @@ func eval(elem: String, prop: String) -> Variant:
 ## because colour props carry NO alpha of their own - it always rides a
 ## separate scalar track (anim.c:556).
 func eval_color(elem: String, prop: String, alpha: float) -> Variant:
-    if not playing or sig.is_empty(): return null
+    if not is_overriding(): return null
     var i := _target_index(elem, prop)
     if i < 0: return null
     var keys: Array = sig["targets"][i]["keys"]
@@ -166,7 +184,7 @@ func eval_color(elem: String, prop: String, alpha: float) -> Variant:
 ## (anim.c:1747-1781). Scalar props only. No env keys means a constant full
 ## offset.
 func seq_offset(elem: String, prop: String) -> float:
-    if not playing or sig.is_empty(): return 0.0
+    if not is_overriding(): return 0.0
     if not bool(sig.get("uses_seq", false)): return 0.0
     var mult := float(sig.get("seq_mult", 0.0))
     if seq == 0 or mult == 0.0: return 0.0
@@ -194,7 +212,7 @@ func seq_offset(elem: String, prop: String) -> float:
 ## size is left to the authored animation. Only the FIRST binding of an element
 ## is honoured: anchoring one element to two cursor points is contradictory.
 func pos_anchor(elem: String, prop: String) -> float:
-    if not playing or sig.is_empty(): return 0.0
+    if not is_overriding(): return 0.0
     if not bool(sig.get("uses_pos", false)): return 0.0
     if not bool(sig.get("pos_anchor", false)): return 0.0
     if not has_pos(): return 0.0

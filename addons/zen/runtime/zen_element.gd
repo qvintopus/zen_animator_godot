@@ -284,7 +284,7 @@ var _sig_offset: Dictionary = {}
 ## Resolve this element's signal contribution for the pose being built.
 ##
 ## Cleared unconditionally first: a finished signal must stop contributing on
-## the very next pose, and leaking a stale entry would make pose(t) depend on
+## the very next pose (a held terminal end pose is still "contributing"), and leaking a stale entry would make pose(t) depend on
 ## what was posed before it - the impurity the exporter relies on not existing.
 func _capture_signal() -> void:
     _sig_value.clear()
@@ -293,7 +293,7 @@ func _capture_signal() -> void:
     if canvas == null: _find_canvas()
     if canvas == null: return
     var bus := canvas.bus()
-    if bus == null or not bus.is_running(): return
+    if bus == null or not bus.is_overriding(): return
 
     var kind := zen_kind()
     var nm := elem_name

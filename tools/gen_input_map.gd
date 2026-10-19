@@ -19,6 +19,9 @@ const ACTIONS := {
     "zen_next": [KEY_DOWN],
     "zen_options": [KEY_O],
     "zen_export": [KEY_E],
+    "zen_toggle_intro": [KEY_I],
+    "zen_toggle_loop": [KEY_L],
+    "zen_tab": [KEY_TAB],
 }
 
 func _init() -> void:
