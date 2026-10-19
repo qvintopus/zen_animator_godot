@@ -22,6 +22,7 @@ const ACTIONS := {
     "zen_toggle_intro": [KEY_I],
     "zen_toggle_loop": [KEY_L],
     "zen_tab": [KEY_TAB],
+    "zen_help": [KEY_H],      # held: the hotkey sheet (ZenHotkeyHelp)
     # Shape editor. Several share a key with a gallery action (1-3, R, L):
     # the editor is an overlay that consumes its keys first, and the gallery
     # ignores every key but ESC while it is open.

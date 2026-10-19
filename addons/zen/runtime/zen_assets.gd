@@ -4,15 +4,14 @@ extends RefCounted
 ##
 ## Where visual assets live, and name -> resource lookup.
 ##
-## Two roots, mirroring the original's builtin + user shape roots:
+## Two roots, shipped and user:
 ##   - res://assets/shapes/   shipped with the project (and where the editor
 ##                            saves while running from the Godot editor);
 ##   - user://assets/shapes/  where an EXPORTED build saves, since res:// is
 ##                            read-only there. A user shape shadows a shipped
 ##                            one of the same name.
 ##
-## A shape's NAME is its file basename, as in the original - the name inside
-## a .shp was advisory there and has no counterpart here.
+## A shape's NAME is its file basename; the resource stores no name.
 ##
 
 const SHAPE_DIRS := ["res://assets/shapes", "user://assets/shapes"]
@@ -74,7 +73,7 @@ static func save_shape(shape: ZenPixelShape, name: String) -> ZenPixelShape:
 
 
 ## Delete the file `name` resolves to. A shipped shape shadowed by a user one
-## comes back into view afterwards, as in the original pool.
+## comes back into view afterwards.
 static func delete_shape(name: String) -> Error:
     var p: String = shape_paths().get(name, "")
     if p.is_empty(): return ERR_FILE_NOT_FOUND

@@ -7,8 +7,8 @@ extends Control
 ## Feature parity with the original (src/shape_editor/shape_editor.c) - ink
 ## brush with erase, brush size, resize keeping the top-left, clear, bulk ink,
 ## undo, save, and reference-image trace + convert - plus redo, line / rect /
-## flood-fill tools, mirrored drawing, auto-outline, rename / duplicate /
-## .shp export, and a live preview tinted with pickable fill and outline
+## flood-fill tools, mirrored drawing, auto-outline, rename / duplicate,
+## and a live preview tinted with pickable fill and outline
 ## colours (the asset itself carries no colour: the element tints it).
 ##
 ## Godot integration, rather than reimplemented machinery:
@@ -87,7 +87,7 @@ var _confirm: ConfirmationDialog
 var _confirm_action := Callable()
 var _leave_dialog: ConfirmationDialog
 var _ref_dialog: FileDialog
-var _shp_dialog: FileDialog
+var _help := ZenHotkeyHelp.new()
 
 
 func _ready() -> void:
@@ -254,11 +254,15 @@ func _build_ui() -> void:
     rows.add_child(_status)
     _hint = Label.new()
     _hint.add_theme_color_override("font_color", C_DIM)
-    _hint.text = "  LMB paint   RMB erase   wheel zoom   MMB pan   ALT+drag/wheel move/scale reference" \
-        + "      P L R G  tool   1 2 3  ink   [ ]  brush   M  mirror   F  fit" \
-        + "      Ctrl+Z / Ctrl+Shift+Z  undo/redo   Ctrl+S  save   ESC  back"
-    _hint.autowrap_mode = TextServer.AUTOWRAP_WORD
+    # Essentials only; the full list is the hold-H sheet. A long legend here
+    # would set the window's minimum width.
+    _hint.text = "  LMB paint      RMB erase      " + ZenHotkeyHelp.footer([
+        ["zen_edit_undo", "undo"], ["zen_edit_save", "save"],
+        ["zen_help", "(hold) all hotkeys"], ["zen_back", "back"]]).strip_edges()
+    _hint.clip_text = true
+    _hint.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
     rows.add_child(_hint)
+    add_child(_help)
 
     _build_dialogs()
 
@@ -326,7 +330,6 @@ func _build_panel(p: VBoxContainer) -> void:
     _button(g, "duplicate", _ask_name.bind("duplicate"))
     _button(g, "rename", _ask_name.bind("rename"))
     _button(g, "delete", _ask_delete)
-    _button(g, "export .shp", _on_export_shp, "Write the original editor's text format")
     _button(g, "save", _save, "Ctrl+S")
 
     _section(p, "tool")
@@ -459,12 +462,12 @@ func _build_preview(side: VBoxContainer) -> void:
     _section(side, "1x")
     _preview_1x = ZenShapePreview.new()
     _preview_1x.zoom = 1.0
-    _preview_1x.custom_minimum_size = Vector2(190, 130)
+    _preview_1x.custom_minimum_size = Vector2(190, 90)
     side.add_child(_preview_1x)
     _section(side, "preview")
     _preview_big = ZenShapePreview.new()
     _preview_big.size_flags_vertical = SIZE_EXPAND_FILL
-    _preview_big.custom_minimum_size = Vector2(190, 160)
+    _preview_big.custom_minimum_size = Vector2(190, 100)
     side.add_child(_preview_big)
     _on_colors(Color())
 
@@ -510,13 +513,6 @@ func _build_dialogs() -> void:
     _ref_dialog.file_selected.connect(_load_ref)
     add_child(_ref_dialog)
 
-    _shp_dialog = FileDialog.new()
-    _shp_dialog.file_mode = FileDialog.FILE_MODE_SAVE_FILE
-    _shp_dialog.access = FileDialog.ACCESS_FILESYSTEM
-    _shp_dialog.use_native_dialog = true
-    _shp_dialog.filters = PackedStringArray(["*.shp ; Zen pixel shape"])
-    _shp_dialog.file_selected.connect(_write_shp)
-    add_child(_shp_dialog)
 
 
 # ---------------------------------------------------------------- state -> UI
@@ -688,19 +684,6 @@ func _ask_confirm(text: String, fn: Callable) -> void:
     _confirm.popup_centered()
 
 
-func _on_export_shp() -> void:
-    _shp_dialog.current_file = "%s.shp" % (_name if _name != "" else "untitled")
-    _shp_dialog.popup_centered_ratio(0.7)
-
-
-func _write_shp(path: String) -> void:
-    var f := FileAccess.open(path, FileAccess.WRITE)
-    if f == null:
-        _set_status("could not write %s" % path)
-        return
-    f.store_string(_shape.to_shp_text(path.get_file().get_basename()))
-    _set_status("exported %s" % path)
-
 
 func _request_leave() -> void:
     if _undo.get_version() != _saved_version:
@@ -720,23 +703,8 @@ func _on_leave_action(action: StringName) -> void:
 
 func _on_files_dropped(files: PackedStringArray) -> void:
     if files.is_empty(): return
-    var f := files[0]
-    var ext := f.get_extension().to_lower()
-    if ext == "shp":
-        _import_shp(f)
-    else:
-        _load_ref(f)
+    _load_ref(files[0])
 
-
-## Dropping a .shp imports it as a new, unsaved shape named after the file.
-func _import_shp(path: String) -> void:
-    var s := ZenPixelShape.from_shp_text(FileAccess.get_file_as_string(path))
-    if s == null:
-        _set_status("not a readable .shp: %s" % path)
-        return
-    _set_shape(s, "")
-    _canvas.fit()
-    _set_status("imported %s - Ctrl+S to save it" % path.get_file())
 
 
 func _load_ref(path: String) -> void:
@@ -884,14 +852,39 @@ func _process(_dt: float) -> void:
 
 # ---------------------------------------------------------------- keys
 
+func _show_help() -> void:
+    _help.show_rows("Shape editor", [
+        ["LMB", "paint with the active tool and ink"],
+        ["RMB", "erase with the active tool"],
+        ["wheel", "zoom about the cursor"],
+        ["MMB drag", "pan"],
+        ["Alt + drag", "move the reference image"],
+        ["Alt + wheel", "scale the reference image"],
+        ["zen_edit_tool_pen", "pen"], ["zen_edit_tool_line", "line"],
+        ["zen_edit_tool_rect", "rectangle"], ["zen_edit_tool_fill", "flood fill"],
+        ["zen_edit_ink_empty", "ink: empty"], ["zen_edit_ink_fill", "ink: fill"],
+        ["zen_edit_ink_outline", "ink: rim"],
+        ["zen_edit_brush_down", "smaller brush"], ["zen_edit_brush_up", "bigger brush"],
+        ["zen_edit_mirror", "mirror X on / off"], ["zen_edit_fit", "fit the shape in view"],
+        ["zen_edit_undo", "undo"], ["zen_edit_redo", "redo"], ["zen_edit_save", "save"],
+        ["drop an image", "load it as the reference"],
+        ["zen_back", "back to the gallery"]])
+
+
 ## Editor keys are named InputMap actions (tools/gen_input_map.gd). They are
 ## only taken when no text field or dialog has focus, so typing a name never
 ## switches tools.
 func _unhandled_input(ev: InputEvent) -> void:
+    if ev.is_action_released("zen_help"):
+        _help.visible = false
+        get_viewport().set_input_as_handled()
+        return
     if not (ev is InputEventKey) or not ev.is_pressed(): return
     if _name_dialog.visible or _confirm.visible or _leave_dialog.visible: return
     var handled := true
-    if ev.is_action_pressed("zen_back") and not ev.is_echo(): _request_leave()
+    if ev.is_action_pressed("zen_help"):
+        if not ev.is_echo(): _show_help()
+    elif ev.is_action_pressed("zen_back") and not ev.is_echo(): _request_leave()
     elif ev.is_action_pressed("zen_edit_redo", true): _do_redo()
     elif ev.is_action_pressed("zen_edit_undo", true): _do_undo()
     elif ev.is_action_pressed("zen_edit_save") and not ev.is_echo(): _save()

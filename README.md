@@ -36,6 +36,11 @@ The left column is an accordion: **animations** (open by default) and **assets (
 Clicking a header (or **zen_tab**, TAB) opens that section and collapses the other; each
 header stays pinned while its own list scrolls, and the selection is kept in view.
 
+Each screen's footer names only its essential keys (a full legend in one Label set the
+window's minimum width and pushed the gallery off both sides of the screen). **Hold H**
+(**zen_help**) for a sheet of every hotkey of the current screen - gallery, playback or
+shape editor - read from the live InputMap, so rebinding a key updates it.
+
 **Visual assets are pixel shapes** - the original editor's `.shp` files, ported as
 `ZenPixelShape` resources in `assets/shapes/*.tres` (`tools/import_shp.gd` converts them).
 A pixel shape is a grid of fill/outline cells with no colour of its own: a `custom`
@@ -46,8 +51,8 @@ opens the **shape editor** (`tools/zen_shape_editor.tscn`): pen / line / rect / 
 with fill, rim or erase ink, brush size, mirror X, resize, clear, bulk ink, auto-outline,
 UndoRedo-backed undo/redo, a reference image (native file dialog or drag-and-drop) traced
 with fade/threshold/scale/offset and converted to pixels, a live preview tinted with
-pickable colours, rename / duplicate / delete, and `.shp` export (dropping a `.shp` on the
-window imports one). The editor works on a copy; **Save** writes the `.tres` and updates the
+pickable colours, and rename / duplicate / delete. It knows nothing of the old `.shp`
+text format - only `tools/import_shp.gd`, the one-shot migration, does. The editor works on a copy; **Save** writes the `.tres` and updates the
 already-loaded resource, so animations using it redraw at once.
 
 **Scenes play on F6.** A `ZenCanvas` builds a real Godot `AnimationPlayer` for itself, so
@@ -199,6 +204,7 @@ addons/zen/importer/   zen_cfg_parse (grammar), zen_cfg_build (nodes), zen_cfg_i
 zen_gallery.tscn       the main scene (F5): browse, inspect and play animations
 tools/                 zen_gallery.gd, zen_options.gd (font picker), zen_shape_editor.gd/.tscn
                        + zen_pixel_canvas.gd + zen_shape_preview.gd (shape editor),
+                       zen_hotkey_help.gd (the hold-H hotkey sheet),
                        import_shp.gd (.shp -> .tres), zen_export.gd (the
                        engine: plan_chain + Job), zen_export_dialog.gd/.tscn (the Export
                        screen, E / Ctrl+E), export_scene.tscn (CLI door onto the same

@@ -97,7 +97,7 @@ func _run() -> void:
     await test_loop_play_separate_from_smooth()
     await test_viewer_intro_loop_toggles()
     test_pixel_shape()
-    test_pixel_shape_shp_roundtrip()
+    test_shp_migration()
     test_custom_shape_resolution()
     test_options_font_sort_filter()
     await test_shape_editor()
@@ -2147,7 +2147,7 @@ func test_anim_player_mirrors_keys() -> void:
 func test_input_actions_declared() -> void:
     var names := ["zen_play", "zen_back", "zen_restart", "zen_prev", "zen_next",
                   "zen_options", "zen_export", "zen_export_queue",
-                  "zen_toggle_intro", "zen_toggle_loop", "zen_tab"]
+                  "zen_toggle_intro", "zen_toggle_loop", "zen_tab", "zen_help"]
     for i in range(1, 10): names.append("zen_signal_%d" % i)
     for n in names:
         check(InputMap.has_action(n), "action %s is declared" % n)
@@ -2385,19 +2385,27 @@ func test_pixel_shape() -> void:
           "shape name rules")
 
 
-## Every ported asset survives .tres -> .shp -> parse unchanged, and a row
+## The one-shot .shp migration (tools/import_shp.gd, the only code that
+## knows the format): every ported asset matches its source file, and a row
 ## starting with '#' is a row of fill, not a comment.
-func test_pixel_shape_shp_roundtrip() -> void:
+func test_shp_migration() -> void:
+    var imp: Script = load("res://tools/import_shp.gd")
     var names := ZenAssets.shape_names()
     check(names.size() >= 9, "the 9 ported shapes are present (%d)" % names.size())
+    var src := ProjectSettings.globalize_path("res://").path_join("../raylib_base_template")
     for n in names:
+        var path := ""
+        for sub in ["shapes", "resources/shapes"]:
+            if path == "" and FileAccess.file_exists(src.path_join(sub).path_join(n + ".shp")):
+                path = src.path_join(sub).path_join(n + ".shp")
+        if path == "": continue        # source tree not checked out next to this one
         var a := ZenAssets.load_shape(n)
-        var b := ZenPixelShape.from_shp_text(a.to_shp_text(n))
-        check(b != null and b.size == a.size and b.cells == a.cells, "%s round-trips through .shp" % n)
-    var t := ZenPixelShape.from_shp_text("# c\nshape x\nsize 3 2\nrows\n##O\n.#.\nend\n")
+        var b: ZenPixelShape = imp.parse(FileAccess.get_file_as_string(path))
+        check(b != null and b.size == a.size and b.cells == a.cells, "%s matches its .shp source" % n)
+    var t: ZenPixelShape = imp.parse("# c\nshape x\nsize 3 2\nrows\n##O\n.#.\nend\n")
     check(t != null and t.get_cell(0, 0) == ZenPixelShape.FILL and t.get_cell(2, 0) == ZenPixelShape.OUTLINE
           and t.get_cell(1, 1) == ZenPixelShape.FILL, "a '#'-leading row is pixels")
-    check(ZenPixelShape.from_shp_text("rows\n##\nend") == null, "rows without size is rejected")
+    check(imp.parse("rows\n##\nend") == null, "rows without size is rejected")
 
 
 ## Import keeps shape_name, resolves shape_ref through to `shape_refs`, and

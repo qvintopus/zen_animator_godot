@@ -428,6 +428,8 @@ $G --path .          # F5: the gallery
   rect / fill (L / R / G), mirror (M), undo/redo (Ctrl+Z / Ctrl+Shift+Z). The title gains `*`
   when dirty; ESC asks Save / Discard / Cancel. Drop a PNG on the window, raise "threshold
   preview", Convert. Save, go back, play `ma_prog_02_coding`: the book shows the edit.
+- **Footer and H.** At a narrow window (e.g. 960 wide) the gallery fits with nothing cut
+  off left or right, in both sections and while playing. Holding H shows the hotkey sheet
+  for that screen and releasing H hides it; the same in the shape editor.
 - **Options.** Opens scrolled to the saved font, fonts A-Z, the search field sits on the
   "font" row and filters as you type; ESC clears the search, a second ESC closes.
-
