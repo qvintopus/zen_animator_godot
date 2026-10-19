@@ -32,6 +32,7 @@ func _ready() -> void:
     await test_crumble_renders()
     await test_ripple_anchors_to_cursor()
     await test_signal_export_purity_pixels()
+    await test_custom_shape_pixels()
     print("\n%d render checks, %d failures" % [checks, fails])
     get_tree().quit(1 if fails > 0 else 0)
 
@@ -602,4 +603,50 @@ func test_signal_export_purity_pixels() -> void:
     canvas.pose(t)
     var d := await _grab_raw(sv)
     check(a.get_data() == d.get_data(), "a refused fire leaves the frame untouched")
+    sv.queue_free()
+
+
+## A CUSTOM shape renders its pixel asset: fill cells in `color`, outline
+## cells in `outline_color`, stretched over the w x h box - and a missing
+## asset draws the magenta placeholder rather than nothing.
+func test_custom_shape_pixels() -> void:
+    var canvas := ZenCanvas.new()
+    canvas.live_playback = false
+    var sh := ZenShape.new()
+    sh.elem_name = "px"
+    sh.shape_kind = ZenShape.Kind.CUSTOM
+    sh.pos_frac = Vector2(0.5, 0.5)
+    sh.size_frac = Vector2(0.5, 0.5)
+    sh.color_base = Color(1, 0, 0, 1)
+    sh.outline_color_base = Color(0, 0, 1, 1)
+    var ps := ZenPixelShape.new()
+    ps.size = Vector2i(2, 1)
+    ps.set_cell(0, 0, ZenPixelShape.FILL)
+    ps.set_cell(1, 0, ZenPixelShape.OUTLINE)
+    ps.commit()
+    sh.shape = ps
+    canvas.add_child(sh)
+    var sv := SubViewport.new()
+    sv.size = Vector2i(320, 180)
+    var bg := ColorRect.new()
+    bg.size = Vector2(320, 180)
+    bg.color = Color.BLACK
+    sv.add_child(bg)
+    sv.add_child(canvas)
+    add_child(sv)
+
+    var img: Image = await _grab(sv, canvas, 0.0, false)
+    var l := img.get_pixel(120, 90)
+    var r := img.get_pixel(200, 90)
+    check(l.r > 0.9 and l.b < 0.1, "fill cell renders in the fill colour (got %s)" % l)
+    check(r.b > 0.9 and r.r < 0.1, "outline cell renders in the outline colour (got %s)" % r)
+    check(img.get_pixel(40, 90).r < 0.1, "nothing outside the box")
+
+    sh.shape = null
+    img = await _grab(sv, canvas, 0.0, false)
+    var edge := img.get_pixel(80, 90)
+    var mid := img.get_pixel(120, 120)
+    check(edge.r > 0.8 and edge.b > 0.8 and edge.g < 0.2,
+          "a missing shape draws the magenta placeholder (got %s)" % edge)
+    check(mid.r < 0.1, "the placeholder is a box, not a fill")
     sv.queue_free()

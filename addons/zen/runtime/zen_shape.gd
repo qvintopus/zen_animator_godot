@@ -13,7 +13,13 @@ extends ZenElement
 ##   - LINE is length=w, thickness=h, drawn in the FILL colour with round caps,
 ##     and its half-length is projected per-axis so a corner-to-corner line
 ##     stays corner-to-corner when the canvas aspect changes;
-##   - fill alpha and outline alpha are INDEPENDENT tracks.
+##   - fill alpha and outline alpha are INDEPENDENT tracks;
+##   - CUSTOM draws a ZenPixelShape stretched over the w x h box: fill cells
+##     tinted by `color`, outline cells by `outline_color`. Its outline is
+##     pixel data, not a stroke, so the `outline` thickness does not apply.
+##     Which shape: the stepped `shape_id` track indexes `shape_refs`; with no
+##     track (or a negative key) it is `shape`. A missing one draws a magenta
+##     box with a diagonal, so the problem shows in exports too.
 ##
 
 enum Kind { RECT, CIRCLE, SQUARE, RHOMBUS, TRIANGLE, LINE, CUSTOM }
@@ -31,6 +37,22 @@ const ELLIPSE_SEGS := 36
 ## a thin rim does not shimmer as it animates.
 @export var outline_crisp := false
 
+## CUSTOM only: the rest-pose pixel shape.
+@export var shape: ZenPixelShape:
+    set(v):
+        if shape != null and shape.changed.is_connected(queue_redraw):
+            shape.changed.disconnect(queue_redraw)
+        shape = v
+        if shape != null: shape.changed.connect(queue_redraw)
+        queue_redraw()
+## The name `shape` was authored under, kept so a missing asset can be named.
+@export var shape_name := ""
+## CUSTOM only: the shapes a `shape_id` track switches between, by index.
+@export var shape_refs: Array[ZenPixelShape] = []
+
+## A `shape_id` key value meaning "the authored shape no longer exists".
+const SHAPE_MISSING := -2.0
+
 var _t := 0.0
 
 
@@ -46,7 +68,9 @@ func base_scalar(prop_name: String) -> float:
         "outline_alpha": return outline_color_base.a
         "scale": return scale_base
         "outline": return outline_base
-        "shape_id": return float(shape_kind)
+        # -1: no track override, draw `shape` (the C's AnimShapePoolFindByName
+        # fallback for a negative AP_S_SHAPE).
+        "shape_id": return -1.0
     return super.base_scalar(prop_name)
 
 
@@ -63,6 +87,15 @@ func _pose(t: float) -> void:
     _t = t
 
 
+## The pixel shape showing at `t`, or null when it is missing.
+func shape_at(t: float) -> ZenPixelShape:
+    var idx := prop("shape_id", t, -1.0)
+    if idx <= SHAPE_MISSING + 0.5: return null
+    if idx < 0.0: return shape
+    var i := int(idx + 0.5)
+    return shape_refs[i] if i < shape_refs.size() else null
+
+
 func _draw() -> void:
     var t := _t
     var fill_a := prop("alpha", t, color_base.a)
@@ -74,7 +107,10 @@ func _draw() -> void:
     var thick_px := uh * prop("outline", t, outline_base) * sc
 
     # Nothing to draw: no fill, and no outline thick enough to land a pixel.
-    if fill_a <= 0.0 and (out_a <= 0.0 or thick_px < 0.5): return
+    # A custom shape's outline is pixel data, visible whenever its alpha is.
+    if shape_kind == Kind.CUSTOM:
+        if fill_a <= 0.0 and out_a <= 0.0: return
+    elif fill_a <= 0.0 and (out_a <= 0.0 or thick_px < 0.5): return
 
     var w_f := prop("w", t, size_frac.x) * sc
     var h_f := prop("h", t, size_frac.y) * sc
@@ -100,6 +136,10 @@ func _draw() -> void:
         draw_circle(b, th * 0.5, fill)
         return
 
+    if shape_kind == Kind.CUSTOM:
+        _draw_custom(t, c, hw, hh, rot, fill, line)
+        return
+
     # Crisp circle: filled fan plus a smooth annulus stroke.
     if shape_kind == Kind.CIRCLE and outline_crisp:
         var radius := (hw + hh) * 0.5
@@ -119,6 +159,27 @@ func _draw() -> void:
         var loop := rim.duplicate()
         loop.append(rim[0])
         draw_polyline(loop, line, thick_px, true)
+
+
+func _draw_custom(t: float, c: Vector2, hw: float, hh: float, rot: float,
+                  fill: Color, line: Color) -> void:
+    var box := Rect2(-hw, -hh, hw * 2.0, hh * 2.0)
+    # Set on the canvas item rather than the `texture_filter` property so it
+    # is never written into a saved scene.
+    RenderingServer.canvas_item_set_default_texture_filter(
+        get_canvas_item(), RenderingServer.CANVAS_ITEM_TEXTURE_FILTER_NEAREST)
+    draw_set_transform(c, rot)
+    var ps := shape_at(t)
+    if ps == null:
+        var warn := Color(1, 0, 1, fill.a if fill.a > 0.0 else 1.0)
+        draw_rect(box, warn, false, 2.0)
+        draw_line(box.position, box.end, warn, 2.0)
+    else:
+        # Both stencils cover the same box. Nearest filtering keeps the texels
+        # square however far the box stretches them.
+        if fill.a > 0.0: draw_texture_rect(ps.fill_texture(), box, false, fill)
+        if line.a > 0.0: draw_texture_rect(ps.outline_texture(), box, false, line)
+    draw_set_transform(Vector2.ZERO)
 
 
 ## Outline points for the non-line kinds, already rotated about the centre.

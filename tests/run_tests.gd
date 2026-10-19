@@ -96,6 +96,9 @@ func _run() -> void:
     test_seek_stays_in_section()
     await test_loop_play_separate_from_smooth()
     await test_viewer_intro_loop_toggles()
+    test_pixel_shape()
+    test_pixel_shape_shp_roundtrip()
+    test_custom_shape_resolution()
     test_zen_settings()
     test_export_dialog_preview()
     print("\n%d checks, %d failures" % [checks, fails])
@@ -2344,3 +2347,84 @@ func test_viewer_intro_loop_toggles() -> void:
     check(d.pose_time >= d.play_end() - 0.02,
           "loop off: holds the last frame (t %.4f)" % d.pose_time)
     d.queue_free()
+
+
+## ZenPixelShape: resize keeps the top-left, auto-outline follows the C
+## boundary rule, bulk ink keeps the silhouette.
+func test_pixel_shape() -> void:
+    var s := ZenPixelShape.new()
+    s.size = Vector2i(4, 3)
+    check(s.cells.size() == 12, "cells sized w*h")
+    for y in 3:
+        for x in 4:
+            s.set_cell(x, y, ZenPixelShape.FILL)
+    s.set_cell(0, 0, ZenPixelShape.OUTLINE)
+    s.size = Vector2i(2, 5)
+    check(s.get_cell(0, 0) == ZenPixelShape.OUTLINE, "resize keeps the top-left cell")
+    check(s.get_cell(1, 2) == ZenPixelShape.FILL, "resize keeps the overlapping region")
+    check(s.get_cell(0, 4) == ZenPixelShape.EMPTY, "new rows are empty")
+
+    var o := ZenPixelShape.new()
+    o.size = Vector2i(5, 5)
+    for y in range(1, 4):
+        for x in range(1, 4):
+            o.set_cell(x, y, ZenPixelShape.FILL)
+    o.auto_outline()
+    check(o.get_cell(2, 2) == ZenPixelShape.FILL, "auto-outline keeps an interior cell")
+    check(o.get_cell(1, 1) == ZenPixelShape.OUTLINE and o.get_cell(3, 2) == ZenPixelShape.OUTLINE,
+          "auto-outline promotes cells touching empty")
+    check(o.count(ZenPixelShape.OUTLINE) == 8, "auto-outline reads from a copy (8 rim cells, got %d)"
+          % o.count(ZenPixelShape.OUTLINE))
+    o.convert_ink(ZenPixelShape.FILL)
+    check(o.count(ZenPixelShape.FILL) == 9 and o.count(ZenPixelShape.OUTLINE) == 0,
+          "bulk ink keeps the silhouette")
+    check(ZenPixelShape.valid_name("page_icon") and not ZenPixelShape.valid_name("_x")
+          and not ZenPixelShape.valid_name("a b") and not ZenPixelShape.valid_name(""),
+          "shape name rules")
+
+
+## Every ported asset survives .tres -> .shp -> parse unchanged, and a row
+## starting with '#' is a row of fill, not a comment.
+func test_pixel_shape_shp_roundtrip() -> void:
+    var names := ZenAssets.shape_names()
+    check(names.size() >= 9, "the 9 ported shapes are present (%d)" % names.size())
+    for n in names:
+        var a := ZenAssets.load_shape(n)
+        var b := ZenPixelShape.from_shp_text(a.to_shp_text(n))
+        check(b != null and b.size == a.size and b.cells == a.cells, "%s round-trips through .shp" % n)
+    var t := ZenPixelShape.from_shp_text("# c\nshape x\nsize 3 2\nrows\n##O\n.#.\nend\n")
+    check(t != null and t.get_cell(0, 0) == ZenPixelShape.FILL and t.get_cell(2, 0) == ZenPixelShape.OUTLINE
+          and t.get_cell(1, 1) == ZenPixelShape.FILL, "a '#'-leading row is pixels")
+    check(ZenPixelShape.from_shp_text("rows\n##\nend") == null, "rows without size is rejected")
+
+
+## Import keeps shape_name, resolves shape_ref through to `shape_refs`, and
+## shape_at() follows the stepped track.
+func test_custom_shape_resolution() -> void:
+    var c: ZenCanvas = (load("res://anims/ma_prog_02_coding.tscn") as PackedScene).instantiate()
+    var icon: ZenShape = null
+    for e in c.elements():
+        if e is ZenShape and (e as ZenShape).elem_name == "icon_ai": icon = e
+    check(icon != null and icon.shape_kind == ZenShape.Kind.CUSTOM, "icon_ai imports as CUSTOM")
+    if icon != null:
+        check(icon.shape_name == "ai_icon_128" and icon.shape != null, "shape_name resolves to an asset")
+        check(icon.shape_refs.size() >= 1, "shape_ref lines resolve into shape_refs")
+        var keys: Array = icon.tracks.get("shape_id", [])
+        var ok := not keys.is_empty()
+        for k in keys:
+            var v := float(k["v"])
+            if v >= 0.0 and int(v) >= icon.shape_refs.size(): ok = false
+        check(ok, "every shape_id key indexes shape_refs")
+        if not keys.is_empty():
+            var k0: Dictionary = keys[0]
+            var at := icon.shape_at(float(k0["t"]))
+            check(at != null and at == icon.shape_refs[int(float(k0["v"]))], "shape_at follows the track")
+    c.free()
+
+    var m := ZenShape.new()
+    m.shape_kind = ZenShape.Kind.CUSTOM
+    check(m.shape_at(0.0) == null, "no shape: shape_at is null (placeholder)")
+    m.tracks = {"shape_id": [{"t": 0.0, "v": ZenShape.SHAPE_MISSING, "ease": "linear"}]}
+    m.shape = ZenPixelShape.new()
+    check(m.shape_at(0.0) == null, "SHAPE_MISSING key draws the placeholder even with a rest shape")
+    m.free()

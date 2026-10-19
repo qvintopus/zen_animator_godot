@@ -1,0 +1,772 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://addons/zen/runtime/zen_canvas.gd" id="1_l6pkl"]
+[ext_resource type="Script" path="res://addons/zen/runtime/zen_text.gd" id="2_qxp1y"]
+[ext_resource type="Script" path="res://addons/zen/runtime/zen_shape.gd" id="3_fdvgv"]
+[ext_resource type="Resource" path="res://assets/shapes/fangs_upper.tres" id="4_h30ny"]
+[ext_resource type="Resource" path="res://assets/shapes/fangs_lower.tres" id="5_fmhny"]
+[ext_resource type="Script" path="res://addons/zen/runtime/zen_global.gd" id="6_88trk"]
+
+[node name="fangs_test" type="Node2D" unique_id=106135257]
+script = ExtResource("1_l6pkl")
+duration = 12.0
+outro_start = 12.0
+clear_color = Color(0.1, 0.12, 0.16, 1)
+
+[node name="title" type="Node2D" parent="." unique_id=362368590]
+script = ExtResource("2_qxp1y")
+text = "NeZvers"
+size_frac = Vector2(0.3, 0.12)
+color_base = Color(0.9607843, 0.9607843, 0.9607843, 1)
+crumble_spin = 156.0
+crumble_dir = 66.0
+crumble_spread = 360.0
+crumble_dist = 0.566667
+elem_name = "title"
+pos_frac = Vector2(0.4625, 0.371528)
+tracks = {
+"alpha": [{
+"ease": "linear",
+"t": 0.0,
+"v": 0.0
+}, {
+"ease": "sineOut",
+"t": 0.6,
+"v": 1.0
+}, {
+"ease": "sineOut",
+"t": 3.610662,
+"v": 1.0
+}],
+"crumble": [{
+"ease": "linear",
+"t": 0.0,
+"v": 0.0
+}, {
+"ease": "linear",
+"t": 0.120523,
+"v": 0.0
+}, {
+"ease": "linear",
+"t": 0.950727,
+"v": 0.647059
+}, {
+"ease": "linear",
+"t": 1.500808,
+"v": 0.647059
+}, {
+"ease": "linear",
+"t": 3.533118,
+"v": 0.0
+}, {
+"ease": "linear",
+"t": 3.895425,
+"v": 0.0
+}, {
+"ease": "expoOut",
+"t": 5.980614,
+"v": 1.0
+}],
+"crumble_dir": [{
+"ease": "linear",
+"t": 0.0,
+"v": 66.0
+}, {
+"ease": "linear",
+"t": 0.120523,
+"v": 66.0
+}, {
+"ease": "linear",
+"t": 0.950727,
+"v": 66.0
+}, {
+"ease": "linear",
+"t": 1.500808,
+"v": 66.0
+}, {
+"ease": "linear",
+"t": 3.533118,
+"v": 66.0
+}, {
+"ease": "linear",
+"t": 3.895425,
+"v": 66.0
+}, {
+"ease": "expoOut",
+"t": 5.980614,
+"v": 66.0
+}],
+"crumble_dist": [{
+"ease": "linear",
+"t": 0.0,
+"v": 0.566667
+}, {
+"ease": "linear",
+"t": 0.120523,
+"v": 0.566667
+}, {
+"ease": "linear",
+"t": 0.950727,
+"v": 0.566667
+}, {
+"ease": "linear",
+"t": 1.500808,
+"v": 0.566667
+}, {
+"ease": "linear",
+"t": 3.533118,
+"v": 0.566667
+}, {
+"ease": "linear",
+"t": 3.895425,
+"v": 0.566667
+}, {
+"ease": "expoOut",
+"t": 5.980614,
+"v": 0.566667
+}],
+"crumble_spin": [{
+"ease": "linear",
+"t": 0.0,
+"v": 156.0
+}, {
+"ease": "linear",
+"t": 0.120523,
+"v": 156.0
+}, {
+"ease": "linear",
+"t": 0.950727,
+"v": 156.0
+}, {
+"ease": "linear",
+"t": 1.500808,
+"v": 156.0
+}, {
+"ease": "linear",
+"t": 3.533118,
+"v": 156.0
+}, {
+"ease": "linear",
+"t": 3.895425,
+"v": 156.0
+}, {
+"ease": "expoOut",
+"t": 5.980614,
+"v": 156.0
+}],
+"crumble_spread": [{
+"ease": "linear",
+"t": 0.0,
+"v": 360.0
+}, {
+"ease": "linear",
+"t": 0.120523,
+"v": 360.0
+}, {
+"ease": "linear",
+"t": 0.950727,
+"v": 360.0
+}, {
+"ease": "linear",
+"t": 1.500808,
+"v": 360.0
+}, {
+"ease": "linear",
+"t": 3.533118,
+"v": 360.0
+}, {
+"ease": "linear",
+"t": 3.895425,
+"v": 360.0
+}, {
+"ease": "expoOut",
+"t": 5.980614,
+"v": 360.0
+}],
+"pos_x": [{
+"ease": "linear",
+"t": 0.0,
+"v": 0.4625
+}, {
+"ease": "linear",
+"t": 1.578352,
+"v": 0.4125
+}, {
+"ease": "linear",
+"t": 3.607843,
+"v": 0.490206
+}],
+"pos_y": [{
+"ease": "linear",
+"t": 0.0,
+"v": 0.371528
+}, {
+"ease": "linear",
+"t": 1.578352,
+"v": 0.464706
+}, {
+"ease": "linear",
+"t": 3.607843,
+"v": 0.464706
+}],
+"size": [{
+"ease": "linear",
+"t": 0.0,
+"v": 0.12
+}, {
+"ease": "linear",
+"t": 1.578352,
+"v": 0.4
+}, {
+"ease": "linear",
+"t": 3.610662,
+"v": 0.4
+}]
+}
+
+[node name="txt_scribble" type="Node2D" parent="." unique_id=1445417556]
+z_index = 1
+script = ExtResource("2_qxp1y")
+text = "....../.;';..';!@##$
+@#\":>$\"?@\">$:>
+@#:%@$>\"@#:>
+$\"#@:>%\"@:#>$"
+size_frac = Vector2(0.0475, 0.1)
+color_base = Color(0.9607843, 0.9607843, 0.9607843, 1)
+crumble_spin = -72.0
+crumble_spread = 156.0
+crumble_dist = 0.533333
+elem_name = "txt_scribble"
+pos_frac = Vector2(0.5, 0.4555)
+tracks = {
+"alpha": [{
+"ease": "linear",
+"t": 0.0,
+"v": 1.0
+}, {
+"ease": "linear",
+"t": 8.241831,
+"v": 1.0
+}, {
+"ease": "linear",
+"t": 9.124183,
+"v": 0.0
+}],
+"color": [{
+"c": Color(0.9607843, 0.9607843, 0.9607843, 1),
+"ease": "linear",
+"t": 0.0
+}, {
+"c": Color(0.9607843, 0.9607843, 0.9607843, 1),
+"ease": "linear",
+"t": 8.241831
+}, {
+"c": Color(0.9607843, 0.9607843, 0.9607843, 1),
+"ease": "linear",
+"t": 9.124183
+}],
+"crumble": [{
+"ease": "linear",
+"t": 0.0,
+"v": 1.0
+}, {
+"ease": "linear",
+"t": 5.562091,
+"v": 1.0
+}, {
+"ease": "sineIn",
+"t": 6.006536,
+"v": 0.852941
+}, {
+"ease": "expoOut",
+"t": 6.313725,
+"v": 0.7
+}, {
+"ease": "expoIn",
+"t": 7.986928,
+"v": 0.7
+}, {
+"ease": "sineIn",
+"t": 9.196079,
+"v": 0.282353
+}],
+"crumble_dir": [{
+"ease": "linear",
+"t": 0.0,
+"v": 90.0
+}, {
+"ease": "linear",
+"t": 5.562091,
+"v": 90.0
+}, {
+"ease": "sineIn",
+"t": 6.006536,
+"v": 90.0
+}, {
+"ease": "expoOut",
+"t": 6.313725,
+"v": 90.0
+}, {
+"ease": "expoIn",
+"t": 7.986928,
+"v": 283.764709
+}, {
+"ease": "sineIn",
+"t": 9.196079,
+"v": 0.0
+}],
+"crumble_dist": [{
+"ease": "linear",
+"t": 0.0,
+"v": 0.533333
+}, {
+"ease": "linear",
+"t": 5.562091,
+"v": 0.533333
+}, {
+"ease": "sineIn",
+"t": 6.006536,
+"v": 0.533333
+}, {
+"ease": "expoOut",
+"t": 6.313725,
+"v": 0.533333
+}, {
+"ease": "expoIn",
+"t": 7.986928,
+"v": 0.533333
+}, {
+"ease": "sineIn",
+"t": 9.196079,
+"v": 0.0
+}],
+"crumble_spin": [{
+"ease": "linear",
+"t": 0.0,
+"v": -72.0
+}, {
+"ease": "linear",
+"t": 5.562091,
+"v": -72.0
+}, {
+"ease": "sineIn",
+"t": 6.006536,
+"v": -72.0
+}, {
+"ease": "expoOut",
+"t": 6.313725,
+"v": -72.0
+}, {
+"ease": "expoIn",
+"t": 7.986928,
+"v": -635.294128
+}, {
+"ease": "sineIn",
+"t": 9.196079,
+"v": 720.0
+}],
+"crumble_spread": [{
+"ease": "linear",
+"t": 0.0,
+"v": 156.0
+}, {
+"ease": "linear",
+"t": 5.562091,
+"v": 156.0
+}, {
+"ease": "sineIn",
+"t": 6.006536,
+"v": 156.0
+}, {
+"ease": "expoOut",
+"t": 6.313725,
+"v": 156.0
+}, {
+"ease": "expoIn",
+"t": 7.986928,
+"v": 360.0
+}, {
+"ease": "sineIn",
+"t": 9.196079,
+"v": 360.0
+}],
+"size": [{
+"ease": "linear",
+"t": 0.0,
+"v": 0.0475
+}, {
+"ease": "linear",
+"t": 8.0,
+"v": 0.0475
+}, {
+"ease": "linear",
+"t": 9.124183,
+"v": 0.022
+}]
+}
+
+[node name="fangs_upper" type="Node2D" parent="." unique_id=1781061733]
+z_index = 2
+script = ExtResource("3_fdvgv")
+shape_kind = 6
+scale_base = 2.5
+color_base = Color(0.9607843, 0.9607843, 0.9607843, 1)
+outline_color_base = Color(0.9607843, 0.9607843, 0.9607843, 1)
+shape = ExtResource("4_h30ny")
+shape_name = "fangs_upper"
+elem_name = "fangs_upper"
+pos_frac = Vector2(0.472994, 0.255556)
+tracks = {
+"pos_x": [{
+"ease": "linear",
+"t": 0.0,
+"v": 0.472994
+}, {
+"ease": "linear",
+"t": 3.58643,
+"v": 0.5
+}, {
+"ease": "overbite",
+"t": 6.0,
+"v": 0.5
+}, {
+"ease": "linear",
+"t": 10.647058,
+"v": 0.5
+}, {
+"ease": "sineIn",
+"t": 11.627451,
+"v": 0.5
+}],
+"pos_y": [{
+"ease": "linear",
+"t": 0.0,
+"v": -0.558824
+}, {
+"ease": "linear",
+"t": 3.58643,
+"v": -0.558824
+}, {
+"ease": "overbite",
+"t": 6.0,
+"v": 0.255556
+}, {
+"ease": "linear",
+"t": 10.647058,
+"v": 0.255556
+}, {
+"ease": "sineIn",
+"t": 11.627451,
+"v": 0.056056
+}]
+}
+
+[node name="fangs_lower" type="Node2D" parent="." unique_id=794645506]
+z_index = 3
+script = ExtResource("3_fdvgv")
+shape_kind = 6
+scale_base = 2.5
+color_base = Color(0.9607843, 0.9607843, 0.9607843, 1)
+outline_color_base = Color(0.9607843, 0.9607843, 0.9607843, 1)
+shape = ExtResource("5_fmhny")
+shape_name = "fangs_lower"
+elem_name = "fangs_lower"
+pos_frac = Vector2(0.477495, 0.686111)
+tracks = {
+"pos_x": [{
+"ease": "linear",
+"t": 0.0,
+"v": 0.477495
+}, {
+"ease": "linear",
+"t": 3.58643,
+"v": 0.5
+}, {
+"ease": "overbite",
+"t": 6.0,
+"v": 0.5
+}, {
+"ease": "linear",
+"t": 10.647058,
+"v": 0.5
+}, {
+"ease": "sineIn",
+"t": 11.673203,
+"v": 0.5
+}],
+"pos_y": [{
+"ease": "linear",
+"t": 0.0,
+"v": 1.417647
+}, {
+"ease": "linear",
+"t": 3.58643,
+"v": 1.382353
+}, {
+"ease": "overbite",
+"t": 6.0,
+"v": 0.686111
+}, {
+"ease": "linear",
+"t": 10.647058,
+"v": 0.686111
+}, {
+"ease": "sineIn",
+"t": 11.673203,
+"v": 0.849611
+}]
+}
+
+[node name="ball" type="Node2D" parent="." unique_id=1574118782]
+z_index = 4
+script = ExtResource("3_fdvgv")
+shape_kind = 1
+size_frac = Vector2(40, 36)
+scale_base = 0.6
+color_base = Color(0.9607843, 0.9607843, 0.9607843, 1)
+outline_color_base = Color(0.9607843, 0.9607843, 0.9607843, 1)
+elem_name = "ball"
+unit_abs = true
+pos_frac = Vector2(0.5, 0.461)
+tracks = {
+"alpha": [{
+"ease": "linear",
+"t": 0.0,
+"v": 0.0
+}, {
+"ease": "linear",
+"t": 4.96732,
+"v": 0.0
+}, {
+"ease": "linear",
+"t": 5.045752,
+"v": 1.0
+}, {
+"ease": "bop_n_bop",
+"t": 5.496732,
+"v": 1.0
+}, {
+"ease": "bop_n_bop",
+"t": 6.006536,
+"v": 1.0
+}, {
+"ease": "bop_n_bop",
+"t": 6.490196,
+"v": 1.0
+}, {
+"ease": "bop_n_bop",
+"t": 7.137255,
+"v": 1.0
+}, {
+"ease": "bop_n_bop",
+"t": 7.392157,
+"v": 1.0
+}, {
+"ease": "bop_n_bop",
+"t": 7.810457,
+"v": 1.0
+}, {
+"ease": "bop_n_bop",
+"t": 8.457517,
+"v": 1.0
+}, {
+"ease": "bop_n_bop",
+"t": 8.967319,
+"v": 1.0
+}, {
+"ease": "bop_n_bop",
+"t": 9.359477,
+"v": 1.0
+}, {
+"ease": "bop_n_bop",
+"t": 9.79085,
+"v": 1.0
+}, {
+"ease": "bop_n_bop",
+"t": 10.732026,
+"v": 1.0
+}],
+"color": [{
+"c": Color(0.9607843, 0.9607843, 0.9607843, 1),
+"ease": "linear",
+"t": 0.0
+}, {
+"c": Color(0.9607843, 0.9607843, 0.9607843, 1),
+"ease": "linear",
+"t": 4.96732
+}, {
+"c": Color(0.9607843, 0.9607843, 0.9607843, 1),
+"ease": "linear",
+"t": 5.045752
+}, {
+"c": Color(0.9607843, 0.40784314, 0.48235294, 1),
+"ease": "bop_n_bop",
+"t": 5.496732
+}, {
+"c": Color(0.29411766, 0.93333334, 0.14901961, 1),
+"ease": "bop_n_bop",
+"t": 6.006536
+}, {
+"c": Color(0.29411766, 0.29411766, 1, 1),
+"ease": "bop_n_bop",
+"t": 6.490196
+}, {
+"c": Color(1, 1, 1, 1),
+"ease": "bop_n_bop",
+"t": 7.137255
+}, {
+"c": Color(0.33333334, 0.50980395, 0.7019608, 1),
+"ease": "bop_n_bop",
+"t": 7.392157
+}, {
+"c": Color(0.88235295, 0.1882353, 0.84313726, 1),
+"ease": "bop_n_bop",
+"t": 7.810457
+}, {
+"c": Color(1, 1, 1, 1),
+"ease": "bop_n_bop",
+"t": 8.457517
+}, {
+"c": Color(0.6392157, 0.9882353, 0.80784315, 1),
+"ease": "bop_n_bop",
+"t": 8.967319
+}, {
+"c": Color(1, 1, 1, 1),
+"ease": "bop_n_bop",
+"t": 9.359477
+}, {
+"c": Color(0.6392157, 0.9882353, 0.80784315, 1),
+"ease": "bop_n_bop",
+"t": 9.79085
+}, {
+"c": Color(1, 1, 1, 1),
+"ease": "bop_n_bop",
+"t": 10.732026
+}],
+"scale": [{
+"ease": "linear",
+"t": 0.0,
+"v": 0.6
+}, {
+"ease": "linear",
+"t": 4.973856,
+"v": 0.235
+}, {
+"ease": "overbite",
+"t": 5.614379,
+"v": 0.425
+}, {
+"ease": "bop_n_bop",
+"t": 6.084968,
+"v": 0.425
+}, {
+"ease": "bop_n_bop",
+"t": 7.405229,
+"v": 1.0
+}, {
+"ease": "bop_n_bop",
+"t": 8.0,
+"v": 1.000204
+}, {
+"ease": "bop_n_bop",
+"t": 8.222222,
+"v": 1.105
+}, {
+"ease": "bop_n_bop",
+"t": 9.82353,
+"v": 1.105
+}, {
+"ease": "sineIn",
+"t": 10.771242,
+"v": 0.855
+}, {
+"ease": "quadIn",
+"t": 11.75817,
+"v": 10.0
+}]
+}
+
+[node name="global_bg" type="Node2D" parent="." unique_id=580429193]
+z_index = -1
+script = ExtResource("6_88trk")
+color_base = Color(0, 0, 0, 0)
+is_background = true
+elem_name = "global"
+tracks = {
+"color": [{
+"c": Color(1, 1, 1, 1),
+"ease": "linear",
+"t": 0.0
+}, {
+"c": Color(0, 0, 0, 1),
+"ease": "linear",
+"t": 0.470113
+}, {
+"c": Color(0, 0, 0, 1),
+"ease": "linear",
+"t": 10.948303
+}, {
+"c": Color(0.9882353, 1, 1, 1),
+"ease": "linear",
+"t": 12.0
+}],
+"fade": [{
+"ease": "linear",
+"t": 0.0,
+"v": 1.0
+}, {
+"ease": "linear",
+"t": 0.470113,
+"v": 0.0
+}, {
+"ease": "linear",
+"t": 10.948303,
+"v": 0.0
+}, {
+"ease": "linear",
+"t": 12.0,
+"v": 1.0
+}]
+}
+
+[node name="global" type="Node2D" parent="." unique_id=1033145244]
+z_index = 5
+script = ExtResource("6_88trk")
+color_base = Color(0, 0, 0, 0)
+elem_name = "global"
+tracks = {
+"color": [{
+"c": Color(1, 1, 1, 1),
+"ease": "linear",
+"t": 0.0
+}, {
+"c": Color(0, 0, 0, 1),
+"ease": "linear",
+"t": 0.470113
+}, {
+"c": Color(0, 0, 0, 1),
+"ease": "linear",
+"t": 10.948303
+}, {
+"c": Color(0.9882353, 1, 1, 1),
+"ease": "linear",
+"t": 12.0
+}],
+"fade": [{
+"ease": "linear",
+"t": 0.0,
+"v": 1.0
+}, {
+"ease": "linear",
+"t": 0.470113,
+"v": 0.0
+}, {
+"ease": "linear",
+"t": 10.948303,
+"v": 0.0
+}, {
+"ease": "linear",
+"t": 12.0,
+"v": 1.0
+}]
+}

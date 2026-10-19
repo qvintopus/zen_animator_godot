@@ -136,7 +136,46 @@ static func _build_shape(e: Dictionary) -> ZenShape:
     s.outline_base = float(e["outline"])
     s.outline_crisp = bool(e["outline_crisp"])
     s.tracks = _tracks_for(e, ZenCfgParse.SHAPE_PROPS)
+    if s.shape_kind == ZenShape.Kind.CUSTOM:
+        _resolve_shapes(s, e)
     return s
+
+
+## Pixel shapes are referenced BY NAME, resolved against ZenAssets.
+##
+## A `shape_id` key holds a pool slot index from the SAVING build, which
+## means nothing here; the element's `shape_ref` lines map those indices to
+## names (anim_io.c FixupShapeRefs). Each key is rewritten to an index into
+## `shape_refs`, and a name with no asset becomes SHAPE_MISSING so it draws
+## the placeholder rather than whichever shape inherited the number.
+static func _resolve_shapes(s: ZenShape, e: Dictionary) -> void:
+    var nm := String(e.get("shape_name", ""))
+    s.shape_name = nm
+    if not nm.is_empty():
+        s.shape = ZenAssets.load_shape(nm)
+        if s.shape == null: push_warning("zen import: missing pixel shape '%s'" % nm)
+    if not s.tracks.has("shape_id"): return
+    var refs: Dictionary = e.get("shape_refs", {})
+    var order: Array[String] = []
+    var list: Array[ZenPixelShape] = []
+    for k in s.tracks["shape_id"]:
+        var saved := int(float(k["v"]) + 0.5)
+        if not refs.has(saved):
+            k["v"] = ZenShape.SHAPE_MISSING
+            continue
+        var ref_name := String(refs[saved])
+        var res := ZenAssets.load_shape(ref_name)
+        if res == null:
+            push_warning("zen import: missing pixel shape '%s'" % ref_name)
+            k["v"] = ZenShape.SHAPE_MISSING
+            continue
+        var i := order.find(ref_name)
+        if i < 0:
+            order.append(ref_name)
+            list.append(res)
+            i = order.size() - 1
+        k["v"] = float(i)
+    s.shape_refs = list
 
 
 ## Keep only the tracks valid for this element kind. A cross-kind track would

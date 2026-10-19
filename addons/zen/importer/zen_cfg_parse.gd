@@ -224,7 +224,7 @@ static func _new_elem(kind: String, name: String) -> Dictionary:
         "outline": 0.0,
         "pos": Vector2(0.5, 0.5), "size": Vector2(0.2, 0.2),
         "scale": 1.0, "rot": 0.0,
-        "shape": "rect", "shape_name": "",
+        "shape": "rect", "shape_name": "", "shape_refs": {},
         "unit_abs": false, "corner_mode": false, "outline_crisp": false,
         "crumble_fx": CRUMBLE_DEFAULTS.duplicate(),
         "tracks": {},
@@ -256,6 +256,11 @@ static func _read_elem_field(e: Dictionary, key: String, tk: PackedStringArray) 
             if tk.size() >= 2: e["shape"] = tk[1]
         "shape_name":
             if tk.size() >= 2: e["shape_name"] = tk[1]
+        "shape_ref":
+            # shape_ref <savedIdx> <name>: what a `shape_id` key value meant
+            # in the saving build's pool. Resolved by ZenCfgBuild.
+            if tk.size() >= 3 and int(tk[1]) >= 0:
+                (e["shape_refs"] as Dictionary)[int(tk[1])] = tk[2]
         "unit":
             e["unit_abs"] = tk.size() >= 2 and tk[1] == "abs"
         "anchor":
