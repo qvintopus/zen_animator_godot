@@ -62,10 +62,20 @@ layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 
-[node name="FontLabel" type="Label" parent="Margin/Rows/Body/FontCol"]
+[node name="FontHead" type="HBoxContainer" parent="Margin/Rows/Body/FontCol"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="FontLabel" type="Label" parent="Margin/Rows/Body/FontCol/FontHead"]
 layout_mode = 2
 text = "font"
 theme_override_colors/font_color = Color(0.38, 0.686, 0.937, 1)
+
+[node name="Search" type="LineEdit" parent="Margin/Rows/Body/FontCol/FontHead"]
+layout_mode = 2
+size_flags_horizontal = 3
+placeholder_text = "search..."
+clear_button_enabled = true
 
 [node name="FontScroll" type="ScrollContainer" parent="Margin/Rows/Body/FontCol"]
 layout_mode = 2

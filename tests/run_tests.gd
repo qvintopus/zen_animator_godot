@@ -99,6 +99,7 @@ func _run() -> void:
     test_pixel_shape()
     test_pixel_shape_shp_roundtrip()
     test_custom_shape_resolution()
+    test_options_font_sort_filter()
     test_zen_settings()
     test_export_dialog_preview()
     print("\n%d checks, %d failures" % [checks, fails])
@@ -2428,3 +2429,13 @@ func test_custom_shape_resolution() -> void:
     m.shape = ZenPixelShape.new()
     check(m.shape_at(0.0) == null, "SHAPE_MISSING key draws the placeholder even with a rest shape")
     m.free()
+
+
+## Options: default pinned first, families A-Z case-insensitively, deduped;
+## the search filter matches the default by its label.
+func test_options_font_sort_filter() -> void:
+    var f := ZenOptions.sorted_fonts(["beta", "Alpha", "gamma", "Alpha"])
+    check(f == ["", "Alpha", "beta", "gamma"], "fonts sorted A-Z, default first, deduped (%s)" % [f])
+    check(ZenOptions.filter_fonts(f, "") == [0, 1, 2, 3], "empty search shows all")
+    check(ZenOptions.filter_fonts(f, "AL") == [1], "search is case-insensitive")
+    check(ZenOptions.filter_fonts(f, "source") == [0], "default matches on its label")
