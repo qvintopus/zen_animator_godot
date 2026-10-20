@@ -40,20 +40,33 @@ static func is_bitmap(f: Font) -> bool:
     return f is FontFile and (f as FontFile).fixed_size > 0
 
 
+## The integer font size text is LAID OUT at; drawing then scales it by
+## size_px / ref_size with a float transform. Laying out at round(size_px)
+## instead made an animated size step a whole pixel at a time - each step
+## re-centred the block and re-rounded every pen position, so text that grew
+## while moving stuttered against its own smooth position. A bitmap font lays
+## out at its native size, exactly as raylib's DrawTextEx scaled its atlas; a
+## vector font at the next power of two up, so it only ever shrinks (stays
+## sharp) and its layout changes only when the size crosses a power of two.
+static func ref_size(size_px: float, font: Font) -> int:
+    if is_bitmap(font): return (font as FontFile).fixed_size
+    return maxi(16, nearest_po2(int(ceil(size_px))))
+
+
 ## The text block's size at `size_px` against `font`. Empty text measures
 ## {0,0} - not a degenerate run of the per-line loop, which would still give a
 ## correct {0,0} but needlessly asks the font for an empty string's size.
 static func measure(text: String, size_px: float, font: Font) -> Vector2:
     if text.is_empty(): return Vector2.ZERO
     var lines := text.split("\n")
-    var ps := int(round(size_px))
+    var ref := ref_size(size_px, font)
     var w := 0.0
     # A bitmap font's advance carries raylib's one-base-pixel spacing after
     # EVERY glyph; MeasureTextEx counts it only BETWEEN glyphs, so drop the
     # trailing one to centre exactly where the original editor did.
-    var trail := size_px / float(font.fixed_size) if is_bitmap(font) else 0.0
+    var trail := float(ref) / float(font.fixed_size) if is_bitmap(font) else 0.0
     for line in lines:
         if line.is_empty(): continue
-        w = maxf(w, font.get_string_size(line, HORIZONTAL_ALIGNMENT_LEFT, -1, ps).x - trail)
+        w = maxf(w, font.get_string_size(line, HORIZONTAL_ALIGNMENT_LEFT, -1, ref).x - trail)
     var h := size_px * lines.size() + LINE_SPACING * (lines.size() - 1)
-    return Vector2(w, h)
+    return Vector2(w * size_px / float(ref), h)

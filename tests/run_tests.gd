@@ -2530,6 +2530,16 @@ func test_raylib_font() -> void:
                "measure matches raylib MeasureTextEx at 10px")
     check_near(ZenTextMetrics.measure("Hello", 40.0, f).x, 96.0,
                "and scales linearly with size, like raylib's")
+    # THE STUTTER GUARD: an animated size must widen the text continuously.
+    # Laying out at round(size_px) stepped a whole pixel at a time, so text
+    # that grew while moving (fangs_test's title) jittered about its centre.
+    check_near(ZenTextMetrics.measure("NeZvers", 40.4, f).x,
+               ZenTextMetrics.measure("NeZvers", 40.0, f).x * 40.4 / 40.0,
+               "bitmap width is continuous in size, not stepped per pixel")
+    var ttf: Font = load("res://addons/zen/fonts/SourceSans3-Regular.ttf")
+    var w0 := ZenTextMetrics.measure("NeZvers", 40.0, ttf).x
+    var w1 := ZenTextMetrics.measure("NeZvers", 40.3, ttf).x
+    check(w1 > w0 and w1 < w0 * 1.02, "vector width grows continuously within a size bucket")
     # has_char() reports false for every glyph of a data-less FontFile, so the
     # Latin-1 half (glyphs 128..255) is checked by its advance instead.
     check_near(f.get_string_size("é", HORIZONTAL_ALIGNMENT_LEFT, -1, 10).x, 6.0,

@@ -214,25 +214,25 @@ func _draw() -> void:
         _draw_crumbled(t, fnt, size_px, spacing, rot, crumble, left, top, col)
         return
 
-    if is_zero_approx(rot):
-        _draw_runs(fnt, left, top, size_px, col)
-    else:
-        # Rotate the whole block about its centre.
-        draw_set_transform(c, rot, Vector2.ONE)
-        _draw_runs(fnt, left - c.x, top - c.y, size_px, col)
-        draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+    # Rotate the whole block about its centre (a no-op rotation when rot is 0).
+    _draw_runs(fnt, left - c.x, top - c.y, size_px, col, Transform2D(rot, c))
 
 
 ## Draw the text line by line, through the font's own native layout - no
 ## manual pen stepping, so the font's own kerning decides inter-glyph spacing
 ## (the old raylib-cell squeeze is gone; see docs/plans/godot-integration.md
-## Task 2 for why that was debt in the wrong shape).
-func _draw_runs(fnt: Font, left: float, top: float, size_px: float, col: Color) -> void:
-    var ps := int(round(size_px))
-    var baseline_y := top + _baseline_offset(fnt, ps, size_px)
+## Task 2 for why that was debt in the wrong shape). Laid out at the reference
+## size and scaled continuously - see ZenTextMetrics.ref_size().
+func _draw_runs(fnt: Font, left: float, top: float, size_px: float, col: Color,
+                outer: Transform2D) -> void:
+    var ref := ZenTextMetrics.ref_size(size_px, fnt)
+    var k := size_px / float(ref)
+    draw_set_transform_matrix(outer * Transform2D(0.0, Vector2(k, k), 0.0, Vector2(left, top)))
+    var baseline_y := _baseline_offset(fnt, ref, float(ref))
     for line in text.split("\n"):
-        draw_string(fnt, Vector2(left, baseline_y), line, HORIZONTAL_ALIGNMENT_LEFT, -1, ps, col)
-        baseline_y += size_px + ZenTextMetrics.LINE_SPACING
+        draw_string(fnt, Vector2(0.0, baseline_y), line, HORIZONTAL_ALIGNMENT_LEFT, -1, ref, col)
+        baseline_y += (size_px + ZenTextMetrics.LINE_SPACING) / k
+    draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 
 
 ## Where a line's baseline sits inside its own size_px-tall slot, so the
@@ -253,17 +253,17 @@ func _baseline_offset(fnt: Font, ps: int, size_px: float) -> float:
 ## draws at its raw baseline in canvas coordinates and the whole title
 ## collapses into one smear in the top-left corner, which is exactly what it
 ## did the first time this was gotten wrong.
+## Drawn at the reference size with the size scale folded into the transform,
+## like _draw_runs.
 func _draw_glyph(fnt: Font, ch: String, at: Vector2, size_px: float, col: Color,
                  outer := Transform2D.IDENTITY) -> void:
-    var ps := int(round(size_px))
-    if ps <= 0: return
-    var baseline := Vector2(at.x, at.y + _baseline_offset(fnt, ps, size_px))
-    if outer == Transform2D.IDENTITY:
-        draw_string(fnt, baseline, ch, HORIZONTAL_ALIGNMENT_LEFT, -1, ps, col)
-    else:
-        draw_set_transform_matrix(outer)
-        draw_string(fnt, baseline, ch, HORIZONTAL_ALIGNMENT_LEFT, -1, ps, col)
-        draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+    if size_px <= 0.0: return
+    var ref := ZenTextMetrics.ref_size(size_px, fnt)
+    var k := size_px / float(ref)
+    var baseline := Vector2(at.x / k, at.y / k + _baseline_offset(fnt, ref, float(ref)))
+    draw_set_transform_matrix(outer * Transform2D(0.0, Vector2(k, k), 0.0, Vector2.ZERO))
+    draw_string(fnt, baseline, ch, HORIZONTAL_ALIGNMENT_LEFT, -1, ref, col)
+    draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 
 
 func _draw_crumbled(t: float, fnt: Font, size_px: float, spacing: float, rot: float,
@@ -275,7 +275,8 @@ func _draw_crumbled(t: float, fnt: Font, size_px: float, spacing: float, rot: fl
     # Quadratic in crumble: letters accelerate away, so most of the travel
     # happens late and the text stays readable as it starts to go.
     var reach := crumble * crumble * design().y * c_dist
-    var ps := int(round(size_px))
+    var ref := ZenTextMetrics.ref_size(size_px, fnt)
+    var k := size_px / float(ref)
 
     var pen_x := left
     var pen_y := top
@@ -289,7 +290,7 @@ func _draw_crumbled(t: float, fnt: Font, size_px: float, spacing: float, rot: fl
         # so scattered letters keep the block text's rhythm. Adding `spacing`
         # here double-counted it for the raylib font, whose advance already
         # carries raylib's one-pixel spacing.
-        var advance := fnt.get_string_size(ch, HORIZONTAL_ALIGNMENT_LEFT, -1, ps).x
+        var advance := fnt.get_string_size(ch, HORIZONTAL_ALIGNMENT_LEFT, -1, ref).x * k
         if ch != " ":
             # The angle hash is OFFSET from the spin hash so the two stay
             # independent: otherwise a glyph's tumble would predict which way it
