@@ -440,3 +440,30 @@ $G --path .          # F5: the gallery
   toggles single rows; Shift+DOWN extends. Delete on copies only: the dialog lists the
   `.tscn` and its `.cfg`, and "Move to trash" puts both in the OS trash. In assets, a
   shape used by an animation is named in the dialog.
+
+## 12. Scene editor (Ctrl+ENTER / N)
+
+Not yet run by eye - added 2026-10-20 with the editor. Work on a copy: open a scene,
+**File > Save as...** right away, and delete the copy afterwards.
+
+- **Open.** Ctrl+ENTER on `main_menu` opens it; N opens a new scene whose HELLO title fades
+  in. The first time, the Elements and Timeline panels are shown.
+- **Panels.** The top-bar buttons and 1-4 summon Elements / Inspector / Document /
+  Timeline. An unpinned panel floats over the canvas and closes on ESC, on a click on
+  empty canvas, or when another unpinned panel opens on its side. **pin** keeps it open
+  and the canvas shrinks to make room. Pins survive a restart. During playback (SPACE)
+  every panel slides away and comes back on pause.
+- **The timeline is the AnimationPlayer.** Select `title`: its `pos_x` and `alpha` lanes
+  show the authored keys only (no fit keys), with intro/outro triangles at 0.62 / 3.21.
+  Drag on the ruler: the canvas follows. Drag a key (Ctrl snaps to 0.1s); right-click it,
+  choose `ease (incoming) > bounceOut`, and scrub through the segment - it bounces.
+- **Auto-key.** K toggles it (the button turns red). Off: dragging an element moves its
+  base pose, and keyed props are greyed out in the Inspector. On: dragging at t=1.0 keys
+  pos_x/pos_y there (a prop's first key also pins its old value at 0).
+- **Elements = node tree.** +shape adds `shape` at the centre, frontmost. Drag a row in
+  the Elements list to reorder; draw order follows. Double-click (or F2) renames, and its
+  keys keep playing. Delete removes it and its keys.
+- **Undo.** Ctrl+Z / Ctrl+Shift+Z step through every edit above; a whole drag is one step.
+- **Save.** Ctrl+S, back to the gallery: the copy is listed and plays exactly as edited.
+  Open the copy's `.tscn` in the Godot editor: the Animation panel shows the bezier tracks
+  plus a `zen_ease_<prop>` track beside each one.

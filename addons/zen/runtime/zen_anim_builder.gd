@@ -20,6 +20,15 @@ extends RefCounted
 ## plays. The clock fields are markers: `intro_end`, `outro_start` and
 ## `pause_N[_once]`, so dragging them in Godot's panel edits the document.
 ##
+## Each eased prop also gets an EASE track at `Node:zen_ease_<prop>`: a
+## discrete String value track holding one key per AUTHORED key, at that key's
+## time, naming its incoming ease. So Zen's {t, v, ease} is split across two
+## tracks - {t, v} in the bezier, {t, ease} beside it - and the bezier keys
+## whose time has no ease key are the extra fit keys ZenCurveBake inserted for
+## a non-cubic ease. One ease track serves all three channels of a colour.
+## A bezier with no ease track reads as raw: every key authored, ease "bezier"
+## (see ZenKeyOps). Stepped props have none - they never interpolate.
+##
 ## A signal's keys sit at `u * length` seconds, so its Animation shows real
 ## time. Its sequence envelope is the `Signals:seq` track and its pos-param
 ## offsets are `Node:pos_offset_<i>:x|y`. See ZenTimeline for the capture rule.
@@ -39,6 +48,11 @@ const ONCE := "_once"
 
 const SEQ_NODE := "Signals"
 const SEQ_PROP := "seq"
+
+## Property-name prefix of an ease track (`Node:zen_ease_<prop>`).
+const EASE_PREFIX := "zen_ease_"
+## The ease of a key whose handles are kept as they are, never rebaked.
+const EASE_RAW := "bezier"
 
 
 # ---------------------------------------------------------------------------
@@ -67,6 +81,21 @@ static func node_name_for(canvas: ZenCanvas, elem: String, prop: String) -> Stri
     return elem
 
 
+## The ease track of (node, prop): `Node:zen_ease_<prop>`.
+static func ease_path(node_name: String, prop: String) -> String:
+    return "%s:%s%s" % [node_name, EASE_PREFIX, prop]
+
+
+## Is `path` an ease track rather than a value track?
+static func is_ease_path(path: String) -> bool:
+    return path.get_slice(":", 1).begins_with(EASE_PREFIX)
+
+
+## Does `prop` carry an ease track when keyed? Stepped props never do.
+static func has_ease(prop: String) -> bool:
+    return not ZenProps.is_stepped(prop)
+
+
 # ---------------------------------------------------------------------------
 #  The document timeline
 # ---------------------------------------------------------------------------
@@ -80,7 +109,7 @@ static func bake_timeline(canvas: ZenCanvas, looping := true) -> Animation:
     # setup_animation_player sets the real mode (LOOP_LINEAR vs LOOP_NONE).
     anim.loop_mode = Animation.LOOP_NONE
 
-    _write_markers(anim, canvas)
+    write_markers(anim, canvas)
 
     var tr := anim.add_track(Animation.TYPE_METHOD)
     anim.track_set_path(tr, NodePath("."))
@@ -94,16 +123,18 @@ static func bake_timeline(canvas: ZenCanvas, looping := true) -> Animation:
             var path := el.track_path(String(prop))
             if ZenProps.is_stepped(String(prop)):
                 _add_stepped(anim, path, keys)
-            elif ZenProps.is_color(String(prop)):
+                continue
+            if ZenProps.is_color(String(prop)):
                 _add_color(anim, path, keys)
             else:
                 _add_scalar(anim, path, keys)
+            add_ease(anim, ease_path(String(el.name), String(prop)), keys)
     return anim
 
 
 ## Surface the clock fields as markers. 0 means ABSENT for intro/outro
 ## (AnimDocOutroStart), so a 0 is not a marker at the origin.
-static func _write_markers(anim: Animation, canvas: ZenCanvas) -> void:
+static func write_markers(anim: Animation, canvas: ZenCanvas) -> void:
     if not anim.has_method("add_marker"): return            # pre-4.5 fallback
     for n in anim.get_marker_names():
         anim.remove_marker(n)
@@ -181,15 +212,34 @@ static func _add_color(anim: Animation, path: String, keys: Array) -> void:
 
 
 static func _add_stepped(anim: Animation, path: String, keys: Array) -> void:
-    var tr := anim.add_track(Animation.TYPE_VALUE)
-    anim.track_set_path(tr, NodePath(path))
-    anim.track_set_interpolation_type(tr, Animation.INTERPOLATION_NEAREST)
-    anim.value_track_set_update_mode(tr, Animation.UPDATE_DISCRETE)
+    var tr := add_discrete(anim, path)
     var times: Array = []
     for k in keys: times.append(float(k["t"]))
     times = ZenCurveBake.separate(times)
     for i in keys.size():
         anim.track_insert_key(tr, times[i], float(keys[i]["v"]))
+
+
+## A nearest/discrete VALUE track - what a stepped prop and an ease track are.
+static func add_discrete(anim: Animation, path: String) -> int:
+    var tr := anim.add_track(Animation.TYPE_VALUE)
+    anim.track_set_path(tr, NodePath(path))
+    anim.track_set_interpolation_type(tr, Animation.INTERPOLATION_NEAREST)
+    anim.value_track_set_update_mode(tr, Animation.UPDATE_DISCRETE)
+    return tr
+
+
+## The ease track for `keys`: one String key per authored key, at the time the
+## baker gave it (separate() is the nudge bake() applies to an instant step).
+## The first key's ease shapes no segment; it is stored so the key reads back
+## as authored.
+static func add_ease(anim: Animation, path: String, keys: Array) -> void:
+    var tr := add_discrete(anim, path)
+    var times: Array = []
+    for k in keys: times.append(float(k["t"]))
+    times = ZenCurveBake.separate(times)
+    for i in keys.size():
+        anim.track_insert_key(tr, times[i], String(keys[i].get("ease", "linear")))
 
 
 # ---------------------------------------------------------------------------

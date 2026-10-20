@@ -516,6 +516,32 @@ func rewind_timeline() -> void:
 		_seek_safe(0.0)
 
 
+## Hand the clock to an editor: the player exists and is seekable but idle,
+## and nothing re-poses the canvas until the editor says so (scrub/play_from).
+func edit_begin() -> void:
+	setup_animation_player(false)
+	if _ap == null: return
+	_ap.active = true
+	_ap.pause()
+	set_process(false)
+
+
+## Editor scrub: park the player at `t` and pose there, one-shot (no blend).
+func scrub(t: float) -> void:
+	_seek_safe(t)
+	if _ap != null: _ap.pause()
+	pose_looping(t, false)
+
+
+## Editor play: live playback from `t`, with the document's own section rules.
+func play_from(t: float) -> void:
+	if _ap == null: edit_begin()
+	if _ap == null: return
+	setup_animation_player(true)
+	if t > 0.0001 and t < play_end() - 0.0001: _seek_safe(t)
+	set_process(true)
+
+
 ## Stop live playback outright, holding the current pose.
 func stop_timeline() -> void:
 	if _ap != null: _ap.pause()

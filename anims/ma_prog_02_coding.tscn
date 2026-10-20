@@ -43,702 +43,1206 @@ tracks/1/keys = {
 "points": PackedFloat32Array(0.75, 0, 0, 0.39945465, -0.004687333, 0.735938, -0.39945465, 0.004689508, 0, 0),
 "times": PackedFloat32Array(0, 1.198364)
 }
-tracks/2/type = "bezier"
+tracks/2/type = "value"
 tracks/2/imported = false
 tracks/2/enabled = true
-tracks/2/path = NodePath("t1:pos_y")
-tracks/2/interp = 1
+tracks/2/path = NodePath("t1:zen_ease_pos_x")
+tracks/2/interp = 0
 tracks/2/loop_wrap = true
 tracks/2/keys = {
-"handle_modes": PackedInt32Array(0, 0),
-"points": PackedFloat32Array(0.69, 0, 0, 0.39945465, -0.084876664, 0.43537, -0.39945465, 0.08491605, 0, 0),
-"times": PackedFloat32Array(0, 1.198364)
+"times": PackedFloat32Array(0, 1.198364),
+"transitions": PackedFloat32Array(1, 1),
+"update": 1,
+"values": ["linear", "linear"]
 }
 tracks/3/type = "bezier"
 tracks/3/imported = false
 tracks/3/enabled = true
-tracks/3/path = NodePath("t1:alpha")
+tracks/3/path = NodePath("t1:pos_y")
 tracks/3/interp = 1
 tracks/3/loop_wrap = true
 tracks/3/keys = {
-"handle_modes": PackedInt32Array(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
-"points": PackedFloat32Array(1, 0, 0, 0.035217, 0, 1, -0.035217, 0, 0.006080396, -0.14454907, 0.6480682, -0.006080396, 0.09373451, 0.006080396, -0.09373451, 0.41986865, -0.006080396, 0.06078432, 0.006080396, -0.06078432, 0.27189958, -0.006080396, 0.039401155, 0.006080396, -0.039401155, 0.1759535, -0.006080396, 0.025549283, 0.012160792, -0.051098567, 0.07339978, -0.012160792, 0.021494925, 0.012160792, -0.021494925, 0.030281246, -0.012160792, 0.00902762, 0.012160792, -0.00902762, 0.012152135, -0.012160792, 0.003799796, 0.012160792, -0.003799796, 0.004529774, -0.012160792, 0.0016018748, 0.012160792, -0.0016018748, 0.0013250113, -0.012160792, 0.00067055225, 0.006080396, -0.00033527613, 0.00050759315, -0.006080396, 0.0002173086, 0.003040198, -0.0001086543, 0.00021398067, -0.003040198, 9.002785e-05, 0.001520099, -4.5013923e-05, 8.934736e-05, -0.001520099, 4.035731e-05, 0.0007600495, -2.0178655e-05, 3.194809e-05, -0.0007600495, 1.8626451e-05, 0.00038002475, -9.313226e-06, 4.4107437e-06, -0.00038002475, 8.925174e-06, 0.00038002475, -8.925174e-06, 0, -0.00038002475, -0.0004307367, 0.26695132, 0, 0, -0.26695132, 0, 0.06724733, 0.3333333, 1, -0.06724733, -0.333488, 0, 0),
-"times": PackedFloat32Array(0, 0.105651, 0.12389219, 0.14213337, 0.16037457, 0.17861575, 0.21509813, 0.2515805, 0.28806287, 0.32454526, 0.36102763, 0.37926883, 0.3883894, 0.3929497, 0.39522985, 0.39636993, 0.39751, 1.198364, 1.400106)
+"handle_modes": PackedInt32Array(0, 0),
+"points": PackedFloat32Array(0.69, 0, 0, 0.39945465, -0.084876664, 0.43537, -0.39945465, 0.08491605, 0, 0),
+"times": PackedFloat32Array(0, 1.198364)
 }
 tracks/4/type = "value"
 tracks/4/imported = false
 tracks/4/enabled = true
-tracks/4/path = NodePath("t1:string")
+tracks/4/path = NodePath("t1:zen_ease_pos_y")
 tracks/4/interp = 0
 tracks/4/loop_wrap = true
 tracks/4/keys = {
+"times": PackedFloat32Array(0, 1.198364),
+"transitions": PackedFloat32Array(1, 1),
+"update": 1,
+"values": ["linear", "linear"]
+}
+tracks/5/type = "bezier"
+tracks/5/imported = false
+tracks/5/enabled = true
+tracks/5/path = NodePath("t1:alpha")
+tracks/5/interp = 1
+tracks/5/loop_wrap = true
+tracks/5/keys = {
+"handle_modes": PackedInt32Array(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
+"points": PackedFloat32Array(1, 0, 0, 0.035217, 0, 1, -0.035217, 0, 0.006080396, -0.14454907, 0.6480682, -0.006080396, 0.09373451, 0.006080396, -0.09373451, 0.41986865, -0.006080396, 0.06078432, 0.006080396, -0.06078432, 0.27189958, -0.006080396, 0.039401155, 0.006080396, -0.039401155, 0.1759535, -0.006080396, 0.025549283, 0.012160792, -0.051098567, 0.07339978, -0.012160792, 0.021494925, 0.012160792, -0.021494925, 0.030281246, -0.012160792, 0.00902762, 0.012160792, -0.00902762, 0.012152135, -0.012160792, 0.003799796, 0.012160792, -0.003799796, 0.004529774, -0.012160792, 0.0016018748, 0.012160792, -0.0016018748, 0.0013250113, -0.012160792, 0.00067055225, 0.006080396, -0.00033527613, 0.00050759315, -0.006080396, 0.0002173086, 0.003040198, -0.0001086543, 0.00021398067, -0.003040198, 9.002785e-05, 0.001520099, -4.5013923e-05, 8.934736e-05, -0.001520099, 4.035731e-05, 0.0007600495, -2.0178655e-05, 3.194809e-05, -0.0007600495, 1.8626451e-05, 0.00038002475, -9.313226e-06, 4.4107437e-06, -0.00038002475, 8.925174e-06, 0.00038002475, -8.925174e-06, 0, -0.00038002475, -0.0004307367, 0.26695132, 0, 0, -0.26695132, 0, 0.06724733, 0.3333333, 1, -0.06724733, -0.333488, 0, 0),
+"times": PackedFloat32Array(0, 0.105651, 0.12389219, 0.14213337, 0.16037457, 0.17861575, 0.21509813, 0.2515805, 0.28806287, 0.32454526, 0.36102763, 0.37926883, 0.3883894, 0.3929497, 0.39522985, 0.39636993, 0.39751, 1.198364, 1.400106)
+}
+tracks/6/type = "value"
+tracks/6/imported = false
+tracks/6/enabled = true
+tracks/6/path = NodePath("t1:zen_ease_alpha")
+tracks/6/interp = 0
+tracks/6/loop_wrap = true
+tracks/6/keys = {
+"times": PackedFloat32Array(0, 0.105651, 0.39751, 1.198364, 1.400106),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1),
+"update": 1,
+"values": ["linear", "linear", "expoOut", "linear", "linear"]
+}
+tracks/7/type = "value"
+tracks/7/imported = false
+tracks/7/enabled = true
+tracks/7/path = NodePath("t1:string")
+tracks/7/interp = 0
+tracks/7/loop_wrap = true
+tracks/7/keys = {
 "times": PackedFloat32Array(0, 0.415569),
 "transitions": PackedFloat32Array(1, 1),
 "update": 1,
 "values": [10.0, 0.0]
 }
-tracks/5/type = "bezier"
-tracks/5/imported = false
-tracks/5/enabled = true
-tracks/5/path = NodePath("t1:color:r")
-tracks/5/interp = 1
-tracks/5/loop_wrap = true
-tracks/5/keys = {
-"handle_modes": PackedInt32Array(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
-"points": PackedFloat32Array(0.9607843, 0, 0, 0.035217, 0, 0.9607843, -0.035217, 0, 0.006080396, 0, 0.9607843, -0.006080396, 0, 0.006080396, 0, 0.9607843, -0.006080396, 0, 0.006080396, 0, 0.9607843, -0.006080396, 0, 0.006080396, 0, 0.9607843, -0.006080396, 0, 0.012160792, 0, 0.9607843, -0.012160792, 0, 0.012160792, 0, 0.9607843, -0.012160792, 0, 0.012160792, 0, 0.9607843, -0.012160792, 0, 0.012160792, 0, 0.9607843, -0.012160792, 0, 0.012160792, 0, 0.9607843, -0.012160792, 0, 0.006080396, 0, 0.9607843, -0.006080396, 0, 0.003040198, 0, 0.9607843, -0.003040198, 0, 0.001520099, 0, 0.9607843, -0.001520099, 0, 0.0007600495, 0, 0.9607843, -0.0007600495, 0, 0.00038002475, 0, 0.9607843, -0.00038002475, 0, 0.00038002475, 0, 0.9607843, -0.00038002475, 0, 0.26695132, 0, 0.9607843, -0.26695132, 0, 0.06724733, 0, 0.9607843, -0.06724733, 0, 0, 0),
-"times": PackedFloat32Array(0, 0.105651, 0.12389219, 0.14213337, 0.16037457, 0.17861575, 0.21509813, 0.2515805, 0.28806287, 0.32454526, 0.36102763, 0.37926883, 0.3883894, 0.3929497, 0.39522985, 0.39636993, 0.39751, 1.198364, 1.400106)
-}
-tracks/6/type = "bezier"
-tracks/6/imported = false
-tracks/6/enabled = true
-tracks/6/path = NodePath("t1:color:g")
-tracks/6/interp = 1
-tracks/6/loop_wrap = true
-tracks/6/keys = {
-"handle_modes": PackedInt32Array(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
-"points": PackedFloat32Array(0.9607843, 0, 0, 0.035217, 0, 0.9607843, -0.035217, 0, 0.006080396, 0, 0.9607843, -0.006080396, 0, 0.006080396, 0, 0.9607843, -0.006080396, 0, 0.006080396, 0, 0.9607843, -0.006080396, 0, 0.006080396, 0, 0.9607843, -0.006080396, 0, 0.012160792, 0, 0.9607843, -0.012160792, 0, 0.012160792, 0, 0.9607843, -0.012160792, 0, 0.012160792, 0, 0.9607843, -0.012160792, 0, 0.012160792, 0, 0.9607843, -0.012160792, 0, 0.012160792, 0, 0.9607843, -0.012160792, 0, 0.006080396, 0, 0.9607843, -0.006080396, 0, 0.003040198, 0, 0.9607843, -0.003040198, 0, 0.001520099, 0, 0.9607843, -0.001520099, 0, 0.0007600495, 0, 0.9607843, -0.0007600495, 0, 0.00038002475, 0, 0.9607843, -0.00038002475, 0, 0.00038002475, 0, 0.9607843, -0.00038002475, 0, 0.26695132, 0, 0.9607843, -0.26695132, 0, 0.06724733, 0, 0.9607843, -0.06724733, 0, 0, 0),
-"times": PackedFloat32Array(0, 0.105651, 0.12389219, 0.14213337, 0.16037457, 0.17861575, 0.21509813, 0.2515805, 0.28806287, 0.32454526, 0.36102763, 0.37926883, 0.3883894, 0.3929497, 0.39522985, 0.39636993, 0.39751, 1.198364, 1.400106)
-}
-tracks/7/type = "bezier"
-tracks/7/imported = false
-tracks/7/enabled = true
-tracks/7/path = NodePath("t1:color:b")
-tracks/7/interp = 1
-tracks/7/loop_wrap = true
-tracks/7/keys = {
-"handle_modes": PackedInt32Array(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
-"points": PackedFloat32Array(0.9607843, 0, 0, 0.035217, 0, 0.9607843, -0.035217, 0, 0.006080396, 0, 0.9607843, -0.006080396, 0, 0.006080396, 0, 0.9607843, -0.006080396, 0, 0.006080396, 0, 0.9607843, -0.006080396, 0, 0.006080396, 0, 0.9607843, -0.006080396, 0, 0.012160792, 0, 0.9607843, -0.012160792, 0, 0.012160792, 0, 0.9607843, -0.012160792, 0, 0.012160792, 0, 0.9607843, -0.012160792, 0, 0.012160792, 0, 0.9607843, -0.012160792, 0, 0.012160792, 0, 0.9607843, -0.012160792, 0, 0.006080396, 0, 0.9607843, -0.006080396, 0, 0.003040198, 0, 0.9607843, -0.003040198, 0, 0.001520099, 0, 0.9607843, -0.001520099, 0, 0.0007600495, 0, 0.9607843, -0.0007600495, 0, 0.00038002475, 0, 0.9607843, -0.00038002475, 0, 0.00038002475, 0, 0.9607843, -0.00038002475, 0, 0.26695132, 0, 0.9607843, -0.26695132, 0, 0.06724733, 0, 0.9607843, -0.06724733, 0, 0, 0),
-"times": PackedFloat32Array(0, 0.105651, 0.12389219, 0.14213337, 0.16037457, 0.17861575, 0.21509813, 0.2515805, 0.28806287, 0.32454526, 0.36102763, 0.37926883, 0.3883894, 0.3929497, 0.39522985, 0.39636993, 0.39751, 1.198364, 1.400106)
-}
 tracks/8/type = "bezier"
 tracks/8/imported = false
 tracks/8/enabled = true
-tracks/8/path = NodePath("t1:size")
+tracks/8/path = NodePath("t1:color:r")
 tracks/8/interp = 1
 tracks/8/loop_wrap = true
 tracks/8/keys = {
-"handle_modes": PackedInt32Array(0, 0, 0),
-"points": PackedFloat32Array(0.12, 0, 0, 0.37280366, 0, 0.12, -0.37280366, 0, 0.023552, -0.013333333, 0.08, -0.023552, 0.0133395195, 0, 0),
-"times": PackedFloat32Array(0, 1.118411, 1.189067)
+"handle_modes": PackedInt32Array(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
+"points": PackedFloat32Array(0.9607843, 0, 0, 0.035217, 0, 0.9607843, -0.035217, 0, 0.006080396, 0, 0.9607843, -0.006080396, 0, 0.006080396, 0, 0.9607843, -0.006080396, 0, 0.006080396, 0, 0.9607843, -0.006080396, 0, 0.006080396, 0, 0.9607843, -0.006080396, 0, 0.012160792, 0, 0.9607843, -0.012160792, 0, 0.012160792, 0, 0.9607843, -0.012160792, 0, 0.012160792, 0, 0.9607843, -0.012160792, 0, 0.012160792, 0, 0.9607843, -0.012160792, 0, 0.012160792, 0, 0.9607843, -0.012160792, 0, 0.006080396, 0, 0.9607843, -0.006080396, 0, 0.003040198, 0, 0.9607843, -0.003040198, 0, 0.001520099, 0, 0.9607843, -0.001520099, 0, 0.0007600495, 0, 0.9607843, -0.0007600495, 0, 0.00038002475, 0, 0.9607843, -0.00038002475, 0, 0.00038002475, 0, 0.9607843, -0.00038002475, 0, 0.26695132, 0, 0.9607843, -0.26695132, 0, 0.06724733, 0, 0.9607843, -0.06724733, 0, 0, 0),
+"times": PackedFloat32Array(0, 0.105651, 0.12389219, 0.14213337, 0.16037457, 0.17861575, 0.21509813, 0.2515805, 0.28806287, 0.32454526, 0.36102763, 0.37926883, 0.3883894, 0.3929497, 0.39522985, 0.39636993, 0.39751, 1.198364, 1.400106)
 }
 tracks/9/type = "bezier"
 tracks/9/imported = false
 tracks/9/enabled = true
-tracks/9/path = NodePath("t2:color:r")
+tracks/9/path = NodePath("t1:color:g")
 tracks/9/interp = 1
 tracks/9/loop_wrap = true
 tracks/9/keys = {
-"handle_modes": PackedInt32Array(0),
-"points": PackedFloat32Array(0.9607843, 0, 0, 0, 0),
-"times": PackedFloat32Array(0)
+"handle_modes": PackedInt32Array(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
+"points": PackedFloat32Array(0.9607843, 0, 0, 0.035217, 0, 0.9607843, -0.035217, 0, 0.006080396, 0, 0.9607843, -0.006080396, 0, 0.006080396, 0, 0.9607843, -0.006080396, 0, 0.006080396, 0, 0.9607843, -0.006080396, 0, 0.006080396, 0, 0.9607843, -0.006080396, 0, 0.012160792, 0, 0.9607843, -0.012160792, 0, 0.012160792, 0, 0.9607843, -0.012160792, 0, 0.012160792, 0, 0.9607843, -0.012160792, 0, 0.012160792, 0, 0.9607843, -0.012160792, 0, 0.012160792, 0, 0.9607843, -0.012160792, 0, 0.006080396, 0, 0.9607843, -0.006080396, 0, 0.003040198, 0, 0.9607843, -0.003040198, 0, 0.001520099, 0, 0.9607843, -0.001520099, 0, 0.0007600495, 0, 0.9607843, -0.0007600495, 0, 0.00038002475, 0, 0.9607843, -0.00038002475, 0, 0.00038002475, 0, 0.9607843, -0.00038002475, 0, 0.26695132, 0, 0.9607843, -0.26695132, 0, 0.06724733, 0, 0.9607843, -0.06724733, 0, 0, 0),
+"times": PackedFloat32Array(0, 0.105651, 0.12389219, 0.14213337, 0.16037457, 0.17861575, 0.21509813, 0.2515805, 0.28806287, 0.32454526, 0.36102763, 0.37926883, 0.3883894, 0.3929497, 0.39522985, 0.39636993, 0.39751, 1.198364, 1.400106)
 }
 tracks/10/type = "bezier"
 tracks/10/imported = false
 tracks/10/enabled = true
-tracks/10/path = NodePath("t2:color:g")
+tracks/10/path = NodePath("t1:color:b")
 tracks/10/interp = 1
 tracks/10/loop_wrap = true
 tracks/10/keys = {
-"handle_modes": PackedInt32Array(0),
-"points": PackedFloat32Array(0.9607843, 0, 0, 0, 0),
-"times": PackedFloat32Array(0)
+"handle_modes": PackedInt32Array(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
+"points": PackedFloat32Array(0.9607843, 0, 0, 0.035217, 0, 0.9607843, -0.035217, 0, 0.006080396, 0, 0.9607843, -0.006080396, 0, 0.006080396, 0, 0.9607843, -0.006080396, 0, 0.006080396, 0, 0.9607843, -0.006080396, 0, 0.006080396, 0, 0.9607843, -0.006080396, 0, 0.012160792, 0, 0.9607843, -0.012160792, 0, 0.012160792, 0, 0.9607843, -0.012160792, 0, 0.012160792, 0, 0.9607843, -0.012160792, 0, 0.012160792, 0, 0.9607843, -0.012160792, 0, 0.012160792, 0, 0.9607843, -0.012160792, 0, 0.006080396, 0, 0.9607843, -0.006080396, 0, 0.003040198, 0, 0.9607843, -0.003040198, 0, 0.001520099, 0, 0.9607843, -0.001520099, 0, 0.0007600495, 0, 0.9607843, -0.0007600495, 0, 0.00038002475, 0, 0.9607843, -0.00038002475, 0, 0.00038002475, 0, 0.9607843, -0.00038002475, 0, 0.26695132, 0, 0.9607843, -0.26695132, 0, 0.06724733, 0, 0.9607843, -0.06724733, 0, 0, 0),
+"times": PackedFloat32Array(0, 0.105651, 0.12389219, 0.14213337, 0.16037457, 0.17861575, 0.21509813, 0.2515805, 0.28806287, 0.32454526, 0.36102763, 0.37926883, 0.3883894, 0.3929497, 0.39522985, 0.39636993, 0.39751, 1.198364, 1.400106)
 }
-tracks/11/type = "bezier"
+tracks/11/type = "value"
 tracks/11/imported = false
 tracks/11/enabled = true
-tracks/11/path = NodePath("t2:color:b")
-tracks/11/interp = 1
+tracks/11/path = NodePath("t1:zen_ease_color")
+tracks/11/interp = 0
 tracks/11/loop_wrap = true
 tracks/11/keys = {
-"handle_modes": PackedInt32Array(0),
-"points": PackedFloat32Array(0.9607843, 0, 0, 0, 0),
-"times": PackedFloat32Array(0)
+"times": PackedFloat32Array(0, 0.105651, 0.39751, 1.198364, 1.400106),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1),
+"update": 1,
+"values": ["linear", "linear", "expoOut", "linear", "linear"]
 }
 tracks/12/type = "bezier"
 tracks/12/imported = false
 tracks/12/enabled = true
-tracks/12/path = NodePath("t2:alpha")
+tracks/12/path = NodePath("t1:size")
 tracks/12/interp = 1
 tracks/12/loop_wrap = true
 tracks/12/keys = {
-"handle_modes": PackedInt32Array(0),
-"points": PackedFloat32Array(1, 0, 0, 0, 0),
-"times": PackedFloat32Array(0)
+"handle_modes": PackedInt32Array(0, 0, 0),
+"points": PackedFloat32Array(0.12, 0, 0, 0.37280366, 0, 0.12, -0.37280366, 0, 0.023552, -0.013333333, 0.08, -0.023552, 0.0133395195, 0, 0),
+"times": PackedFloat32Array(0, 1.118411, 1.189067)
 }
-tracks/13/type = "bezier"
+tracks/13/type = "value"
 tracks/13/imported = false
 tracks/13/enabled = true
-tracks/13/path = NodePath("t2:pos_x")
-tracks/13/interp = 1
+tracks/13/path = NodePath("t1:zen_ease_size")
+tracks/13/interp = 0
 tracks/13/loop_wrap = true
 tracks/13/keys = {
-"handle_modes": PackedInt32Array(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
-"points": PackedFloat32Array(0.246174, 0, 0, 0.0032740624, 0, 0.246174, -0.0032740624, 0, 0.0032740624, 0, 0.246174, -0.0032740624, 0, 0.0032740624, 0, 0.246174, -0.0032740624, 0, 0.0032740624, 0, 0.246174, -0.0032740624, 0, 0.006548125, 0, 0.246174, -0.006548125, 0, 0.006548125, 0, 0.246174, -0.006548125, 0, 0.006548125, 0, 0.246174, -0.006548125, 0, 0.006548125, 0, 0.246174, -0.006548125, 0, 0.006548125, 0, 0.246174, -0.006548125, 0, 0.0032740624, 0, 0.246174, -0.0032740624, 0, 0.0016370312, 0, 0.246174, -0.0016370312, 0, 0.0008185156, 0, 0.246174, -0.0008185156, 0, 0.0004092578, 0, 0.246174, -0.0004092578, 0, 0.0002046289, 0, 0.246174, -0.0002046289, 0, 0.0002046289, 0, 0.246174, -0.0002046289, 0, 0.046250332, 0, 0.167505, -0.046250332, 0.05247815, 0.034239, -0.031050669, 0.120929, -0.034239, 0, 0, 0),
-"times": PackedFloat32Array(0, 0.009822188, 0.019644376, 0.029466562, 0.03928875, 0.058933124, 0.0785775, 0.098221876, 0.11786625, 0.13751063, 0.14733282, 0.15224391, 0.15469946, 0.15592723, 0.15654111, 0.157155, 0.295906, 0.398623)
+"times": PackedFloat32Array(0, 1.118411, 1.189067),
+"transitions": PackedFloat32Array(1, 1, 1),
+"update": 1,
+"values": ["linear", "linear", "linear"]
 }
 tracks/14/type = "bezier"
 tracks/14/imported = false
 tracks/14/enabled = true
-tracks/14/path = NodePath("t2:pos_y")
+tracks/14/path = NodePath("t2:color:r")
 tracks/14/interp = 1
 tracks/14/loop_wrap = true
 tracks/14/keys = {
+"handle_modes": PackedInt32Array(0),
+"points": PackedFloat32Array(0.9607843, 0, 0, 0, 0),
+"times": PackedFloat32Array(0)
+}
+tracks/15/type = "bezier"
+tracks/15/imported = false
+tracks/15/enabled = true
+tracks/15/path = NodePath("t2:color:g")
+tracks/15/interp = 1
+tracks/15/loop_wrap = true
+tracks/15/keys = {
+"handle_modes": PackedInt32Array(0),
+"points": PackedFloat32Array(0.9607843, 0, 0, 0, 0),
+"times": PackedFloat32Array(0)
+}
+tracks/16/type = "bezier"
+tracks/16/imported = false
+tracks/16/enabled = true
+tracks/16/path = NodePath("t2:color:b")
+tracks/16/interp = 1
+tracks/16/loop_wrap = true
+tracks/16/keys = {
+"handle_modes": PackedInt32Array(0),
+"points": PackedFloat32Array(0.9607843, 0, 0, 0, 0),
+"times": PackedFloat32Array(0)
+}
+tracks/17/type = "value"
+tracks/17/imported = false
+tracks/17/enabled = true
+tracks/17/path = NodePath("t2:zen_ease_color")
+tracks/17/interp = 0
+tracks/17/loop_wrap = true
+tracks/17/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 1,
+"values": ["linear"]
+}
+tracks/18/type = "bezier"
+tracks/18/imported = false
+tracks/18/enabled = true
+tracks/18/path = NodePath("t2:alpha")
+tracks/18/interp = 1
+tracks/18/loop_wrap = true
+tracks/18/keys = {
+"handle_modes": PackedInt32Array(0),
+"points": PackedFloat32Array(1, 0, 0, 0, 0),
+"times": PackedFloat32Array(0)
+}
+tracks/19/type = "value"
+tracks/19/imported = false
+tracks/19/enabled = true
+tracks/19/path = NodePath("t2:zen_ease_alpha")
+tracks/19/interp = 0
+tracks/19/loop_wrap = true
+tracks/19/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 1,
+"values": ["linear"]
+}
+tracks/20/type = "bezier"
+tracks/20/imported = false
+tracks/20/enabled = true
+tracks/20/path = NodePath("t2:pos_x")
+tracks/20/interp = 1
+tracks/20/loop_wrap = true
+tracks/20/keys = {
+"handle_modes": PackedInt32Array(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
+"points": PackedFloat32Array(0.246174, 0, 0, 0.0032740624, 0, 0.246174, -0.0032740624, 0, 0.0032740624, 0, 0.246174, -0.0032740624, 0, 0.0032740624, 0, 0.246174, -0.0032740624, 0, 0.0032740624, 0, 0.246174, -0.0032740624, 0, 0.006548125, 0, 0.246174, -0.006548125, 0, 0.006548125, 0, 0.246174, -0.006548125, 0, 0.006548125, 0, 0.246174, -0.006548125, 0, 0.006548125, 0, 0.246174, -0.006548125, 0, 0.006548125, 0, 0.246174, -0.006548125, 0, 0.0032740624, 0, 0.246174, -0.0032740624, 0, 0.0016370312, 0, 0.246174, -0.0016370312, 0, 0.0008185156, 0, 0.246174, -0.0008185156, 0, 0.0004092578, 0, 0.246174, -0.0004092578, 0, 0.0002046289, 0, 0.246174, -0.0002046289, 0, 0.0002046289, 0, 0.246174, -0.0002046289, 0, 0.046250332, 0, 0.167505, -0.046250332, 0.05247815, 0.034239, -0.031050669, 0.120929, -0.034239, 0, 0, 0),
+"times": PackedFloat32Array(0, 0.009822188, 0.019644376, 0.029466562, 0.03928875, 0.058933124, 0.0785775, 0.098221876, 0.11786625, 0.13751063, 0.14733282, 0.15224391, 0.15469946, 0.15592723, 0.15654111, 0.157155, 0.295906, 0.398623)
+}
+tracks/21/type = "value"
+tracks/21/imported = false
+tracks/21/enabled = true
+tracks/21/path = NodePath("t2:zen_ease_pos_x")
+tracks/21/interp = 0
+tracks/21/loop_wrap = true
+tracks/21/keys = {
+"times": PackedFloat32Array(0, 0.157155, 0.295906, 0.398623),
+"transitions": PackedFloat32Array(1, 1, 1, 1),
+"update": 1,
+"values": ["expoOut", "expoOut", "quadIn", "quadOut"]
+}
+tracks/22/type = "bezier"
+tracks/22/imported = false
+tracks/22/enabled = true
+tracks/22/path = NodePath("t2:pos_y")
+tracks/22/interp = 1
+tracks/22/loop_wrap = true
+tracks/22/keys = {
 "handle_modes": PackedInt32Array(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
 "points": PackedFloat32Array(0.686849, 0, 0, 0.0032740624, 0, 0.686849, -0.0032740624, 0, 0.0032740624, 0, 0.686849, -0.0032740624, 0, 0.0032740624, 0, 0.686849, -0.0032740624, 0, 0.0032740624, 0, 0.686849, -0.0032740624, 0, 0.006548125, 0, 0.686849, -0.006548125, 0, 0.006548125, 0, 0.686849, -0.006548125, 0, 0.006548125, 0, 0.686849, -0.006548125, 0, 0.006548125, 0, 0.686849, -0.006548125, 0, 0.006548125, 0, 0.686849, -0.006548125, 0, 0.0032740624, 0, 0.686849, -0.0032740624, 0, 0.0016370312, 0, 0.686849, -0.0016370312, 0, 0.0008185156, 0, 0.686849, -0.0008185156, 0, 0.0004092578, 0, 0.686849, -0.0004092578, 0, 0.0002046289, 0, 0.686849, -0.0002046289, 0, 0.0002046289, 0, 0.686849, -0.0002046289, 0, 0.046250332, 0, 0.676532, -0.046250332, 0.006882216, 0.034239, -0.035979334, 0.622563, -0.034239, 0, 0, 0),
 "times": PackedFloat32Array(0, 0.009822188, 0.019644376, 0.029466562, 0.03928875, 0.058933124, 0.0785775, 0.098221876, 0.11786625, 0.13751063, 0.14733282, 0.15224391, 0.15469946, 0.15592723, 0.15654111, 0.157155, 0.295906, 0.398623)
 }
-tracks/15/type = "value"
-tracks/15/imported = false
-tracks/15/enabled = true
-tracks/15/path = NodePath("t2:string")
-tracks/15/interp = 0
-tracks/15/loop_wrap = true
-tracks/15/keys = {
+tracks/23/type = "value"
+tracks/23/imported = false
+tracks/23/enabled = true
+tracks/23/path = NodePath("t2:zen_ease_pos_y")
+tracks/23/interp = 0
+tracks/23/loop_wrap = true
+tracks/23/keys = {
+"times": PackedFloat32Array(0, 0.157155, 0.295906, 0.398623),
+"transitions": PackedFloat32Array(1, 1, 1, 1),
+"update": 1,
+"values": ["expoOut", "expoOut", "quadIn", "quadOut"]
+}
+tracks/24/type = "value"
+tracks/24/imported = false
+tracks/24/enabled = true
+tracks/24/path = NodePath("t2:string")
+tracks/24/interp = 0
+tracks/24/loop_wrap = true
+tracks/24/keys = {
 "times": PackedFloat32Array(0),
 "transitions": PackedFloat32Array(1),
 "update": 1,
 "values": [9.0]
 }
-tracks/16/type = "bezier"
-tracks/16/imported = false
-tracks/16/enabled = true
-tracks/16/path = NodePath("t2:size")
-tracks/16/interp = 1
-tracks/16/loop_wrap = true
-tracks/16/keys = {
+tracks/25/type = "bezier"
+tracks/25/imported = false
+tracks/25/enabled = true
+tracks/25/path = NodePath("t2:size")
+tracks/25/interp = 1
+tracks/25/loop_wrap = true
+tracks/25/keys = {
 "handle_modes": PackedInt32Array(0),
 "points": PackedFloat32Array(0.12, 0, 0, 0, 0),
 "times": PackedFloat32Array(0)
 }
-tracks/17/type = "bezier"
-tracks/17/imported = false
-tracks/17/enabled = true
-tracks/17/path = NodePath("t3:pos_x")
-tracks/17/interp = 1
-tracks/17/loop_wrap = true
-tracks/17/keys = {
+tracks/26/type = "value"
+tracks/26/imported = false
+tracks/26/enabled = true
+tracks/26/path = NodePath("t2:zen_ease_size")
+tracks/26/interp = 0
+tracks/26/loop_wrap = true
+tracks/26/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 1,
+"values": ["over_top"]
+}
+tracks/27/type = "bezier"
+tracks/27/imported = false
+tracks/27/enabled = true
+tracks/27/path = NodePath("t3:pos_x")
+tracks/27/interp = 1
+tracks/27/loop_wrap = true
+tracks/27/keys = {
 "handle_modes": PackedInt32Array(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
 "points": PackedFloat32Array(0.595499, 0, 0, 0.015987625, 0, 0.595499, -0.015987625, 0, 0.007993813, 0, 0.595499, -0.007993813, 0, 0.007993813, 0, 0.595499, -0.007993813, 0, 0.007993813, 0, 0.595499, -0.007993813, 0, 0.0039969063, 0, 0.595499, -0.0039969063, 0, 0.0039969063, 0, 0.595499, -0.0039969063, 0, 0.0039969063, 0, 0.595499, -0.0039969063, 0, 0.0019984532, 0, 0.595499, -0.0019984532, 0, 0.0009992266, 0, 0.595499, -0.0009992266, 0, 0.0009992266, 0, 0.595499, -0.0009992266, 0, 0.0039969063, 0, 0.595499, -0.0039969063, 0, 0.0039969063, 0, 0.595499, -0.0039969063, 0, 0.007993813, 0, 0.595499, -0.007993813, 0, 0.007993813, 0, 0.595499, -0.007993813, 0, 0.007993813, 0, 0.595499, -0.007993813, 0, 0.007993813, 0, 0.595499, -0.007993813, 0, 0.007993813, 0, 0.595499, -0.007993813, 0, 0.0039969063, 0, 0.595499, -0.0039969063, 0, 0.0019984532, 0, 0.595499, -0.0019984532, 0, 0.0009992266, 0, 0.595499, -0.0009992266, 0, 0.0009992266, 0, 0.595499, -0.0009992266, 0, 0.0039969063, 0, 0.595499, -0.0039969063, 0, 0.0039969063, 0, 0.595499, -0.0039969063, 0, 0.0039969063, 0, 0.595499, -0.0039969063, 0, 0.0039969063, 0, 0.595499, -0.0039969063, 0, 0, 0),
 "times": PackedFloat32Array(0.41732, 0.4652829, 0.4892643, 0.51324576, 0.5372272, 0.5492179, 0.5612086, 0.57319933, 0.5791947, 0.58219236, 0.58519006, 0.5971808, 0.6091715, 0.63315296, 0.65713435, 0.6811158, 0.70509726, 0.7290787, 0.7410694, 0.74706477, 0.75006247, 0.7530601, 0.7650508, 0.77704155, 0.7890323, 0.801023)
 }
-tracks/18/type = "bezier"
-tracks/18/imported = false
-tracks/18/enabled = true
-tracks/18/path = NodePath("t3:pos_y")
-tracks/18/interp = 1
-tracks/18/loop_wrap = true
-tracks/18/keys = {
+tracks/28/type = "value"
+tracks/28/imported = false
+tracks/28/enabled = true
+tracks/28/path = NodePath("t3:zen_ease_pos_x")
+tracks/28/interp = 0
+tracks/28/loop_wrap = true
+tracks/28/keys = {
+"times": PackedFloat32Array(0.41732, 0.801023),
+"transitions": PackedFloat32Array(1, 1),
+"update": 1,
+"values": ["linear", "over_top"]
+}
+tracks/29/type = "bezier"
+tracks/29/imported = false
+tracks/29/enabled = true
+tracks/29/path = NodePath("t3:pos_y")
+tracks/29/interp = 1
+tracks/29/loop_wrap = true
+tracks/29/keys = {
 "handle_modes": PackedInt32Array(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
 "points": PackedFloat32Array(0.81382, 0, 0, 0.015987625, 0.003572165, 0.82397515, -0.015987625, -0.003265747, 0.007993813, 0.0016328736, 0.8289624, -0.007993813, -0.001733058, 0.007993813, 0.001733058, 0.8348303, -0.007993813, -0.0023130793, 0.007993813, 0.0023130793, 0.8443982, -0.007993813, -0.004521867, 0.0039969063, 0.0022609334, 0.8529133, -0.0039969063, -0.0035140242, 0.0039969063, 0.0035140242, 0.86595964, -0.0039969063, -0.005218243, 0.0039969063, 0.005218243, 0.8840148, -0.0039969063, -0.0067222593, 0.0019984532, 0.0033611297, 0.89449316, -0.0019984532, -0.0036090887, 0.0009992266, 0.0018045444, 0.8999578, -0.0009992266, -0.0017849478, 0.0009992266, 0.0017849478, 0.9049446, -0.0009992266, -0.0015519873, 0.0039969063, 0.006207949, 0.9200428, -0.0039969063, -0.0041456143, 0.0039969063, 0.0041456143, 0.93076944, -0.0039969063, -0.0030963058, 0.007993813, 0.0061926115, 0.94548583, -0.007993813, -0.003867589, 0.007993813, 0.003867589, 0.9548548, -0.007993813, -0.0024647785, 0.007993813, 0.0024647785, 0.9606011, -0.007993813, -0.0013964343, 0.007993813, 0.0013964343, 0.96329355, -0.007993813, -0.00038564624, 0.007993813, 0.00038564624, 0.96257776, -0.007993813, 0.0010073138, 0.0039969063, -0.0005036569, 0.9600578, -0.0039969063, 0.0013136265, 0.0019984532, -0.00065681327, 0.9572857, -0.0019984532, 0.0013591935, 0.0009992266, -0.00067959673, 0.9547572, -0.0009992266, 0.00088659953, 0.0009992266, -0.00088659953, 0.9521241, -0.0009992266, 0.000865245, 0.0039969063, -0.00346098, 0.94342196, -0.0039969063, 0.0020772761, 0.0039969063, -0.0020772761, 0.93975633, -0.0039969063, 0.0005433945, 0.0039969063, -0.0005433945, 0.9392045, -0.0039969063, -7.235279e-05, 0.0039969063, 7.235279e-05, 0.93982, -0.0039969063, -0.00030288508, 0, 0),
 "times": PackedFloat32Array(0.41732, 0.4652829, 0.4892643, 0.51324576, 0.5372272, 0.5492179, 0.5612086, 0.57319933, 0.5791947, 0.58219236, 0.58519006, 0.5971808, 0.6091715, 0.63315296, 0.65713435, 0.6811158, 0.70509726, 0.7290787, 0.7410694, 0.74706477, 0.75006247, 0.7530601, 0.7650508, 0.77704155, 0.7890323, 0.801023)
 }
-tracks/19/type = "bezier"
-tracks/19/imported = false
-tracks/19/enabled = true
-tracks/19/path = NodePath("t3:size")
-tracks/19/interp = 1
-tracks/19/loop_wrap = true
-tracks/19/keys = {
+tracks/30/type = "value"
+tracks/30/imported = false
+tracks/30/enabled = true
+tracks/30/path = NodePath("t3:zen_ease_pos_y")
+tracks/30/interp = 0
+tracks/30/loop_wrap = true
+tracks/30/keys = {
+"times": PackedFloat32Array(0.41732, 0.801023),
+"transitions": PackedFloat32Array(1, 1),
+"update": 1,
+"values": ["linear", "over_top"]
+}
+tracks/31/type = "bezier"
+tracks/31/imported = false
+tracks/31/enabled = true
+tracks/31/path = NodePath("t3:size")
+tracks/31/interp = 1
+tracks/31/loop_wrap = true
+tracks/31/keys = {
 "handle_modes": PackedInt32Array(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
 "points": PackedFloat32Array(0.0075, 0, 0, 0.139987, 0, 0.0075, -0.139987, 0, 0.015926417, 0.0020554124, 0.013343227, -0.015926417, -0.0018791006, 0.0079632085, 0.0009395503, 0.016212868, -0.0079632085, -0.0009971961, 0.0079632085, 0.0009971961, 0.019589247, -0.0079632085, -0.0013309385, 0.0079632085, 0.0013309385, 0.025094608, -0.0079632085, -0.0026018678, 0.0039816042, 0.0013009339, 0.02999417, -0.0039816042, -0.0020219584, 0.0039816042, 0.0020219584, 0.037500996, -0.0039816042, -0.0030025605, 0.0039816042, 0.0030025605, 0.047889866, -0.0039816042, -0.0038679668, 0.0019908021, 0.0019339834, 0.053919073, -0.0019908021, -0.0020766582, 0.0009954011, 0.0010383291, 0.057063416, -0.0009954011, -0.0010270533, 0.0009954011, 0.0010270533, 0.059932806, -0.0009954011, -0.00089300855, 0.0039816042, 0.0035720342, 0.06862028, -0.0039816042, -0.0023853735, 0.0039816042, 0.0023853735, 0.07479235, -0.0039816042, -0.0017816046, 0.0079632085, 0.0035632092, 0.083260104, -0.0079632085, -0.0022253983, 0.0079632085, 0.0022253983, 0.08865097, -0.0079632085, -0.0014182257, 0.0079632085, 0.0014182257, 0.09195737, -0.0079632085, -0.00080350385, 0.0079632085, 0.00080350385, 0.09350659, -0.0079632085, -0.00022189962, 0.0079632085, 0.00022189962, 0.09309473, -0.0079632085, 0.00057960517, 0.0039816042, -0.00028980259, 0.091644764, -0.0039816042, 0.00075585657, 0.0019908021, -0.00037792829, 0.09004973, -0.0019908021, 0.00078207563, 0.0009954011, -0.00039103781, 0.08859481, -0.0009954011, 0.00051014655, 0.0009954011, -0.00051014655, 0.08707976, -0.0009954011, 0.00049785926, 0.0039816042, -0.001991437, 0.08207255, -0.0039816042, 0.0011952581, 0.0039816042, -0.0011952581, 0.07996336, -0.0039816042, 0.00031266746, 0.0039816042, -0.00031266746, 0.07964586, -0.0039816042, -4.1631567e-05, 0.0039816042, 4.1631567e-05, 0.08, -0.0039816042, -0.0001742791, 0, 0),
 "times": PackedFloat32Array(0, 0.419961, 0.46774024, 0.49162987, 0.5155195, 0.5394091, 0.55135393, 0.56329876, 0.5752436, 0.581216, 0.5842022, 0.58718836, 0.5991332, 0.611078, 0.6349676, 0.6588572, 0.6827469, 0.7066365, 0.73052615, 0.7424709, 0.74844337, 0.75142956, 0.75441575, 0.7663606, 0.77830535, 0.7902502, 0.802195)
 }
-tracks/20/type = "bezier"
-tracks/20/imported = false
-tracks/20/enabled = true
-tracks/20/path = NodePath("t3:color:r")
-tracks/20/interp = 1
-tracks/20/loop_wrap = true
-tracks/20/keys = {
+tracks/32/type = "value"
+tracks/32/imported = false
+tracks/32/enabled = true
+tracks/32/path = NodePath("t3:zen_ease_size")
+tracks/32/interp = 0
+tracks/32/loop_wrap = true
+tracks/32/keys = {
+"times": PackedFloat32Array(0, 0.419961, 0.802195),
+"transitions": PackedFloat32Array(1, 1, 1),
+"update": 1,
+"values": ["linear", "linear", "over_top"]
+}
+tracks/33/type = "bezier"
+tracks/33/imported = false
+tracks/33/enabled = true
+tracks/33/path = NodePath("t3:color:r")
+tracks/33/interp = 1
+tracks/33/loop_wrap = true
+tracks/33/keys = {
 "handle_modes": PackedInt32Array(0, 0, 0),
 "points": PackedFloat32Array(0.9607843, 0, 0, 0.13866633, 0, 0.9607843, -0.13866633, 0, 0.006791, 0, 0.9607843, -0.006791, 0, 0, 0),
 "times": PackedFloat32Array(0, 0.415999, 0.436372)
 }
-tracks/21/type = "bezier"
-tracks/21/imported = false
-tracks/21/enabled = true
-tracks/21/path = NodePath("t3:color:g")
-tracks/21/interp = 1
-tracks/21/loop_wrap = true
-tracks/21/keys = {
+tracks/34/type = "bezier"
+tracks/34/imported = false
+tracks/34/enabled = true
+tracks/34/path = NodePath("t3:color:g")
+tracks/34/interp = 1
+tracks/34/loop_wrap = true
+tracks/34/keys = {
 "handle_modes": PackedInt32Array(0, 0, 0),
 "points": PackedFloat32Array(0.9607843, 0, 0, 0.13866633, 0, 0.9607843, -0.13866633, 0, 0.006791, 0, 0.9607843, -0.006791, 0, 0, 0),
 "times": PackedFloat32Array(0, 0.415999, 0.436372)
 }
-tracks/22/type = "bezier"
-tracks/22/imported = false
-tracks/22/enabled = true
-tracks/22/path = NodePath("t3:color:b")
-tracks/22/interp = 1
-tracks/22/loop_wrap = true
-tracks/22/keys = {
+tracks/35/type = "bezier"
+tracks/35/imported = false
+tracks/35/enabled = true
+tracks/35/path = NodePath("t3:color:b")
+tracks/35/interp = 1
+tracks/35/loop_wrap = true
+tracks/35/keys = {
 "handle_modes": PackedInt32Array(0, 0, 0),
 "points": PackedFloat32Array(0.9607843, 0, 0, 0.13866633, 0, 0.9607843, -0.13866633, 0, 0.006791, 0, 0.9607843, -0.006791, 0, 0, 0),
 "times": PackedFloat32Array(0, 0.415999, 0.436372)
 }
-tracks/23/type = "bezier"
-tracks/23/imported = false
-tracks/23/enabled = true
-tracks/23/path = NodePath("t3:alpha")
-tracks/23/interp = 1
-tracks/23/loop_wrap = true
-tracks/23/keys = {
+tracks/36/type = "value"
+tracks/36/imported = false
+tracks/36/enabled = true
+tracks/36/path = NodePath("t3:zen_ease_color")
+tracks/36/interp = 0
+tracks/36/loop_wrap = true
+tracks/36/keys = {
+"times": PackedFloat32Array(0, 0.415999, 0.436372),
+"transitions": PackedFloat32Array(1, 1, 1),
+"update": 1,
+"values": ["linear", "linear", "linear"]
+}
+tracks/37/type = "bezier"
+tracks/37/imported = false
+tracks/37/enabled = true
+tracks/37/path = NodePath("t3:alpha")
+tracks/37/interp = 1
+tracks/37/loop_wrap = true
+tracks/37/keys = {
 "handle_modes": PackedInt32Array(0, 0, 0),
 "points": PackedFloat32Array(0, 0, 0, 0.13866633, 0, 0, -0.13866633, 0, 0.006791, 0.3333333, 1, -0.006791, -0.333488, 0, 0),
 "times": PackedFloat32Array(0, 0.415999, 0.436372)
 }
-tracks/24/type = "value"
-tracks/24/imported = false
-tracks/24/enabled = true
-tracks/24/path = NodePath("t3:string")
-tracks/24/interp = 0
-tracks/24/loop_wrap = true
-tracks/24/keys = {
+tracks/38/type = "value"
+tracks/38/imported = false
+tracks/38/enabled = true
+tracks/38/path = NodePath("t3:zen_ease_alpha")
+tracks/38/interp = 0
+tracks/38/loop_wrap = true
+tracks/38/keys = {
+"times": PackedFloat32Array(0, 0.415999, 0.436372),
+"transitions": PackedFloat32Array(1, 1, 1),
+"update": 1,
+"values": ["linear", "linear", "linear"]
+}
+tracks/39/type = "value"
+tracks/39/imported = false
+tracks/39/enabled = true
+tracks/39/path = NodePath("t3:string")
+tracks/39/interp = 0
+tracks/39/loop_wrap = true
+tracks/39/keys = {
 "times": PackedFloat32Array(0, 0.415569),
 "transitions": PackedFloat32Array(1, 1),
 "update": 1,
 "values": [11.0, 11.0]
 }
-tracks/25/type = "bezier"
-tracks/25/imported = false
-tracks/25/enabled = true
-tracks/25/path = NodePath("icon_ai:zen_scale")
-tracks/25/interp = 1
-tracks/25/loop_wrap = true
-tracks/25/keys = {
+tracks/40/type = "bezier"
+tracks/40/imported = false
+tracks/40/enabled = true
+tracks/40/path = NodePath("icon_ai:zen_scale")
+tracks/40/interp = 1
+tracks/40/loop_wrap = true
+tracks/40/keys = {
 "handle_modes": PackedInt32Array(0),
 "points": PackedFloat32Array(1, 0, 0, 0, 0),
 "times": PackedFloat32Array(0)
 }
-tracks/26/type = "bezier"
-tracks/26/imported = false
-tracks/26/enabled = true
-tracks/26/path = NodePath("icon_ai:color:r")
-tracks/26/interp = 1
-tracks/26/loop_wrap = true
-tracks/26/keys = {
+tracks/41/type = "value"
+tracks/41/imported = false
+tracks/41/enabled = true
+tracks/41/path = NodePath("icon_ai:zen_ease_scale")
+tracks/41/interp = 0
+tracks/41/loop_wrap = true
+tracks/41/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 1,
+"values": ["linear"]
+}
+tracks/42/type = "bezier"
+tracks/42/imported = false
+tracks/42/enabled = true
+tracks/42/path = NodePath("icon_ai:color:r")
+tracks/42/interp = 1
+tracks/42/loop_wrap = true
+tracks/42/keys = {
 "handle_modes": PackedInt32Array(0, 0, 0, 0, 0, 0),
 "points": PackedFloat32Array(0.9607843, 0, 0, 0.030228334, 0, 0.9607843, -0.030228334, 0, 0.025766667, 0, 0.9607843, -0.025766667, 0, 0.025766667, 0, 0.9607843, -0.025766667, 0, 0.025766667, 0, 0.9607843, -0.025766667, 0, 0.025766667, 0, 0.9607843, -0.025766667, 0, 0, 0),
 "times": PackedFloat32Array(0, 0.090685, 0.167985, 0.245285, 0.322585, 0.399885)
 }
-tracks/27/type = "bezier"
-tracks/27/imported = false
-tracks/27/enabled = true
-tracks/27/path = NodePath("icon_ai:color:g")
-tracks/27/interp = 1
-tracks/27/loop_wrap = true
-tracks/27/keys = {
+tracks/43/type = "bezier"
+tracks/43/imported = false
+tracks/43/enabled = true
+tracks/43/path = NodePath("icon_ai:color:g")
+tracks/43/interp = 1
+tracks/43/loop_wrap = true
+tracks/43/keys = {
 "handle_modes": PackedInt32Array(0, 0, 0, 0, 0, 0),
 "points": PackedFloat32Array(0.9607843, 0, 0, 0.030228334, 0, 0.9607843, -0.030228334, 0, 0.025766667, 0, 0.9607843, -0.025766667, 0, 0.025766667, 0, 0.9607843, -0.025766667, 0, 0.025766667, 0, 0.9607843, -0.025766667, 0, 0.025766667, 0, 0.9607843, -0.025766667, 0, 0, 0),
 "times": PackedFloat32Array(0, 0.090685, 0.167985, 0.245285, 0.322585, 0.399885)
 }
-tracks/28/type = "bezier"
-tracks/28/imported = false
-tracks/28/enabled = true
-tracks/28/path = NodePath("icon_ai:color:b")
-tracks/28/interp = 1
-tracks/28/loop_wrap = true
-tracks/28/keys = {
+tracks/44/type = "bezier"
+tracks/44/imported = false
+tracks/44/enabled = true
+tracks/44/path = NodePath("icon_ai:color:b")
+tracks/44/interp = 1
+tracks/44/loop_wrap = true
+tracks/44/keys = {
 "handle_modes": PackedInt32Array(0, 0, 0, 0, 0, 0),
 "points": PackedFloat32Array(0.9607843, 0, 0, 0.030228334, 0, 0.9607843, -0.030228334, 0, 0.025766667, 0, 0.9607843, -0.025766667, 0, 0.025766667, 0, 0.9607843, -0.025766667, 0, 0.025766667, 0, 0.9607843, -0.025766667, 0, 0.025766667, 0, 0.9607843, -0.025766667, 0, 0, 0),
 "times": PackedFloat32Array(0, 0.090685, 0.167985, 0.245285, 0.322585, 0.399885)
 }
-tracks/29/type = "bezier"
-tracks/29/imported = false
-tracks/29/enabled = true
-tracks/29/path = NodePath("icon_ai:alpha")
-tracks/29/interp = 1
-tracks/29/loop_wrap = true
-tracks/29/keys = {
+tracks/45/type = "value"
+tracks/45/imported = false
+tracks/45/enabled = true
+tracks/45/path = NodePath("icon_ai:zen_ease_color")
+tracks/45/interp = 0
+tracks/45/loop_wrap = true
+tracks/45/keys = {
+"times": PackedFloat32Array(0, 0.090685, 0.399885),
+"transitions": PackedFloat32Array(1, 1, 1),
+"update": 1,
+"values": ["linear", "linear", "sineIn"]
+}
+tracks/46/type = "bezier"
+tracks/46/imported = false
+tracks/46/enabled = true
+tracks/46/path = NodePath("icon_ai:alpha")
+tracks/46/interp = 1
+tracks/46/loop_wrap = true
+tracks/46/keys = {
 "handle_modes": PackedInt32Array(0, 0, 0, 0, 0, 0),
 "points": PackedFloat32Array(1, 0, 0, 0.030228334, 0, 1, -0.030228334, 0, 0.025766667, 0, 0.9238795, -0.025766667, 0.05008963, 0.025766667, -0.05008963, 0.70710677, -0.025766667, 0.092561044, 0.025766667, -0.092561044, 0.38268346, -0.025766667, 0.120972596, 0.025766667, -0.120972596, 0, -0.025766667, 0.1309812, 0, 0),
 "times": PackedFloat32Array(0, 0.090685, 0.167985, 0.245285, 0.322585, 0.399885)
 }
-tracks/30/type = "bezier"
-tracks/30/imported = false
-tracks/30/enabled = true
-tracks/30/path = NodePath("icon_ai:outline")
-tracks/30/interp = 1
-tracks/30/loop_wrap = true
-tracks/30/keys = {
+tracks/47/type = "value"
+tracks/47/imported = false
+tracks/47/enabled = true
+tracks/47/path = NodePath("icon_ai:zen_ease_alpha")
+tracks/47/interp = 0
+tracks/47/loop_wrap = true
+tracks/47/keys = {
+"times": PackedFloat32Array(0, 0.090685, 0.399885),
+"transitions": PackedFloat32Array(1, 1, 1),
+"update": 1,
+"values": ["linear", "linear", "sineIn"]
+}
+tracks/48/type = "bezier"
+tracks/48/imported = false
+tracks/48/enabled = true
+tracks/48/path = NodePath("icon_ai:outline")
+tracks/48/interp = 1
+tracks/48/loop_wrap = true
+tracks/48/keys = {
 "handle_modes": PackedInt32Array(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
 "points": PackedFloat32Array(0, 0, 0, 0.042003334, 0, 0, -0.042003334, 0, 0.005698229, 0, 0, -0.005698229, 0, 0.005698229, 0, 0, -0.005698229, 0, 0.005698229, 0, 0, -0.005698229, 0, 0.005698229, 0, 0, -0.005698229, 0, 0.011396458, 0, 0, -0.011396458, 0, 0.011396458, 0, 0, -0.011396458, 0, 0.011396458, 0, 0, -0.011396458, 0, 0.011396458, 0, 0, -0.011396458, 0, 0.011396458, 0, 0, -0.011396458, 0, 0.005698229, 0, 0, -0.005698229, 0, 0.0028491146, 0, 0, -0.0028491146, 0, 0.0014245573, 0, 0, -0.0014245573, 0, 0.00071227865, 0, 0, -0.00071227865, 0, 0.00035613932, 0, 0, -0.00035613932, 0, 0.00035613932, 0, 0, -0.00035613932, 0, 0, 0),
 "times": PackedFloat32Array(0, 0.12601, 0.14310469, 0.16019937, 0.17729406, 0.19438875, 0.22857812, 0.2627675, 0.29695687, 0.33114624, 0.3653356, 0.38243032, 0.39097765, 0.39525133, 0.39738816, 0.39845657, 0.399525)
 }
-tracks/31/type = "bezier"
-tracks/31/imported = false
-tracks/31/enabled = true
-tracks/31/path = NodePath("icon_ai:outline_color:r")
-tracks/31/interp = 1
-tracks/31/loop_wrap = true
-tracks/31/keys = {
+tracks/49/type = "value"
+tracks/49/imported = false
+tracks/49/enabled = true
+tracks/49/path = NodePath("icon_ai:zen_ease_outline")
+tracks/49/interp = 0
+tracks/49/loop_wrap = true
+tracks/49/keys = {
+"times": PackedFloat32Array(0, 0.12601, 0.399525),
+"transitions": PackedFloat32Array(1, 1, 1),
+"update": 1,
+"values": ["quadIn", "quadIn", "expoOut"]
+}
+tracks/50/type = "bezier"
+tracks/50/imported = false
+tracks/50/enabled = true
+tracks/50/path = NodePath("icon_ai:outline_color:r")
+tracks/50/interp = 1
+tracks/50/loop_wrap = true
+tracks/50/keys = {
 "handle_modes": PackedInt32Array(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
 "points": PackedFloat32Array(0.9607843, 0, 0, 0.042003334, 0, 0.9607843, -0.042003334, 0, 0.005698229, 0, 0.9607843, -0.005698229, 0, 0.005698229, 0, 0.9607843, -0.005698229, 0, 0.005698229, 0, 0.9607843, -0.005698229, 0, 0.005698229, 0, 0.9607843, -0.005698229, 0, 0.011396458, 0, 0.9607843, -0.011396458, 0, 0.011396458, 0, 0.9607843, -0.011396458, 0, 0.011396458, 0, 0.9607843, -0.011396458, 0, 0.011396458, 0, 0.9607843, -0.011396458, 0, 0.011396458, 0, 0.9607843, -0.011396458, 0, 0.005698229, 0, 0.9607843, -0.005698229, 0, 0.0028491146, 0, 0.9607843, -0.0028491146, 0, 0.0014245573, 0, 0.9607843, -0.0014245573, 0, 0.00071227865, 0, 0.9607843, -0.00071227865, 0, 0.00035613932, 0, 0.9607843, -0.00035613932, 0, 0.00035613932, 0, 0.9607843, -0.00035613932, 0, 0, 0),
 "times": PackedFloat32Array(0, 0.12601, 0.14310469, 0.16019937, 0.17729406, 0.19438875, 0.22857812, 0.2627675, 0.29695687, 0.33114624, 0.3653356, 0.38243032, 0.39097765, 0.39525133, 0.39738816, 0.39845657, 0.399525)
 }
-tracks/32/type = "bezier"
-tracks/32/imported = false
-tracks/32/enabled = true
-tracks/32/path = NodePath("icon_ai:outline_color:g")
-tracks/32/interp = 1
-tracks/32/loop_wrap = true
-tracks/32/keys = {
+tracks/51/type = "bezier"
+tracks/51/imported = false
+tracks/51/enabled = true
+tracks/51/path = NodePath("icon_ai:outline_color:g")
+tracks/51/interp = 1
+tracks/51/loop_wrap = true
+tracks/51/keys = {
 "handle_modes": PackedInt32Array(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
 "points": PackedFloat32Array(0.9607843, 0, 0, 0.042003334, 0, 0.9607843, -0.042003334, 0, 0.005698229, 0, 0.9607843, -0.005698229, 0, 0.005698229, 0, 0.9607843, -0.005698229, 0, 0.005698229, 0, 0.9607843, -0.005698229, 0, 0.005698229, 0, 0.9607843, -0.005698229, 0, 0.011396458, 0, 0.9607843, -0.011396458, 0, 0.011396458, 0, 0.9607843, -0.011396458, 0, 0.011396458, 0, 0.9607843, -0.011396458, 0, 0.011396458, 0, 0.9607843, -0.011396458, 0, 0.011396458, 0, 0.9607843, -0.011396458, 0, 0.005698229, 0, 0.9607843, -0.005698229, 0, 0.0028491146, 0, 0.9607843, -0.0028491146, 0, 0.0014245573, 0, 0.9607843, -0.0014245573, 0, 0.00071227865, 0, 0.9607843, -0.00071227865, 0, 0.00035613932, 0, 0.9607843, -0.00035613932, 0, 0.00035613932, 0, 0.9607843, -0.00035613932, 0, 0, 0),
 "times": PackedFloat32Array(0, 0.12601, 0.14310469, 0.16019937, 0.17729406, 0.19438875, 0.22857812, 0.2627675, 0.29695687, 0.33114624, 0.3653356, 0.38243032, 0.39097765, 0.39525133, 0.39738816, 0.39845657, 0.399525)
 }
-tracks/33/type = "bezier"
-tracks/33/imported = false
-tracks/33/enabled = true
-tracks/33/path = NodePath("icon_ai:outline_color:b")
-tracks/33/interp = 1
-tracks/33/loop_wrap = true
-tracks/33/keys = {
+tracks/52/type = "bezier"
+tracks/52/imported = false
+tracks/52/enabled = true
+tracks/52/path = NodePath("icon_ai:outline_color:b")
+tracks/52/interp = 1
+tracks/52/loop_wrap = true
+tracks/52/keys = {
 "handle_modes": PackedInt32Array(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
 "points": PackedFloat32Array(0.9607843, 0, 0, 0.042003334, 0, 0.9607843, -0.042003334, 0, 0.005698229, 0, 0.9607843, -0.005698229, 0, 0.005698229, 0, 0.9607843, -0.005698229, 0, 0.005698229, 0, 0.9607843, -0.005698229, 0, 0.005698229, 0, 0.9607843, -0.005698229, 0, 0.011396458, 0, 0.9607843, -0.011396458, 0, 0.011396458, 0, 0.9607843, -0.011396458, 0, 0.011396458, 0, 0.9607843, -0.011396458, 0, 0.011396458, 0, 0.9607843, -0.011396458, 0, 0.011396458, 0, 0.9607843, -0.011396458, 0, 0.005698229, 0, 0.9607843, -0.005698229, 0, 0.0028491146, 0, 0.9607843, -0.0028491146, 0, 0.0014245573, 0, 0.9607843, -0.0014245573, 0, 0.00071227865, 0, 0.9607843, -0.00071227865, 0, 0.00035613932, 0, 0.9607843, -0.00035613932, 0, 0.00035613932, 0, 0.9607843, -0.00035613932, 0, 0, 0),
 "times": PackedFloat32Array(0, 0.12601, 0.14310469, 0.16019937, 0.17729406, 0.19438875, 0.22857812, 0.2627675, 0.29695687, 0.33114624, 0.3653356, 0.38243032, 0.39097765, 0.39525133, 0.39738816, 0.39845657, 0.399525)
 }
-tracks/34/type = "bezier"
-tracks/34/imported = false
-tracks/34/enabled = true
-tracks/34/path = NodePath("icon_ai:outline_alpha")
-tracks/34/interp = 1
-tracks/34/loop_wrap = true
-tracks/34/keys = {
+tracks/53/type = "value"
+tracks/53/imported = false
+tracks/53/enabled = true
+tracks/53/path = NodePath("icon_ai:zen_ease_outline_color")
+tracks/53/interp = 0
+tracks/53/loop_wrap = true
+tracks/53/keys = {
+"times": PackedFloat32Array(0, 0.12601, 0.399525),
+"transitions": PackedFloat32Array(1, 1, 1),
+"update": 1,
+"values": ["quadIn", "quadIn", "expoOut"]
+}
+tracks/54/type = "bezier"
+tracks/54/imported = false
+tracks/54/enabled = true
+tracks/54/path = NodePath("icon_ai:outline_alpha")
+tracks/54/interp = 1
+tracks/54/loop_wrap = true
+tracks/54/keys = {
 "handle_modes": PackedInt32Array(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
 "points": PackedFloat32Array(1, 0, 0, 0.042003334, 0, 1, -0.042003334, 0, 0.005698229, -0.14454907, 0.6480682, -0.005698229, 0.09373451, 0.005698229, -0.09373451, 0.41986865, -0.005698229, 0.06078432, 0.005698229, -0.06078432, 0.27189958, -0.005698229, 0.039401155, 0.005698229, -0.039401155, 0.1759535, -0.005698229, 0.025549283, 0.011396458, -0.051098567, 0.07339978, -0.011396458, 0.021494925, 0.011396458, -0.021494925, 0.030281246, -0.011396458, 0.00902762, 0.011396458, -0.00902762, 0.012152135, -0.011396458, 0.003799796, 0.011396458, -0.003799796, 0.004529774, -0.011396458, 0.0016018748, 0.011396458, -0.0016018748, 0.0013250113, -0.011396458, 0.00067055225, 0.005698229, -0.00033527613, 0.00050759315, -0.005698229, 0.0002173086, 0.0028491146, -0.0001086543, 0.00021398067, -0.0028491146, 9.002785e-05, 0.0014245573, -4.5013923e-05, 8.934736e-05, -0.0014245573, 4.035731e-05, 0.00071227865, -2.0178655e-05, 3.194809e-05, -0.00071227865, 1.8626451e-05, 0.00035613932, -9.313226e-06, 4.4107437e-06, -0.00035613932, 8.925174e-06, 0.00035613932, -8.925174e-06, 0, -0.00035613932, -0.0004307367, 0, 0),
 "times": PackedFloat32Array(0, 0.12601, 0.14310469, 0.16019937, 0.17729406, 0.19438875, 0.22857812, 0.2627675, 0.29695687, 0.33114624, 0.3653356, 0.38243032, 0.39097765, 0.39525133, 0.39738816, 0.39845657, 0.399525)
 }
-tracks/35/type = "bezier"
-tracks/35/imported = false
-tracks/35/enabled = true
-tracks/35/path = NodePath("icon_ai:pos_x")
-tracks/35/interp = 1
-tracks/35/loop_wrap = true
-tracks/35/keys = {
+tracks/55/type = "value"
+tracks/55/imported = false
+tracks/55/enabled = true
+tracks/55/path = NodePath("icon_ai:zen_ease_outline_alpha")
+tracks/55/interp = 0
+tracks/55/loop_wrap = true
+tracks/55/keys = {
+"times": PackedFloat32Array(0, 0.12601, 0.399525),
+"transitions": PackedFloat32Array(1, 1, 1),
+"update": 1,
+"values": ["quadIn", "quadIn", "expoOut"]
+}
+tracks/56/type = "bezier"
+tracks/56/imported = false
+tracks/56/enabled = true
+tracks/56/path = NodePath("icon_ai:pos_x")
+tracks/56/interp = 1
+tracks/56/loop_wrap = true
+tracks/56/keys = {
 "handle_modes": PackedInt32Array(0),
 "points": PackedFloat32Array(0.747826, 0, 0, 0, 0),
 "times": PackedFloat32Array(0)
 }
-tracks/36/type = "bezier"
-tracks/36/imported = false
-tracks/36/enabled = true
-tracks/36/path = NodePath("icon_ai:pos_y")
-tracks/36/interp = 1
-tracks/36/loop_wrap = true
-tracks/36/keys = {
+tracks/57/type = "value"
+tracks/57/imported = false
+tracks/57/enabled = true
+tracks/57/path = NodePath("icon_ai:zen_ease_pos_x")
+tracks/57/interp = 0
+tracks/57/loop_wrap = true
+tracks/57/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 1,
+"values": ["cubicInOut"]
+}
+tracks/58/type = "bezier"
+tracks/58/imported = false
+tracks/58/enabled = true
+tracks/58/path = NodePath("icon_ai:pos_y")
+tracks/58/interp = 1
+tracks/58/loop_wrap = true
+tracks/58/keys = {
 "handle_modes": PackedInt32Array(0),
 "points": PackedFloat32Array(0.317391, 0, 0, 0, 0),
 "times": PackedFloat32Array(0)
 }
-tracks/37/type = "value"
-tracks/37/imported = false
-tracks/37/enabled = true
-tracks/37/path = NodePath("icon_ai:shape_id")
-tracks/37/interp = 0
-tracks/37/loop_wrap = true
-tracks/37/keys = {
+tracks/59/type = "value"
+tracks/59/imported = false
+tracks/59/enabled = true
+tracks/59/path = NodePath("icon_ai:zen_ease_pos_y")
+tracks/59/interp = 0
+tracks/59/loop_wrap = true
+tracks/59/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 1,
+"values": ["cubicInOut"]
+}
+tracks/60/type = "value"
+tracks/60/imported = false
+tracks/60/enabled = true
+tracks/60/path = NodePath("icon_ai:shape_id")
+tracks/60/interp = 0
+tracks/60/loop_wrap = true
+tracks/60/keys = {
 "times": PackedFloat32Array(0, 0.526815),
 "transitions": PackedFloat32Array(1, 1),
 "update": 1,
 "values": [0.0, 1.0]
 }
-tracks/38/type = "bezier"
-tracks/38/imported = false
-tracks/38/enabled = true
-tracks/38/path = NodePath("icon_coder:zen_scale")
-tracks/38/interp = 1
-tracks/38/loop_wrap = true
-tracks/38/keys = {
-"handle_modes": PackedInt32Array(0),
-"points": PackedFloat32Array(1, 0, 0, 0, 0),
-"times": PackedFloat32Array(0)
-}
-tracks/39/type = "bezier"
-tracks/39/imported = false
-tracks/39/enabled = true
-tracks/39/path = NodePath("icon_coder:color:r")
-tracks/39/interp = 1
-tracks/39/loop_wrap = true
-tracks/39/keys = {
-"handle_modes": PackedInt32Array(0),
-"points": PackedFloat32Array(0.9607843, 0, 0, 0, 0),
-"times": PackedFloat32Array(0)
-}
-tracks/40/type = "bezier"
-tracks/40/imported = false
-tracks/40/enabled = true
-tracks/40/path = NodePath("icon_coder:color:g")
-tracks/40/interp = 1
-tracks/40/loop_wrap = true
-tracks/40/keys = {
-"handle_modes": PackedInt32Array(0),
-"points": PackedFloat32Array(0.9607843, 0, 0, 0, 0),
-"times": PackedFloat32Array(0)
-}
-tracks/41/type = "bezier"
-tracks/41/imported = false
-tracks/41/enabled = true
-tracks/41/path = NodePath("icon_coder:color:b")
-tracks/41/interp = 1
-tracks/41/loop_wrap = true
-tracks/41/keys = {
-"handle_modes": PackedInt32Array(0),
-"points": PackedFloat32Array(0.9607843, 0, 0, 0, 0),
-"times": PackedFloat32Array(0)
-}
-tracks/42/type = "bezier"
-tracks/42/imported = false
-tracks/42/enabled = true
-tracks/42/path = NodePath("icon_coder:alpha")
-tracks/42/interp = 1
-tracks/42/loop_wrap = true
-tracks/42/keys = {
-"handle_modes": PackedInt32Array(0),
-"points": PackedFloat32Array(1, 0, 0, 0, 0),
-"times": PackedFloat32Array(0)
-}
-tracks/43/type = "bezier"
-tracks/43/imported = false
-tracks/43/enabled = true
-tracks/43/path = NodePath("icon_coder:outline")
-tracks/43/interp = 1
-tracks/43/loop_wrap = true
-tracks/43/keys = {
-"handle_modes": PackedInt32Array(0),
-"points": PackedFloat32Array(0, 0, 0, 0, 0),
-"times": PackedFloat32Array(0)
-}
-tracks/44/type = "bezier"
-tracks/44/imported = false
-tracks/44/enabled = true
-tracks/44/path = NodePath("icon_coder:outline_color:r")
-tracks/44/interp = 1
-tracks/44/loop_wrap = true
-tracks/44/keys = {
-"handle_modes": PackedInt32Array(0),
-"points": PackedFloat32Array(0.9607843, 0, 0, 0, 0),
-"times": PackedFloat32Array(0)
-}
-tracks/45/type = "bezier"
-tracks/45/imported = false
-tracks/45/enabled = true
-tracks/45/path = NodePath("icon_coder:outline_color:g")
-tracks/45/interp = 1
-tracks/45/loop_wrap = true
-tracks/45/keys = {
-"handle_modes": PackedInt32Array(0),
-"points": PackedFloat32Array(0.9607843, 0, 0, 0, 0),
-"times": PackedFloat32Array(0)
-}
-tracks/46/type = "bezier"
-tracks/46/imported = false
-tracks/46/enabled = true
-tracks/46/path = NodePath("icon_coder:outline_color:b")
-tracks/46/interp = 1
-tracks/46/loop_wrap = true
-tracks/46/keys = {
-"handle_modes": PackedInt32Array(0),
-"points": PackedFloat32Array(0.9607843, 0, 0, 0, 0),
-"times": PackedFloat32Array(0)
-}
-tracks/47/type = "bezier"
-tracks/47/imported = false
-tracks/47/enabled = true
-tracks/47/path = NodePath("icon_coder:outline_alpha")
-tracks/47/interp = 1
-tracks/47/loop_wrap = true
-tracks/47/keys = {
-"handle_modes": PackedInt32Array(0),
-"points": PackedFloat32Array(1, 0, 0, 0, 0),
-"times": PackedFloat32Array(0)
-}
-tracks/48/type = "bezier"
-tracks/48/imported = false
-tracks/48/enabled = true
-tracks/48/path = NodePath("icon_coder:pos_x")
-tracks/48/interp = 1
-tracks/48/loop_wrap = true
-tracks/48/keys = {
-"handle_modes": PackedInt32Array(0, 0, 0, 0),
-"points": PackedFloat32Array(0.246826, 0, 0, 0.05463033, 0, 0.246826, -0.05463033, 0, 0.03985, 1.6125198e-09, 0.1863565, -0.03985, 0.06045851, 0.03985, -0.06045851, 0.125887, -0.03985, 0, 0, 0),
-"times": PackedFloat32Array(0, 0.163891, 0.283441, 0.402991)
-}
-tracks/49/type = "bezier"
-tracks/49/imported = false
-tracks/49/enabled = true
-tracks/49/path = NodePath("icon_coder:pos_y")
-tracks/49/interp = 1
-tracks/49/loop_wrap = true
-tracks/49/keys = {
-"handle_modes": PackedInt32Array(0, 0, 0, 0),
-"points": PackedFloat32Array(0.291304, 0, 0, 0.05463033, 0, 0.291304, -0.05463033, 0, 0.03985, -4.2333328e-11, 0.2928915, -0.03985, -0.0015872115, 0.03985, 0.0015872115, 0.294479, -0.03985, 0, 0, 0),
-"times": PackedFloat32Array(0, 0.163891, 0.283441, 0.402991)
-}
-tracks/50/type = "bezier"
-tracks/50/imported = false
-tracks/50/enabled = true
-tracks/50/path = NodePath("sh_book:pos_x")
-tracks/50/interp = 1
-tracks/50/loop_wrap = true
-tracks/50/keys = {
-"handle_modes": PackedInt32Array(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
-"points": PackedFloat32Array(0.012329, 0, 0, 0.0084190415, 0.014544117, 0.05199027, -0.0084190415, -0.011997843, 0.0042095208, 0.0059989216, 0.06943818, -0.0042095208, -0.00572439, 0.0042095208, 0.00572439, 0.08730703, -0.0042095208, -0.0064505986, 0.0084190415, 0.012901197, 0.14970021, -0.0084190415, -0.033965394, 0.0042095208, 0.016982697, 0.21413085, -0.0042095208, -0.025770374, 0.0042095208, 0.025770374, 0.30138874, -0.0042095208, -0.03182169, 0.0021047604, 0.015910845, 0.3505851, -0.0021047604, -0.016832182, 0.0021047604, 0.016832182, 0.40044352, -0.0021047604, -0.015663655, 0.0042095208, 0.03132731, 0.4816279, -0.0042095208, -0.02314934, 0.0084190415, 0.04629868, 0.58377105, -0.0084190415, -0.023620998, 0.0084190415, 0.023620998, 0.6318773, -0.0084190415, -0.009565855, 0.0084190415, 0.009565855, 0.6466236, -0.0084190415, -0.0010116063, 0.016838083, 0.0020232126, 0.6269319, -0.016838083, 0.011427573, 0.0084190415, -0.0057137865, 0.61054784, -0.0084190415, 0.004858899, 0.0084190415, -0.004858899, 0.59857327, -0.0084190415, 0.003013497, 0.016838083, -0.006026994, 0.5924883, -0.016838083, -0.0010289375, 0.016838083, 0.0010289375, 0.597847, -0.016838083, -0.0018766606, 0, 0),
-"times": PackedFloat32Array(0, 0.025257125, 0.03788569, 0.05051425, 0.07577138, 0.08839994, 0.1010285, 0.10734278, 0.113657065, 0.12628563, 0.15154275, 0.17679988, 0.202057, 0.25257125, 0.27782837, 0.3030855, 0.35359976, 0.404114)
-}
-tracks/51/type = "bezier"
-tracks/51/imported = false
-tracks/51/enabled = true
-tracks/51/path = NodePath("sh_book:pos_y")
-tracks/51/interp = 1
-tracks/51/loop_wrap = true
-tracks/51/keys = {
-"handle_modes": PackedInt32Array(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
-"points": PackedFloat32Array(-0.438095, 0, 0, 0.0084190415, 0.028900843, -0.35928348, -0.0084190415, -0.023841102, 0.0042095208, 0.011920551, -0.32461244, -0.0042095208, -0.011375026, 0.0042095208, 0.011375026, -0.289105, -0.0042095208, -0.012818086, 0.0084190415, 0.025636172, -0.16512251, -0.0084190415, -0.06749316, 0.0042095208, 0.03374658, -0.037091374, -0.0042095208, -0.051208712, 0.0042095208, 0.051208712, 0.13630016, -0.0042095208, -0.06323338, 0.0021047604, 0.03161669, 0.23405904, -0.0021047604, -0.033447493, 0.0021047604, 0.033447493, 0.33313346, -0.0021047604, -0.031125495, 0.0042095208, 0.06225099, 0.49445626, -0.0042095208, -0.046000414, 0.0084190415, 0.09200083, 0.6974265, -0.0084190415, -0.046937656, 0.0084190415, 0.046937656, 0.7930191, -0.0084190415, -0.019008461, 0.0084190415, 0.019008461, 0.8223218, -0.0084190415, -0.0020101788, 0.016838083, 0.0040203575, 0.7831921, -0.016838083, 0.02270791, 0.0084190415, -0.011353955, 0.75063497, -0.0084190415, 0.009655194, 0.0084190415, -0.009655194, 0.72684014, -0.0084190415, 0.005988167, 0.016838083, -0.011976334, 0.7147487, -0.016838083, -0.002044618, 0.016838083, 0.002044618, 0.725397, -0.016838083, -0.0037291418, 0, 0),
-"times": PackedFloat32Array(0, 0.025257125, 0.03788569, 0.05051425, 0.07577138, 0.08839994, 0.1010285, 0.10734278, 0.113657065, 0.12628563, 0.15154275, 0.17679988, 0.202057, 0.25257125, 0.27782837, 0.3030855, 0.35359976, 0.404114)
-}
-tracks/52/type = "bezier"
-tracks/52/imported = false
-tracks/52/enabled = true
-tracks/52/path = NodePath("sh_book:rot")
-tracks/52/interp = 1
-tracks/52/loop_wrap = true
-tracks/52/keys = {
-"handle_modes": PackedInt32Array(0, 0, 0),
-"points": PackedFloat32Array(-360, 0, 0, 0.054443, -4.7999993e-06, -180, -0.054443, -179.96729, 0.054443, 179.96729, 0, -0.054443, 0, 0, 0),
-"times": PackedFloat32Array(0.032554, 0.195883, 0.359212)
-}
-tracks/53/type = "bezier"
-tracks/53/imported = false
-tracks/53/enabled = true
-tracks/53/path = NodePath("sh_page1:color:r")
-tracks/53/interp = 1
-tracks/53/loop_wrap = true
-tracks/53/keys = {
-"handle_modes": PackedInt32Array(0, 0, 0, 0, 0, 0),
-"points": PackedFloat32Array(0.972549, 0, 0, 0.30592534, 0, 0.972549, -0.30592534, 0, 0.0076765832, 0, 0.972549, -0.0076765832, 0, 0.0076765832, 0, 0.972549, -0.0076765832, 0, 0.0076765832, 0, 0.972549, -0.0076765832, 0, 0.0076765832, 0, 0.972549, -0.0076765832, 0, 0, 0),
-"times": PackedFloat32Array(0, 0.917776, 0.94080573, 0.9638355, 0.9868652, 1.009895)
-}
-tracks/54/type = "bezier"
-tracks/54/imported = false
-tracks/54/enabled = true
-tracks/54/path = NodePath("sh_page1:color:g")
-tracks/54/interp = 1
-tracks/54/loop_wrap = true
-tracks/54/keys = {
-"handle_modes": PackedInt32Array(0, 0, 0, 0, 0, 0),
-"points": PackedFloat32Array(0.972549, 0, 0, 0.30592534, 0, 0.972549, -0.30592534, 0, 0.0076765832, 0, 0.972549, -0.0076765832, 0, 0.0076765832, 0, 0.972549, -0.0076765832, 0, 0.0076765832, 0, 0.972549, -0.0076765832, 0, 0.0076765832, 0, 0.972549, -0.0076765832, 0, 0, 0),
-"times": PackedFloat32Array(0, 0.917776, 0.94080573, 0.9638355, 0.9868652, 1.009895)
-}
-tracks/55/type = "bezier"
-tracks/55/imported = false
-tracks/55/enabled = true
-tracks/55/path = NodePath("sh_page1:color:b")
-tracks/55/interp = 1
-tracks/55/loop_wrap = true
-tracks/55/keys = {
-"handle_modes": PackedInt32Array(0, 0, 0, 0, 0, 0),
-"points": PackedFloat32Array(0.9019608, 0, 0, 0.30592534, 0, 0.9019608, -0.30592534, 0, 0.0076765832, 0, 0.9019608, -0.0076765832, 0, 0.0076765832, 0, 0.9019608, -0.0076765832, 0, 0.0076765832, 0, 0.9019608, -0.0076765832, 0, 0.0076765832, 0, 0.9019608, -0.0076765832, 0, 0, 0),
-"times": PackedFloat32Array(0, 0.917776, 0.94080573, 0.9638355, 0.9868652, 1.009895)
-}
-tracks/56/type = "bezier"
-tracks/56/imported = false
-tracks/56/enabled = true
-tracks/56/path = NodePath("sh_page1:alpha")
-tracks/56/interp = 1
-tracks/56/loop_wrap = true
-tracks/56/keys = {
-"handle_modes": PackedInt32Array(0, 0, 0, 0, 0, 0),
-"points": PackedFloat32Array(0, 0, 0, 0.30592534, 0, 0, -0.30592534, 0, 0.0076765832, 0, 0.076120466, -0.0076765832, -0.05008963, 0.0076765832, 0.05008963, 0.29289323, -0.0076765832, -0.092561044, 0.0076765832, 0.092561044, 0.61731654, -0.0076765832, -0.120972596, 0.0076765832, 0.120972596, 1, -0.0076765832, -0.1309812, 0, 0),
-"times": PackedFloat32Array(0, 0.917776, 0.94080573, 0.9638355, 0.9868652, 1.009895)
-}
-tracks/57/type = "bezier"
-tracks/57/imported = false
-tracks/57/enabled = true
-tracks/57/path = NodePath("sh_page1:outline")
-tracks/57/interp = 1
-tracks/57/loop_wrap = true
-tracks/57/keys = {
-"handle_modes": PackedInt32Array(0, 0, 0, 0, 0, 0),
-"points": PackedFloat32Array(0, 0, 0, 0.30592534, 0, 0, -0.30592534, 0, 0.0076765832, 0, 0, -0.0076765832, 0, 0.0076765832, 0, 0, -0.0076765832, 0, 0.0076765832, 0, 0, -0.0076765832, 0, 0.0076765832, 0, 0, -0.0076765832, 0, 0, 0),
-"times": PackedFloat32Array(0, 0.917776, 0.94080573, 0.9638355, 0.9868652, 1.009895)
-}
-tracks/58/type = "bezier"
-tracks/58/imported = false
-tracks/58/enabled = true
-tracks/58/path = NodePath("sh_page1:outline_color:r")
-tracks/58/interp = 1
-tracks/58/loop_wrap = true
-tracks/58/keys = {
-"handle_modes": PackedInt32Array(0, 0, 0, 0, 0, 0),
-"points": PackedFloat32Array(0.96862745, 0, 0, 0.30592534, 0, 0.96862745, -0.30592534, 0, 0.0076765832, 0, 0.96862745, -0.0076765832, 0, 0.0076765832, 0, 0.96862745, -0.0076765832, 0, 0.0076765832, 0, 0.96862745, -0.0076765832, 0, 0.0076765832, 0, 0.96862745, -0.0076765832, 0, 0, 0),
-"times": PackedFloat32Array(0, 0.917776, 0.94080573, 0.9638355, 0.9868652, 1.009895)
-}
-tracks/59/type = "bezier"
-tracks/59/imported = false
-tracks/59/enabled = true
-tracks/59/path = NodePath("sh_page1:outline_color:g")
-tracks/59/interp = 1
-tracks/59/loop_wrap = true
-tracks/59/keys = {
-"handle_modes": PackedInt32Array(0, 0, 0, 0, 0, 0),
-"points": PackedFloat32Array(0.9764706, 0, 0, 0.30592534, 0, 0.9764706, -0.30592534, 0, 0.0076765832, 0, 0.9764706, -0.0076765832, 0, 0.0076765832, 0, 0.9764706, -0.0076765832, 0, 0.0076765832, 0, 0.9764706, -0.0076765832, 0, 0.0076765832, 0, 0.9764706, -0.0076765832, 0, 0, 0),
-"times": PackedFloat32Array(0, 0.917776, 0.94080573, 0.9638355, 0.9868652, 1.009895)
-}
-tracks/60/type = "bezier"
-tracks/60/imported = false
-tracks/60/enabled = true
-tracks/60/path = NodePath("sh_page1:outline_color:b")
-tracks/60/interp = 1
-tracks/60/loop_wrap = true
-tracks/60/keys = {
-"handle_modes": PackedInt32Array(0, 0, 0, 0, 0, 0),
-"points": PackedFloat32Array(0.9764706, 0, 0, 0.30592534, 0, 0.9764706, -0.30592534, 0, 0.0076765832, 0, 0.9764706, -0.0076765832, 0, 0.0076765832, 0, 0.9764706, -0.0076765832, 0, 0.0076765832, 0, 0.9764706, -0.0076765832, 0, 0.0076765832, 0, 0.9764706, -0.0076765832, 0, 0, 0),
-"times": PackedFloat32Array(0, 0.917776, 0.94080573, 0.9638355, 0.9868652, 1.009895)
-}
 tracks/61/type = "bezier"
 tracks/61/imported = false
 tracks/61/enabled = true
-tracks/61/path = NodePath("sh_page1:outline_alpha")
+tracks/61/path = NodePath("icon_coder:zen_scale")
 tracks/61/interp = 1
 tracks/61/loop_wrap = true
 tracks/61/keys = {
-"handle_modes": PackedInt32Array(0, 0, 0, 0, 0, 0),
-"points": PackedFloat32Array(0, 0, 0, 0.30592534, 0, 0, -0.30592534, 0, 0.0076765832, 0, 0.076120466, -0.0076765832, -0.05008963, 0.0076765832, 0.05008963, 0.29289323, -0.0076765832, -0.092561044, 0.0076765832, 0.092561044, 0.61731654, -0.0076765832, -0.120972596, 0.0076765832, 0.120972596, 1, -0.0076765832, -0.1309812, 0, 0),
-"times": PackedFloat32Array(0, 0.917776, 0.94080573, 0.9638355, 0.9868652, 1.009895)
+"handle_modes": PackedInt32Array(0),
+"points": PackedFloat32Array(1, 0, 0, 0, 0),
+"times": PackedFloat32Array(0)
 }
-tracks/62/type = "bezier"
+tracks/62/type = "value"
 tracks/62/imported = false
 tracks/62/enabled = true
-tracks/62/path = NodePath("sh_page1:pos_x")
-tracks/62/interp = 1
+tracks/62/path = NodePath("icon_coder:zen_ease_scale")
+tracks/62/interp = 0
 tracks/62/loop_wrap = true
 tracks/62/keys = {
-"handle_modes": PackedInt32Array(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
-"points": PackedFloat32Array(0.655571, 0, 0, 0.31161165, 0, 0.655571, -0.31161165, 0, 0.00010829427, 2.9929588e-05, 0.6555708, -0.00010829427, 6.039579e-07, 0.00010829427, -6.039579e-07, 0.65556896, -0.00010829427, 6.205311e-07, 0.00021658854, -1.2410623e-06, 0.65556514, -0.00021658854, 1.3100831e-06, 0.00043317708, -2.6201662e-06, 0.6555568, -0.00043317708, 2.920099e-06, 0.00086635415, -5.840198e-06, 0.65553725, -0.00086635415, 7.252549e-06, 0.0017327083, -1.4505098e-05, 0.6554828, -0.0017327083, 2.2369639e-05, 0.0034654166, -4.4739278e-05, 0.6552694, -0.0034654166, 0.000106404135, 0.0034654166, -0.000106404135, 0.65476173, -0.0034654166, 0.00025308816, 0.0034654166, -0.00025308816, 0.6535543, -0.0034654166, 0.00060194783, 0.0034654166, -0.00060194783, 0.6506826, -0.0034654166, 0.0014313465, 0.0034654166, -0.0014313465, 0.6438525, -0.0034654166, 0.0034041046, 0.0017327083, -0.0017020523, 0.63746244, -0.0017327083, 0.002625101, 0.0017327083, -0.002625101, 0.62760764, -0.0017327083, 0.004048376, 0.0017327083, -0.004048376, 0.6124095, -0.0017327083, 0.0062436177, 0.0017327083, -0.0062436177, 0.588904, -0.0017327083, 0.009631579, 0.0038155834, 0.0036353958, 0.5988176, -0.0038155834, -0.002998938, 0.0019077917, 0.001499469, 0.6031788, -0.0019077917, -0.0014308483, 0.0019077917, 0.0014308483, 0.6076452, -0.0019077917, -0.0016123687, 0.0038155834, 0.0032247375, 0.6232408, -0.0038155834, -0.008489869, 0.0019077917, 0.0042449343, 0.63934565, -0.0019077917, -0.006441471, 0.0019077917, 0.006441471, 0.66115636, -0.0019077917, -0.007954037, 0.00095389585, 0.0039770184, 0.6734533, -0.00095389585, -0.004207312, 0.00095389585, 0.004207312, 0.6859157, -0.00095389585, -0.0039152317, 0.0019077917, 0.007830463, 0.7062083, -0.0019077917, -0.0057863267, 0.0038155834, 0.011572653, 0.73173964, -0.0038155834, -0.005904221, 0.0038155834, 0.005904221, 0.7437641, -0.0038155834, -0.002391047, 0.0038155834, 0.002391047, 0.74745005, -0.0038155834, -0.0002528575, 0.007631167, 0.000505715, 0.74252796, -0.007631167, 0.0028563957, 0.0038155834, -0.0014281978, 0.73843265, -0.0038155834, 0.0012145131, 0.0038155834, -0.0012145131, 0.73543954, -0.0038155834, 0.000753243, 0.007631167, -0.001506486, 0.73391855, -0.007631167, -0.0002571896, 0.007631167, 0.0002571896, 0.735258, -0.007631167, -0.00046908343, 0, 0),
-"times": PackedFloat32Array(0, 0.934835, 0.93515986, 0.93548477, 0.9361345, 0.9374341, 0.94003314, 0.94523126, 0.9556275, 0.96602374, 0.97642, 0.9868162, 0.9972125, 1.0024107, 1.0076088, 1.0128069, 1.018005, 1.0294517, 1.0351751, 1.0408984, 1.0523453, 1.0580686, 1.063792, 1.0666537, 1.0695153, 1.0752387, 1.0866855, 1.0981323, 1.109579, 1.1324725, 1.1439192, 1.155366, 1.1782595, 1.201153)
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 1,
+"values": ["linear"]
 }
 tracks/63/type = "bezier"
 tracks/63/imported = false
 tracks/63/enabled = true
-tracks/63/path = NodePath("sh_page1:pos_y")
+tracks/63/path = NodePath("icon_coder:color:r")
 tracks/63/interp = 1
 tracks/63/loop_wrap = true
 tracks/63/keys = {
-"handle_modes": PackedInt32Array(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
-"points": PackedFloat32Array(0.73671, 0, 0, 0.31161165, 0, 0.73671, -0.31161165, 0, 0.00010829427, 0.000108078646, 0.7367092, -0.00010829427, 2.1809506e-06, 0.00010829427, -2.1809506e-06, 0.73670256, -0.00010829427, 2.240798e-06, 0.00021658854, -4.481596e-06, 0.73668873, -0.00021658854, 4.730837e-06, 0.00043317708, -9.461674e-06, 0.7366588, -0.00043317708, 1.0544761e-05, 0.00086635415, -2.1089521e-05, 0.7365882, -0.00086635415, 2.6189658e-05, 0.0017327083, -5.2379317e-05, 0.7363916, -0.0017327083, 8.077893e-05, 0.0034654166, -0.00016155787, 0.7356208, -0.0034654166, 0.00038423564, 0.0034654166, -0.00038423564, 0.73378766, -0.0034654166, 0.00091392593, 0.0034654166, -0.00091392593, 0.7294276, -0.0034654166, 0.002173692, 0.0034654166, -0.002173692, 0.71905756, -0.0034654166, 0.005168731, 0.0034654166, -0.005168731, 0.69439334, -0.0034654166, 0.012292552, 0.0017327083, -0.006146276, 0.67131823, -0.0017327083, 0.009479494, 0.0017327083, -0.009479494, 0.63573164, -0.0017327083, 0.0146190785, 0.0017327083, -0.0146190785, 0.5808495, -0.0017327083, 0.022546308, 0.0017327083, -0.022546308, 0.495969, -0.0017327083, 0.034780566, 0.0038155834, -0.00662394, 0.47790575, -0.0038155834, 0.0054642707, 0.0019077917, -0.0027321354, 0.46995932, -0.0019077917, 0.0026071034, 0.0019077917, -0.0026071034, 0.46182117, -0.0019077917, 0.0029378461, 0.0038155834, -0.0058756922, 0.43340495, -0.0038155834, 0.015469122, 0.0019077917, -0.007734561, 0.4040608, -0.0019077917, 0.011736801, 0.0019077917, -0.011736801, 0.36432028, -0.0019077917, 0.0144927995, 0.00095389585, -0.0072463998, 0.3419144, -0.00095389585, 0.007666011, 0.00095389585, -0.007666011, 0.31920698, -0.00095389585, 0.00713382, 0.0019077917, -0.01426764, 0.28223255, -0.0019077917, 0.010543083, 0.0038155834, -0.021086166, 0.2357127, -0.0038155834, 0.010757894, 0.0038155834, -0.010757894, 0.21380332, -0.0038155834, 0.0043566516, 0.0038155834, -0.0043566516, 0.20708728, -0.0038155834, 0.00046072368, 0.007631167, -0.00092144735, 0.21605563, -0.007631167, -0.005204548, 0.0038155834, 0.002602274, 0.22351757, -0.0038155834, -0.0022129258, 0.0038155834, 0.0022129258, 0.22897124, -0.0038155834, -0.0013724603, 0.007631167, 0.0027449206, 0.23174255, -0.007631167, 0.000468617, 0.007631167, -0.000468617, 0.229302, -0.007631167, 0.0008547021, 0, 0),
-"times": PackedFloat32Array(0, 0.934835, 0.93515986, 0.93548477, 0.9361345, 0.9374341, 0.94003314, 0.94523126, 0.9556275, 0.96602374, 0.97642, 0.9868162, 0.9972125, 1.0024107, 1.0076088, 1.0128069, 1.018005, 1.0294517, 1.0351751, 1.0408984, 1.0523453, 1.0580686, 1.063792, 1.0666537, 1.0695153, 1.0752387, 1.0866855, 1.0981323, 1.109579, 1.1324725, 1.1439192, 1.155366, 1.1782595, 1.201153)
+"handle_modes": PackedInt32Array(0),
+"points": PackedFloat32Array(0.9607843, 0, 0, 0, 0),
+"times": PackedFloat32Array(0)
 }
 tracks/64/type = "bezier"
 tracks/64/imported = false
 tracks/64/enabled = true
-tracks/64/path = NodePath("sh_page1:zen_scale")
+tracks/64/path = NodePath("icon_coder:color:g")
 tracks/64/interp = 1
 tracks/64/loop_wrap = true
 tracks/64/keys = {
+"handle_modes": PackedInt32Array(0),
+"points": PackedFloat32Array(0.9607843, 0, 0, 0, 0),
+"times": PackedFloat32Array(0)
+}
+tracks/65/type = "bezier"
+tracks/65/imported = false
+tracks/65/enabled = true
+tracks/65/path = NodePath("icon_coder:color:b")
+tracks/65/interp = 1
+tracks/65/loop_wrap = true
+tracks/65/keys = {
+"handle_modes": PackedInt32Array(0),
+"points": PackedFloat32Array(0.9607843, 0, 0, 0, 0),
+"times": PackedFloat32Array(0)
+}
+tracks/66/type = "value"
+tracks/66/imported = false
+tracks/66/enabled = true
+tracks/66/path = NodePath("icon_coder:zen_ease_color")
+tracks/66/interp = 0
+tracks/66/loop_wrap = true
+tracks/66/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 1,
+"values": ["linear"]
+}
+tracks/67/type = "bezier"
+tracks/67/imported = false
+tracks/67/enabled = true
+tracks/67/path = NodePath("icon_coder:alpha")
+tracks/67/interp = 1
+tracks/67/loop_wrap = true
+tracks/67/keys = {
+"handle_modes": PackedInt32Array(0),
+"points": PackedFloat32Array(1, 0, 0, 0, 0),
+"times": PackedFloat32Array(0)
+}
+tracks/68/type = "value"
+tracks/68/imported = false
+tracks/68/enabled = true
+tracks/68/path = NodePath("icon_coder:zen_ease_alpha")
+tracks/68/interp = 0
+tracks/68/loop_wrap = true
+tracks/68/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 1,
+"values": ["linear"]
+}
+tracks/69/type = "bezier"
+tracks/69/imported = false
+tracks/69/enabled = true
+tracks/69/path = NodePath("icon_coder:outline")
+tracks/69/interp = 1
+tracks/69/loop_wrap = true
+tracks/69/keys = {
+"handle_modes": PackedInt32Array(0),
+"points": PackedFloat32Array(0, 0, 0, 0, 0),
+"times": PackedFloat32Array(0)
+}
+tracks/70/type = "value"
+tracks/70/imported = false
+tracks/70/enabled = true
+tracks/70/path = NodePath("icon_coder:zen_ease_outline")
+tracks/70/interp = 0
+tracks/70/loop_wrap = true
+tracks/70/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 1,
+"values": ["quadIn"]
+}
+tracks/71/type = "bezier"
+tracks/71/imported = false
+tracks/71/enabled = true
+tracks/71/path = NodePath("icon_coder:outline_color:r")
+tracks/71/interp = 1
+tracks/71/loop_wrap = true
+tracks/71/keys = {
+"handle_modes": PackedInt32Array(0),
+"points": PackedFloat32Array(0.9607843, 0, 0, 0, 0),
+"times": PackedFloat32Array(0)
+}
+tracks/72/type = "bezier"
+tracks/72/imported = false
+tracks/72/enabled = true
+tracks/72/path = NodePath("icon_coder:outline_color:g")
+tracks/72/interp = 1
+tracks/72/loop_wrap = true
+tracks/72/keys = {
+"handle_modes": PackedInt32Array(0),
+"points": PackedFloat32Array(0.9607843, 0, 0, 0, 0),
+"times": PackedFloat32Array(0)
+}
+tracks/73/type = "bezier"
+tracks/73/imported = false
+tracks/73/enabled = true
+tracks/73/path = NodePath("icon_coder:outline_color:b")
+tracks/73/interp = 1
+tracks/73/loop_wrap = true
+tracks/73/keys = {
+"handle_modes": PackedInt32Array(0),
+"points": PackedFloat32Array(0.9607843, 0, 0, 0, 0),
+"times": PackedFloat32Array(0)
+}
+tracks/74/type = "value"
+tracks/74/imported = false
+tracks/74/enabled = true
+tracks/74/path = NodePath("icon_coder:zen_ease_outline_color")
+tracks/74/interp = 0
+tracks/74/loop_wrap = true
+tracks/74/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 1,
+"values": ["quadIn"]
+}
+tracks/75/type = "bezier"
+tracks/75/imported = false
+tracks/75/enabled = true
+tracks/75/path = NodePath("icon_coder:outline_alpha")
+tracks/75/interp = 1
+tracks/75/loop_wrap = true
+tracks/75/keys = {
+"handle_modes": PackedInt32Array(0),
+"points": PackedFloat32Array(1, 0, 0, 0, 0),
+"times": PackedFloat32Array(0)
+}
+tracks/76/type = "value"
+tracks/76/imported = false
+tracks/76/enabled = true
+tracks/76/path = NodePath("icon_coder:zen_ease_outline_alpha")
+tracks/76/interp = 0
+tracks/76/loop_wrap = true
+tracks/76/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 1,
+"values": ["quadIn"]
+}
+tracks/77/type = "bezier"
+tracks/77/imported = false
+tracks/77/enabled = true
+tracks/77/path = NodePath("icon_coder:pos_x")
+tracks/77/interp = 1
+tracks/77/loop_wrap = true
+tracks/77/keys = {
+"handle_modes": PackedInt32Array(0, 0, 0, 0),
+"points": PackedFloat32Array(0.246826, 0, 0, 0.05463033, 0, 0.246826, -0.05463033, 0, 0.03985, 1.6125198e-09, 0.1863565, -0.03985, 0.06045851, 0.03985, -0.06045851, 0.125887, -0.03985, 0, 0, 0),
+"times": PackedFloat32Array(0, 0.163891, 0.283441, 0.402991)
+}
+tracks/78/type = "value"
+tracks/78/imported = false
+tracks/78/enabled = true
+tracks/78/path = NodePath("icon_coder:zen_ease_pos_x")
+tracks/78/interp = 0
+tracks/78/loop_wrap = true
+tracks/78/keys = {
+"times": PackedFloat32Array(0, 0.163891, 0.402991),
+"transitions": PackedFloat32Array(1, 1, 1),
+"update": 1,
+"values": ["cubicInOut", "linear", "cubicInOut"]
+}
+tracks/79/type = "bezier"
+tracks/79/imported = false
+tracks/79/enabled = true
+tracks/79/path = NodePath("icon_coder:pos_y")
+tracks/79/interp = 1
+tracks/79/loop_wrap = true
+tracks/79/keys = {
+"handle_modes": PackedInt32Array(0, 0, 0, 0),
+"points": PackedFloat32Array(0.291304, 0, 0, 0.05463033, 0, 0.291304, -0.05463033, 0, 0.03985, -4.2333328e-11, 0.2928915, -0.03985, -0.0015872115, 0.03985, 0.0015872115, 0.294479, -0.03985, 0, 0, 0),
+"times": PackedFloat32Array(0, 0.163891, 0.283441, 0.402991)
+}
+tracks/80/type = "value"
+tracks/80/imported = false
+tracks/80/enabled = true
+tracks/80/path = NodePath("icon_coder:zen_ease_pos_y")
+tracks/80/interp = 0
+tracks/80/loop_wrap = true
+tracks/80/keys = {
+"times": PackedFloat32Array(0, 0.163891, 0.402991),
+"transitions": PackedFloat32Array(1, 1, 1),
+"update": 1,
+"values": ["cubicInOut", "linear", "cubicInOut"]
+}
+tracks/81/type = "bezier"
+tracks/81/imported = false
+tracks/81/enabled = true
+tracks/81/path = NodePath("sh_book:pos_x")
+tracks/81/interp = 1
+tracks/81/loop_wrap = true
+tracks/81/keys = {
+"handle_modes": PackedInt32Array(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
+"points": PackedFloat32Array(0.012329, 0, 0, 0.0084190415, 0.014544117, 0.05199027, -0.0084190415, -0.011997843, 0.0042095208, 0.0059989216, 0.06943818, -0.0042095208, -0.00572439, 0.0042095208, 0.00572439, 0.08730703, -0.0042095208, -0.0064505986, 0.0084190415, 0.012901197, 0.14970021, -0.0084190415, -0.033965394, 0.0042095208, 0.016982697, 0.21413085, -0.0042095208, -0.025770374, 0.0042095208, 0.025770374, 0.30138874, -0.0042095208, -0.03182169, 0.0021047604, 0.015910845, 0.3505851, -0.0021047604, -0.016832182, 0.0021047604, 0.016832182, 0.40044352, -0.0021047604, -0.015663655, 0.0042095208, 0.03132731, 0.4816279, -0.0042095208, -0.02314934, 0.0084190415, 0.04629868, 0.58377105, -0.0084190415, -0.023620998, 0.0084190415, 0.023620998, 0.6318773, -0.0084190415, -0.009565855, 0.0084190415, 0.009565855, 0.6466236, -0.0084190415, -0.0010116063, 0.016838083, 0.0020232126, 0.6269319, -0.016838083, 0.011427573, 0.0084190415, -0.0057137865, 0.61054784, -0.0084190415, 0.004858899, 0.0084190415, -0.004858899, 0.59857327, -0.0084190415, 0.003013497, 0.016838083, -0.006026994, 0.5924883, -0.016838083, -0.0010289375, 0.016838083, 0.0010289375, 0.597847, -0.016838083, -0.0018766606, 0, 0),
+"times": PackedFloat32Array(0, 0.025257125, 0.03788569, 0.05051425, 0.07577138, 0.08839994, 0.1010285, 0.10734278, 0.113657065, 0.12628563, 0.15154275, 0.17679988, 0.202057, 0.25257125, 0.27782837, 0.3030855, 0.35359976, 0.404114)
+}
+tracks/82/type = "value"
+tracks/82/imported = false
+tracks/82/enabled = true
+tracks/82/path = NodePath("sh_book:zen_ease_pos_x")
+tracks/82/interp = 0
+tracks/82/loop_wrap = true
+tracks/82/keys = {
+"times": PackedFloat32Array(0, 0.404114),
+"transitions": PackedFloat32Array(1, 1),
+"update": 1,
+"values": ["linear", "over_top_smal"]
+}
+tracks/83/type = "bezier"
+tracks/83/imported = false
+tracks/83/enabled = true
+tracks/83/path = NodePath("sh_book:pos_y")
+tracks/83/interp = 1
+tracks/83/loop_wrap = true
+tracks/83/keys = {
+"handle_modes": PackedInt32Array(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
+"points": PackedFloat32Array(-0.438095, 0, 0, 0.0084190415, 0.028900843, -0.35928348, -0.0084190415, -0.023841102, 0.0042095208, 0.011920551, -0.32461244, -0.0042095208, -0.011375026, 0.0042095208, 0.011375026, -0.289105, -0.0042095208, -0.012818086, 0.0084190415, 0.025636172, -0.16512251, -0.0084190415, -0.06749316, 0.0042095208, 0.03374658, -0.037091374, -0.0042095208, -0.051208712, 0.0042095208, 0.051208712, 0.13630016, -0.0042095208, -0.06323338, 0.0021047604, 0.03161669, 0.23405904, -0.0021047604, -0.033447493, 0.0021047604, 0.033447493, 0.33313346, -0.0021047604, -0.031125495, 0.0042095208, 0.06225099, 0.49445626, -0.0042095208, -0.046000414, 0.0084190415, 0.09200083, 0.6974265, -0.0084190415, -0.046937656, 0.0084190415, 0.046937656, 0.7930191, -0.0084190415, -0.019008461, 0.0084190415, 0.019008461, 0.8223218, -0.0084190415, -0.0020101788, 0.016838083, 0.0040203575, 0.7831921, -0.016838083, 0.02270791, 0.0084190415, -0.011353955, 0.75063497, -0.0084190415, 0.009655194, 0.0084190415, -0.009655194, 0.72684014, -0.0084190415, 0.005988167, 0.016838083, -0.011976334, 0.7147487, -0.016838083, -0.002044618, 0.016838083, 0.002044618, 0.725397, -0.016838083, -0.0037291418, 0, 0),
+"times": PackedFloat32Array(0, 0.025257125, 0.03788569, 0.05051425, 0.07577138, 0.08839994, 0.1010285, 0.10734278, 0.113657065, 0.12628563, 0.15154275, 0.17679988, 0.202057, 0.25257125, 0.27782837, 0.3030855, 0.35359976, 0.404114)
+}
+tracks/84/type = "value"
+tracks/84/imported = false
+tracks/84/enabled = true
+tracks/84/path = NodePath("sh_book:zen_ease_pos_y")
+tracks/84/interp = 0
+tracks/84/loop_wrap = true
+tracks/84/keys = {
+"times": PackedFloat32Array(0, 0.404114),
+"transitions": PackedFloat32Array(1, 1),
+"update": 1,
+"values": ["linear", "over_top_smal"]
+}
+tracks/85/type = "bezier"
+tracks/85/imported = false
+tracks/85/enabled = true
+tracks/85/path = NodePath("sh_book:rot")
+tracks/85/interp = 1
+tracks/85/loop_wrap = true
+tracks/85/keys = {
+"handle_modes": PackedInt32Array(0, 0, 0),
+"points": PackedFloat32Array(-360, 0, 0, 0.054443, -4.7999993e-06, -180, -0.054443, -179.96729, 0.054443, 179.96729, 0, -0.054443, 0, 0, 0),
+"times": PackedFloat32Array(0.032554, 0.195883, 0.359212)
+}
+tracks/86/type = "value"
+tracks/86/imported = false
+tracks/86/enabled = true
+tracks/86/path = NodePath("sh_book:zen_ease_rot")
+tracks/86/interp = 0
+tracks/86/loop_wrap = true
+tracks/86/keys = {
+"times": PackedFloat32Array(0.032554, 0.359212),
+"transitions": PackedFloat32Array(1, 1),
+"update": 1,
+"values": ["linear", "cubicInOut"]
+}
+tracks/87/type = "bezier"
+tracks/87/imported = false
+tracks/87/enabled = true
+tracks/87/path = NodePath("sh_page1:color:r")
+tracks/87/interp = 1
+tracks/87/loop_wrap = true
+tracks/87/keys = {
+"handle_modes": PackedInt32Array(0, 0, 0, 0, 0, 0),
+"points": PackedFloat32Array(0.972549, 0, 0, 0.30592534, 0, 0.972549, -0.30592534, 0, 0.0076765832, 0, 0.972549, -0.0076765832, 0, 0.0076765832, 0, 0.972549, -0.0076765832, 0, 0.0076765832, 0, 0.972549, -0.0076765832, 0, 0.0076765832, 0, 0.972549, -0.0076765832, 0, 0, 0),
+"times": PackedFloat32Array(0, 0.917776, 0.94080573, 0.9638355, 0.9868652, 1.009895)
+}
+tracks/88/type = "bezier"
+tracks/88/imported = false
+tracks/88/enabled = true
+tracks/88/path = NodePath("sh_page1:color:g")
+tracks/88/interp = 1
+tracks/88/loop_wrap = true
+tracks/88/keys = {
+"handle_modes": PackedInt32Array(0, 0, 0, 0, 0, 0),
+"points": PackedFloat32Array(0.972549, 0, 0, 0.30592534, 0, 0.972549, -0.30592534, 0, 0.0076765832, 0, 0.972549, -0.0076765832, 0, 0.0076765832, 0, 0.972549, -0.0076765832, 0, 0.0076765832, 0, 0.972549, -0.0076765832, 0, 0.0076765832, 0, 0.972549, -0.0076765832, 0, 0, 0),
+"times": PackedFloat32Array(0, 0.917776, 0.94080573, 0.9638355, 0.9868652, 1.009895)
+}
+tracks/89/type = "bezier"
+tracks/89/imported = false
+tracks/89/enabled = true
+tracks/89/path = NodePath("sh_page1:color:b")
+tracks/89/interp = 1
+tracks/89/loop_wrap = true
+tracks/89/keys = {
+"handle_modes": PackedInt32Array(0, 0, 0, 0, 0, 0),
+"points": PackedFloat32Array(0.9019608, 0, 0, 0.30592534, 0, 0.9019608, -0.30592534, 0, 0.0076765832, 0, 0.9019608, -0.0076765832, 0, 0.0076765832, 0, 0.9019608, -0.0076765832, 0, 0.0076765832, 0, 0.9019608, -0.0076765832, 0, 0.0076765832, 0, 0.9019608, -0.0076765832, 0, 0, 0),
+"times": PackedFloat32Array(0, 0.917776, 0.94080573, 0.9638355, 0.9868652, 1.009895)
+}
+tracks/90/type = "value"
+tracks/90/imported = false
+tracks/90/enabled = true
+tracks/90/path = NodePath("sh_page1:zen_ease_color")
+tracks/90/interp = 0
+tracks/90/loop_wrap = true
+tracks/90/keys = {
+"times": PackedFloat32Array(0, 0.917776, 1.009895),
+"transitions": PackedFloat32Array(1, 1, 1),
+"update": 1,
+"values": ["linear", "linear", "sineIn"]
+}
+tracks/91/type = "bezier"
+tracks/91/imported = false
+tracks/91/enabled = true
+tracks/91/path = NodePath("sh_page1:alpha")
+tracks/91/interp = 1
+tracks/91/loop_wrap = true
+tracks/91/keys = {
+"handle_modes": PackedInt32Array(0, 0, 0, 0, 0, 0),
+"points": PackedFloat32Array(0, 0, 0, 0.30592534, 0, 0, -0.30592534, 0, 0.0076765832, 0, 0.076120466, -0.0076765832, -0.05008963, 0.0076765832, 0.05008963, 0.29289323, -0.0076765832, -0.092561044, 0.0076765832, 0.092561044, 0.61731654, -0.0076765832, -0.120972596, 0.0076765832, 0.120972596, 1, -0.0076765832, -0.1309812, 0, 0),
+"times": PackedFloat32Array(0, 0.917776, 0.94080573, 0.9638355, 0.9868652, 1.009895)
+}
+tracks/92/type = "value"
+tracks/92/imported = false
+tracks/92/enabled = true
+tracks/92/path = NodePath("sh_page1:zen_ease_alpha")
+tracks/92/interp = 0
+tracks/92/loop_wrap = true
+tracks/92/keys = {
+"times": PackedFloat32Array(0, 0.917776, 1.009895),
+"transitions": PackedFloat32Array(1, 1, 1),
+"update": 1,
+"values": ["linear", "linear", "sineIn"]
+}
+tracks/93/type = "bezier"
+tracks/93/imported = false
+tracks/93/enabled = true
+tracks/93/path = NodePath("sh_page1:outline")
+tracks/93/interp = 1
+tracks/93/loop_wrap = true
+tracks/93/keys = {
+"handle_modes": PackedInt32Array(0, 0, 0, 0, 0, 0),
+"points": PackedFloat32Array(0, 0, 0, 0.30592534, 0, 0, -0.30592534, 0, 0.0076765832, 0, 0, -0.0076765832, 0, 0.0076765832, 0, 0, -0.0076765832, 0, 0.0076765832, 0, 0, -0.0076765832, 0, 0.0076765832, 0, 0, -0.0076765832, 0, 0, 0),
+"times": PackedFloat32Array(0, 0.917776, 0.94080573, 0.9638355, 0.9868652, 1.009895)
+}
+tracks/94/type = "value"
+tracks/94/imported = false
+tracks/94/enabled = true
+tracks/94/path = NodePath("sh_page1:zen_ease_outline")
+tracks/94/interp = 0
+tracks/94/loop_wrap = true
+tracks/94/keys = {
+"times": PackedFloat32Array(0, 0.917776, 1.009895),
+"transitions": PackedFloat32Array(1, 1, 1),
+"update": 1,
+"values": ["linear", "linear", "sineIn"]
+}
+tracks/95/type = "bezier"
+tracks/95/imported = false
+tracks/95/enabled = true
+tracks/95/path = NodePath("sh_page1:outline_color:r")
+tracks/95/interp = 1
+tracks/95/loop_wrap = true
+tracks/95/keys = {
+"handle_modes": PackedInt32Array(0, 0, 0, 0, 0, 0),
+"points": PackedFloat32Array(0.96862745, 0, 0, 0.30592534, 0, 0.96862745, -0.30592534, 0, 0.0076765832, 0, 0.96862745, -0.0076765832, 0, 0.0076765832, 0, 0.96862745, -0.0076765832, 0, 0.0076765832, 0, 0.96862745, -0.0076765832, 0, 0.0076765832, 0, 0.96862745, -0.0076765832, 0, 0, 0),
+"times": PackedFloat32Array(0, 0.917776, 0.94080573, 0.9638355, 0.9868652, 1.009895)
+}
+tracks/96/type = "bezier"
+tracks/96/imported = false
+tracks/96/enabled = true
+tracks/96/path = NodePath("sh_page1:outline_color:g")
+tracks/96/interp = 1
+tracks/96/loop_wrap = true
+tracks/96/keys = {
+"handle_modes": PackedInt32Array(0, 0, 0, 0, 0, 0),
+"points": PackedFloat32Array(0.9764706, 0, 0, 0.30592534, 0, 0.9764706, -0.30592534, 0, 0.0076765832, 0, 0.9764706, -0.0076765832, 0, 0.0076765832, 0, 0.9764706, -0.0076765832, 0, 0.0076765832, 0, 0.9764706, -0.0076765832, 0, 0.0076765832, 0, 0.9764706, -0.0076765832, 0, 0, 0),
+"times": PackedFloat32Array(0, 0.917776, 0.94080573, 0.9638355, 0.9868652, 1.009895)
+}
+tracks/97/type = "bezier"
+tracks/97/imported = false
+tracks/97/enabled = true
+tracks/97/path = NodePath("sh_page1:outline_color:b")
+tracks/97/interp = 1
+tracks/97/loop_wrap = true
+tracks/97/keys = {
+"handle_modes": PackedInt32Array(0, 0, 0, 0, 0, 0),
+"points": PackedFloat32Array(0.9764706, 0, 0, 0.30592534, 0, 0.9764706, -0.30592534, 0, 0.0076765832, 0, 0.9764706, -0.0076765832, 0, 0.0076765832, 0, 0.9764706, -0.0076765832, 0, 0.0076765832, 0, 0.9764706, -0.0076765832, 0, 0.0076765832, 0, 0.9764706, -0.0076765832, 0, 0, 0),
+"times": PackedFloat32Array(0, 0.917776, 0.94080573, 0.9638355, 0.9868652, 1.009895)
+}
+tracks/98/type = "value"
+tracks/98/imported = false
+tracks/98/enabled = true
+tracks/98/path = NodePath("sh_page1:zen_ease_outline_color")
+tracks/98/interp = 0
+tracks/98/loop_wrap = true
+tracks/98/keys = {
+"times": PackedFloat32Array(0, 0.917776, 1.009895),
+"transitions": PackedFloat32Array(1, 1, 1),
+"update": 1,
+"values": ["linear", "linear", "sineIn"]
+}
+tracks/99/type = "bezier"
+tracks/99/imported = false
+tracks/99/enabled = true
+tracks/99/path = NodePath("sh_page1:outline_alpha")
+tracks/99/interp = 1
+tracks/99/loop_wrap = true
+tracks/99/keys = {
+"handle_modes": PackedInt32Array(0, 0, 0, 0, 0, 0),
+"points": PackedFloat32Array(0, 0, 0, 0.30592534, 0, 0, -0.30592534, 0, 0.0076765832, 0, 0.076120466, -0.0076765832, -0.05008963, 0.0076765832, 0.05008963, 0.29289323, -0.0076765832, -0.092561044, 0.0076765832, 0.092561044, 0.61731654, -0.0076765832, -0.120972596, 0.0076765832, 0.120972596, 1, -0.0076765832, -0.1309812, 0, 0),
+"times": PackedFloat32Array(0, 0.917776, 0.94080573, 0.9638355, 0.9868652, 1.009895)
+}
+tracks/100/type = "value"
+tracks/100/imported = false
+tracks/100/enabled = true
+tracks/100/path = NodePath("sh_page1:zen_ease_outline_alpha")
+tracks/100/interp = 0
+tracks/100/loop_wrap = true
+tracks/100/keys = {
+"times": PackedFloat32Array(0, 0.917776, 1.009895),
+"transitions": PackedFloat32Array(1, 1, 1),
+"update": 1,
+"values": ["linear", "linear", "sineIn"]
+}
+tracks/101/type = "bezier"
+tracks/101/imported = false
+tracks/101/enabled = true
+tracks/101/path = NodePath("sh_page1:pos_x")
+tracks/101/interp = 1
+tracks/101/loop_wrap = true
+tracks/101/keys = {
+"handle_modes": PackedInt32Array(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
+"points": PackedFloat32Array(0.655571, 0, 0, 0.31161165, 0, 0.655571, -0.31161165, 0, 0.00010829427, 2.9929588e-05, 0.6555708, -0.00010829427, 6.039579e-07, 0.00010829427, -6.039579e-07, 0.65556896, -0.00010829427, 6.205311e-07, 0.00021658854, -1.2410623e-06, 0.65556514, -0.00021658854, 1.3100831e-06, 0.00043317708, -2.6201662e-06, 0.6555568, -0.00043317708, 2.920099e-06, 0.00086635415, -5.840198e-06, 0.65553725, -0.00086635415, 7.252549e-06, 0.0017327083, -1.4505098e-05, 0.6554828, -0.0017327083, 2.2369639e-05, 0.0034654166, -4.4739278e-05, 0.6552694, -0.0034654166, 0.000106404135, 0.0034654166, -0.000106404135, 0.65476173, -0.0034654166, 0.00025308816, 0.0034654166, -0.00025308816, 0.6535543, -0.0034654166, 0.00060194783, 0.0034654166, -0.00060194783, 0.6506826, -0.0034654166, 0.0014313465, 0.0034654166, -0.0014313465, 0.6438525, -0.0034654166, 0.0034041046, 0.0017327083, -0.0017020523, 0.63746244, -0.0017327083, 0.002625101, 0.0017327083, -0.002625101, 0.62760764, -0.0017327083, 0.004048376, 0.0017327083, -0.004048376, 0.6124095, -0.0017327083, 0.0062436177, 0.0017327083, -0.0062436177, 0.588904, -0.0017327083, 0.009631579, 0.0038155834, 0.0036353958, 0.5988176, -0.0038155834, -0.002998938, 0.0019077917, 0.001499469, 0.6031788, -0.0019077917, -0.0014308483, 0.0019077917, 0.0014308483, 0.6076452, -0.0019077917, -0.0016123687, 0.0038155834, 0.0032247375, 0.6232408, -0.0038155834, -0.008489869, 0.0019077917, 0.0042449343, 0.63934565, -0.0019077917, -0.006441471, 0.0019077917, 0.006441471, 0.66115636, -0.0019077917, -0.007954037, 0.00095389585, 0.0039770184, 0.6734533, -0.00095389585, -0.004207312, 0.00095389585, 0.004207312, 0.6859157, -0.00095389585, -0.0039152317, 0.0019077917, 0.007830463, 0.7062083, -0.0019077917, -0.0057863267, 0.0038155834, 0.011572653, 0.73173964, -0.0038155834, -0.005904221, 0.0038155834, 0.005904221, 0.7437641, -0.0038155834, -0.002391047, 0.0038155834, 0.002391047, 0.74745005, -0.0038155834, -0.0002528575, 0.007631167, 0.000505715, 0.74252796, -0.007631167, 0.0028563957, 0.0038155834, -0.0014281978, 0.73843265, -0.0038155834, 0.0012145131, 0.0038155834, -0.0012145131, 0.73543954, -0.0038155834, 0.000753243, 0.007631167, -0.001506486, 0.73391855, -0.007631167, -0.0002571896, 0.007631167, 0.0002571896, 0.735258, -0.007631167, -0.00046908343, 0, 0),
+"times": PackedFloat32Array(0, 0.934835, 0.93515986, 0.93548477, 0.9361345, 0.9374341, 0.94003314, 0.94523126, 0.9556275, 0.96602374, 0.97642, 0.9868162, 0.9972125, 1.0024107, 1.0076088, 1.0128069, 1.018005, 1.0294517, 1.0351751, 1.0408984, 1.0523453, 1.0580686, 1.063792, 1.0666537, 1.0695153, 1.0752387, 1.0866855, 1.0981323, 1.109579, 1.1324725, 1.1439192, 1.155366, 1.1782595, 1.201153)
+}
+tracks/102/type = "value"
+tracks/102/imported = false
+tracks/102/enabled = true
+tracks/102/path = NodePath("sh_page1:zen_ease_pos_x")
+tracks/102/interp = 0
+tracks/102/loop_wrap = true
+tracks/102/keys = {
+"times": PackedFloat32Array(0, 0.934835, 1.018005, 1.201153),
+"transitions": PackedFloat32Array(1, 1, 1, 1),
+"update": 1,
+"values": ["linear", "linear", "expoIn", "over_top_smal"]
+}
+tracks/103/type = "bezier"
+tracks/103/imported = false
+tracks/103/enabled = true
+tracks/103/path = NodePath("sh_page1:pos_y")
+tracks/103/interp = 1
+tracks/103/loop_wrap = true
+tracks/103/keys = {
+"handle_modes": PackedInt32Array(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
+"points": PackedFloat32Array(0.73671, 0, 0, 0.31161165, 0, 0.73671, -0.31161165, 0, 0.00010829427, 0.000108078646, 0.7367092, -0.00010829427, 2.1809506e-06, 0.00010829427, -2.1809506e-06, 0.73670256, -0.00010829427, 2.240798e-06, 0.00021658854, -4.481596e-06, 0.73668873, -0.00021658854, 4.730837e-06, 0.00043317708, -9.461674e-06, 0.7366588, -0.00043317708, 1.0544761e-05, 0.00086635415, -2.1089521e-05, 0.7365882, -0.00086635415, 2.6189658e-05, 0.0017327083, -5.2379317e-05, 0.7363916, -0.0017327083, 8.077893e-05, 0.0034654166, -0.00016155787, 0.7356208, -0.0034654166, 0.00038423564, 0.0034654166, -0.00038423564, 0.73378766, -0.0034654166, 0.00091392593, 0.0034654166, -0.00091392593, 0.7294276, -0.0034654166, 0.002173692, 0.0034654166, -0.002173692, 0.71905756, -0.0034654166, 0.005168731, 0.0034654166, -0.005168731, 0.69439334, -0.0034654166, 0.012292552, 0.0017327083, -0.006146276, 0.67131823, -0.0017327083, 0.009479494, 0.0017327083, -0.009479494, 0.63573164, -0.0017327083, 0.0146190785, 0.0017327083, -0.0146190785, 0.5808495, -0.0017327083, 0.022546308, 0.0017327083, -0.022546308, 0.495969, -0.0017327083, 0.034780566, 0.0038155834, -0.00662394, 0.47790575, -0.0038155834, 0.0054642707, 0.0019077917, -0.0027321354, 0.46995932, -0.0019077917, 0.0026071034, 0.0019077917, -0.0026071034, 0.46182117, -0.0019077917, 0.0029378461, 0.0038155834, -0.0058756922, 0.43340495, -0.0038155834, 0.015469122, 0.0019077917, -0.007734561, 0.4040608, -0.0019077917, 0.011736801, 0.0019077917, -0.011736801, 0.36432028, -0.0019077917, 0.0144927995, 0.00095389585, -0.0072463998, 0.3419144, -0.00095389585, 0.007666011, 0.00095389585, -0.007666011, 0.31920698, -0.00095389585, 0.00713382, 0.0019077917, -0.01426764, 0.28223255, -0.0019077917, 0.010543083, 0.0038155834, -0.021086166, 0.2357127, -0.0038155834, 0.010757894, 0.0038155834, -0.010757894, 0.21380332, -0.0038155834, 0.0043566516, 0.0038155834, -0.0043566516, 0.20708728, -0.0038155834, 0.00046072368, 0.007631167, -0.00092144735, 0.21605563, -0.007631167, -0.005204548, 0.0038155834, 0.002602274, 0.22351757, -0.0038155834, -0.0022129258, 0.0038155834, 0.0022129258, 0.22897124, -0.0038155834, -0.0013724603, 0.007631167, 0.0027449206, 0.23174255, -0.007631167, 0.000468617, 0.007631167, -0.000468617, 0.229302, -0.007631167, 0.0008547021, 0, 0),
+"times": PackedFloat32Array(0, 0.934835, 0.93515986, 0.93548477, 0.9361345, 0.9374341, 0.94003314, 0.94523126, 0.9556275, 0.96602374, 0.97642, 0.9868162, 0.9972125, 1.0024107, 1.0076088, 1.0128069, 1.018005, 1.0294517, 1.0351751, 1.0408984, 1.0523453, 1.0580686, 1.063792, 1.0666537, 1.0695153, 1.0752387, 1.0866855, 1.0981323, 1.109579, 1.1324725, 1.1439192, 1.155366, 1.1782595, 1.201153)
+}
+tracks/104/type = "value"
+tracks/104/imported = false
+tracks/104/enabled = true
+tracks/104/path = NodePath("sh_page1:zen_ease_pos_y")
+tracks/104/interp = 0
+tracks/104/loop_wrap = true
+tracks/104/keys = {
+"times": PackedFloat32Array(0, 0.934835, 1.018005, 1.201153),
+"transitions": PackedFloat32Array(1, 1, 1, 1),
+"update": 1,
+"values": ["linear", "linear", "expoIn", "over_top_smal"]
+}
+tracks/105/type = "bezier"
+tracks/105/imported = false
+tracks/105/enabled = true
+tracks/105/path = NodePath("sh_page1:zen_scale")
+tracks/105/interp = 1
+tracks/105/loop_wrap = true
+tracks/105/keys = {
 "handle_modes": PackedInt32Array(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
 "points": PackedFloat32Array(0.04, 0, 0, 0.31161165, -0.011666667, 0.005, -0.31161165, 0.01167208, 0.0019191458, 0.11563926, 0.28654543, -0.0019191458, -0.07498761, 0.0019191458, 0.07498761, 0.4691051, -0.0019191458, -0.048627455, 0.0019191458, 0.048627455, 0.5874803, -0.0019191458, -0.03152092, 0.0019191458, 0.03152092, 0.6642372, -0.0019191458, -0.020439425, 0.0038382916, 0.04087885, 0.7462802, -0.0038382916, -0.01719594, 0.0038382916, 0.01719594, 0.780775, -0.0038382916, -0.007222096, 0.0038382916, 0.007222096, 0.7952783, -0.0038382916, -0.0030398369, 0.0038382916, 0.0030398369, 0.80137616, -0.0038382916, -0.0012814999, 0.0038382916, 0.0012814999, 0.80394, -0.0038382916, -0.0005364418, 0.0019191458, 0.0002682209, 0.8045939, -0.0019191458, -0.00017384689, 0.0009595729, 8.692344e-05, 0.8048288, -0.0009595729, -7.202228e-05, 0.00047978645, 3.601114e-05, 0.80492854, -0.00047978645, -3.228585e-05, 0.00023989323, 1.6142925e-05, 0.80497444, -0.00023989323, -1.4901161e-05, 0.00011994661, 7.4505806e-06, 0.8049965, -0.00011994661, -7.1401396e-06, 0.00011994661, 7.1401396e-06, 0.805, -0.00011994661, 0.00034458935, 0, 0),
 "times": PackedFloat32Array(0, 0.934835, 0.9405924, 0.94634986, 0.9521073, 0.95786476, 0.9693796, 0.9808945, 0.99240935, 1.0039243, 1.0154392, 1.0211966, 1.0240753, 1.0255146, 1.0262343, 1.0265942, 1.026954)
+}
+tracks/106/type = "value"
+tracks/106/imported = false
+tracks/106/enabled = true
+tracks/106/path = NodePath("sh_page1:zen_ease_scale")
+tracks/106/interp = 0
+tracks/106/loop_wrap = true
+tracks/106/keys = {
+"times": PackedFloat32Array(0, 0.934835, 1.026954),
+"transitions": PackedFloat32Array(1, 1, 1),
+"update": 1,
+"values": ["linear", "linear", "expoOut"]
 }
 
 [sub_resource type="AnimationLibrary" id="AnimationLibrary_yupq1"]
@@ -754,13 +1258,13 @@ _data = {
 &"enter": SubResource("Animation_t53h8")
 }
 
-[node name="ma_prog_02_coding" type="Node2D" unique_id=509312789]
+[node name="ma_prog_02_coding" type="Node2D" unique_id=1964579120]
 script = ExtResource("1_ea4qs")
 loop_smooth = true
 clear_color = Color(0.1, 0.12, 0.16, 1)
 loop_play = true
 
-[node name="t1" type="Node2D" parent="." unique_id=736952398]
+[node name="t1" type="Node2D" parent="." unique_id=1813063482]
 script = ExtResource("2_ie7he")
 text = "coding w/ ai"
 size_frac = Vector2(0.12, 0.12)
@@ -768,7 +1272,7 @@ color_base = Color(0.9607843, 0.9607843, 0.9607843, 0)
 elem_name = "t1"
 pos_frac = Vector2(0.5, 0.1)
 
-[node name="t2" type="Node2D" parent="." unique_id=250067357]
+[node name="t2" type="Node2D" parent="." unique_id=1586259612]
 z_index = 1
 script = ExtResource("2_ie7he")
 text = "so does AI-assistance is
@@ -778,7 +1282,7 @@ color_base = Color(0.9607843, 0.9607843, 0.9607843, 1)
 elem_name = "t2"
 pos_frac = Vector2(0.5, 0.26378)
 
-[node name="t3" type="Node2D" parent="." unique_id=487045394]
+[node name="t3" type="Node2D" parent="." unique_id=1310101743]
 z_index = 2
 script = ExtResource("2_ie7he")
 text = "codebase"
@@ -787,7 +1291,7 @@ color_base = Color(0.9607843, 0.9607843, 0.9607843, 1)
 elem_name = "t3"
 pos_frac = Vector2(0.595499, 0.93982)
 
-[node name="icon_ai" type="Node2D" parent="." unique_id=217788436]
+[node name="icon_ai" type="Node2D" parent="." unique_id=1234566692]
 z_index = 3
 script = ExtResource("3_u2q0y")
 shape_kind = 6
@@ -801,7 +1305,7 @@ shape_refs = Array[ExtResource("5_gxjjr")]([ExtResource("4_1cvba"), ExtResource(
 elem_name = "icon_ai"
 unit_abs = true
 
-[node name="icon_coder" type="Node2D" parent="." unique_id=704256312]
+[node name="icon_coder" type="Node2D" parent="." unique_id=1210730032]
 z_index = 4
 script = ExtResource("3_u2q0y")
 shape_kind = 6
@@ -814,7 +1318,7 @@ shape_name = "coder_icon_128"
 elem_name = "icon_coder"
 unit_abs = true
 
-[node name="sh_book" type="Node2D" parent="." unique_id=515142337]
+[node name="sh_book" type="Node2D" parent="." unique_id=1712155963]
 z_index = 5
 script = ExtResource("3_u2q0y")
 shape_kind = 6
@@ -827,7 +1331,7 @@ elem_name = "sh_book"
 unit_abs = true
 pos_frac = Vector2(0.597847, 0.725397)
 
-[node name="sh_page1" type="Node2D" parent="." unique_id=1853338671]
+[node name="sh_page1" type="Node2D" parent="." unique_id=1695258300]
 z_index = 6
 script = ExtResource("3_u2q0y")
 shape_kind = 6
@@ -841,7 +1345,7 @@ elem_name = "sh_page1"
 unit_abs = true
 pos_frac = Vector2(0.655571, 0.73671)
 
-[node name="Signals" type="Node" parent="." unique_id=1317473183]
+[node name="Signals" type="Node" parent="." unique_id=2079824613]
 script = ExtResource("9_jlval")
 signals_data = [{
 "length": 1.0,
@@ -858,7 +1362,7 @@ signals_data = [{
 "uses_seq": false
 }]
 
-[node name="AnimationPlayer" type="AnimationPlayer" parent="." unique_id=1715160857]
+[node name="AnimationPlayer" type="AnimationPlayer" parent="." unique_id=406942398]
 callback_mode_method = 1
 libraries/ = SubResource("AnimationLibrary_yupq1")
 libraries/sig = SubResource("AnimationLibrary_oafsk")

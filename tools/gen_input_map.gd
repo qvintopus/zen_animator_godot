@@ -39,6 +39,18 @@ const ACTIONS := {
     "zen_edit_tool_rect": [KEY_R],
     "zen_edit_tool_fill": [KEY_G],
     "zen_edit_mirror": [KEY_M],
+    # Gallery scene CRUD.
+    "zen_new": [KEY_N],
+    "zen_rename": [KEY_F2],
+    # Scene editor. 1-4 summon panels (the shape editor's inks share them).
+    "zen_edit_autokey": [KEY_K],
+    "zen_edit_home": [KEY_HOME],
+    "zen_edit_frame_prev": [KEY_LEFT],
+    "zen_edit_frame_next": [KEY_RIGHT],
+    "zen_edit_panel_1": [KEY_1],
+    "zen_edit_panel_2": [KEY_2],
+    "zen_edit_panel_3": [KEY_3],
+    "zen_edit_panel_4": [KEY_4],
 }
 
 func _init() -> void:
@@ -53,6 +65,11 @@ func _init() -> void:
     # zen_export, so _unhandled_input can simply check this one first.
     _set_action("zen_export_queue", [KEY_E], true)
     _set_action("zen_edit_save", [KEY_S], true)
+    # Checked before zen_edit_save, which a non-exact match also satisfies.
+    _set_action("zen_edit_save_as", [KEY_S], true, true)
+    _set_action("zen_duplicate", [KEY_D], true)
+    # Checked before zen_play (ENTER) for the same reason.
+    _set_action("zen_edit_scene", [KEY_ENTER, KEY_KP_ENTER], true)
     _set_action("zen_edit_undo", [KEY_Z], true)
     # Redo is checked before undo by the editor: a non-exact match lets
     # Ctrl+Shift+Z satisfy the Ctrl+Z action too.

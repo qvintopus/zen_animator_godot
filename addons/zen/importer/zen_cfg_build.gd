@@ -16,7 +16,7 @@ const SUPPORTED := ["shape", "text", "global"]
 static func build(doc: Dictionary) -> Dictionary:
     var canvas := ZenCanvas.new()
     canvas.set_script(load("res://addons/zen/runtime/zen_canvas.gd"))
-    canvas.name = _node_name(String(doc["name"]))
+    canvas.name = node_name(String(doc["name"]))
     canvas.design_size = Vector2(320, 180)
     canvas.duration = float(doc["duration"])
     canvas.intro_end = float(doc["intro_end"])
@@ -42,24 +42,16 @@ static func build(doc: Dictionary) -> Dictionary:
         # A global element is TWO rects at different depths: its background half
         # is drawn before every element, its fade half at its own index.
         if kind == "global":
-            var bg := _build_global(e, true)
+            var bg := build_global(e, true)
             canvas.add_child(bg)
             bg.owner = canvas
             bg.z_index = -1                     # behind every element
-        var node: Node2D = _build_text(e) if kind == "text" else (
-            _build_global(e, false) if kind == "global" else _build_shape(e))
+        var node: Node2D = build_text(e) if kind == "text" else (
+            build_global(e, false) if kind == "global" else build_shape(e))
         canvas.add_child(node)
         node.owner = canvas
 
-    # Element order IS draw order in Zen (anim.h:556), so index -> z_index.
-    # The background half keeps its -1 and is skipped here.
-    var z := 0
-    for c in canvas.get_children():
-        var n := c as Node2D
-        if n == null: continue              # the bus is a plain Node
-        if n.z_index < 0: continue
-        n.z_index = z
-        z += 1
+    assign_z(canvas)
 
     var bus := _build_bus(doc)
     if bus != null:
@@ -70,6 +62,21 @@ static func build(doc: Dictionary) -> Dictionary:
     ZenAnimBuilder.install(canvas)
 
     return {"canvas": canvas, "skipped": skipped}
+
+
+## Element order IS draw order in Zen (anim.h:556), so child index -> z_index.
+## A global's background half keeps its -1 and is skipped. Re-run after any
+## reorder, add or delete.
+static func assign_z(canvas: ZenCanvas) -> void:
+    var z := 0
+    for c in canvas.get_children():
+        var n := c as ZenElement
+        if n == null: continue              # the bus and the player
+        if n is ZenGlobal and (n as ZenGlobal).is_background:
+            n.z_index = -1
+            continue
+        n.z_index = z
+        z += 1
 
 
 ## The signal bus, or null for a document that authored no signals.
@@ -88,10 +95,10 @@ static func _build_bus(doc: Dictionary) -> ZenSignalBus:
     return bus
 
 
-static func _build_text(e: Dictionary) -> ZenText:
+static func build_text(e: Dictionary) -> ZenText:
     var n := ZenText.new()
     n.set_script(load("res://addons/zen/runtime/zen_text.gd"))
-    n.name = _node_name(String(e["name"]))
+    n.name = node_name(String(e["name"]))
     n.elem_name = String(e["name"])
     n.text = String(e["text"])
     n.unit_abs = bool(e["unit_abs"])
@@ -109,10 +116,10 @@ static func _build_text(e: Dictionary) -> ZenText:
     return n
 
 
-static func _build_global(e: Dictionary, background: bool) -> ZenGlobal:
+static func build_global(e: Dictionary, background: bool) -> ZenGlobal:
     var n := ZenGlobal.new()
     n.set_script(load("res://addons/zen/runtime/zen_global.gd"))
-    n.name = _node_name(String(e["name"])) + ("_bg" if background else "")
+    n.name = node_name(String(e["name"])) + ("_bg" if background else "")
     n.elem_name = String(e["name"])
     n.is_background = background
     n.corner_mode = bool(e["corner_mode"])
@@ -122,10 +129,10 @@ static func _build_global(e: Dictionary, background: bool) -> ZenGlobal:
     return n
 
 
-static func _build_shape(e: Dictionary) -> ZenShape:
+static func build_shape(e: Dictionary) -> ZenShape:
     var s := ZenShape.new()
     s.set_script(load("res://addons/zen/runtime/zen_shape.gd"))
-    s.name = _node_name(String(e["name"]))
+    s.name = node_name(String(e["name"]))
     s.elem_name = String(e["name"])
     s.shape_kind = ZenShape.kind_from_name(String(e["shape"]))
     s.unit_abs = bool(e["unit_abs"])
@@ -192,7 +199,7 @@ static func _tracks_for(e: Dictionary, valid: Array) -> Dictionary:
 
 
 ## Node names cannot contain . : @ / " % and must not be empty.
-static func _node_name(raw: String) -> String:
+static func node_name(raw: String) -> String:
     var out := ""
     for ch in raw:
         out += "_" if ".:@/\"%".contains(ch) else ch

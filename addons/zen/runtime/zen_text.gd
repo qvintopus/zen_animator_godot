@@ -94,6 +94,26 @@ func base_color(_prop_name: String) -> Color:
     return color_base
 
 
+func set_base_scalar(prop_name: String, v: float) -> bool:
+    match prop_name:
+        "size": size_frac.x = v
+        "alpha": color_base.a = v
+        "crumble_dir": crumble_dir = v
+        "crumble_spread": crumble_spread = v
+        "crumble_dist": crumble_dist = v
+        "crumble_spin": crumble_spin = v
+        _: return super.set_base_scalar(prop_name, v)
+    queue_redraw()
+    return true
+
+
+func set_base_color(prop_name: String, c: Color) -> bool:
+    if prop_name != "color": return false
+    color_base = _rgb(c, color_base.a)
+    queue_redraw()
+    return true
+
+
 func _pose(t: float) -> void:
     _t = t
 
@@ -102,6 +122,13 @@ func _pose(t: float) -> void:
 func _size_px(t: float) -> float:
     var s := prop("size", t, size_frac.x)
     return maxf(1.0, s if unit_abs else design().y * s)
+
+
+func bounds_px(t: float) -> Rect2:
+    var box := ZenTextMetrics.measure(text, _size_px(t), effective_font())
+    var h := box * 0.5
+    return _box(center_px(t), [Vector2(-h.x, -h.y), Vector2(h.x, -h.y), Vector2(h.x, h.y),
+        Vector2(-h.x, h.y)], deg_to_rad(prop("rot", t, rot_base)))
 
 
 func _draw() -> void:

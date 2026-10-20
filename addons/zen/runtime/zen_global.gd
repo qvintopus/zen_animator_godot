@@ -45,6 +45,23 @@ func base_color(prop_name: String) -> Color:
     return bg_color_base if prop_name == "bg_color" else color_base
 
 
+## `fade` has no base - it is 0 untracked, by definition of a fade.
+func set_base_scalar(prop_name: String, v: float) -> bool:
+    if prop_name != "bg_alpha": return super.set_base_scalar(prop_name, v)
+    bg_color_base.a = v
+    queue_redraw()
+    return true
+
+
+func set_base_color(prop_name: String, c: Color) -> bool:
+    match prop_name:
+        "color": color_base = _rgb(c, color_base.a)
+        "bg_color": bg_color_base = _rgb(c, bg_color_base.a)
+        _: return false
+    queue_redraw()
+    return true
+
+
 func _pose(t: float) -> void:
     _t = t
 

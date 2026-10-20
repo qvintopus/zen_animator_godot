@@ -41,7 +41,9 @@ func rebuild(a: Animation = null) -> void:
         var ty := anim.track_get_type(i)
         if ty != Animation.TYPE_BEZIER and ty != Animation.TYPE_VALUE: continue
         if anim.track_get_key_count(i) == 0: continue
-        _idx[String(anim.track_get_path(i))] = i
+        var p := String(anim.track_get_path(i))
+        if ZenAnimBuilder.is_ease_path(p): continue     # authoring data, not a curve
+        _idx[p] = i
     var cap: Variant = anim.get_meta(META_CAPTURE, {})
     if cap is Dictionary: _capture = (cap as Dictionary).duplicate()
 

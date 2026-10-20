@@ -70,12 +70,25 @@ func _get_property_list() -> Array[Dictionary]:
     for i in POS_OFFSETS:
         out.append({"name": "pos_offset_%d" % i, "type": TYPE_VECTOR2,
             "usage": PROPERTY_USAGE_EDITOR})
+    for p in _eased_props():
+        out.append({"name": ZenAnimBuilder.EASE_PREFIX + p, "type": TYPE_STRING,
+            "usage": PROPERTY_USAGE_EDITOR})
+    return out
+
+
+## The owned props that carry an ease track when keyed (ZenAnimBuilder).
+func _eased_props() -> Array:
+    var out: Array = []
+    for p in ZenProps.scalars_for(zen_kind()) + ZenProps.colors_for(zen_kind()):
+        if owns(p) and ZenAnimBuilder.has_ease(p): out.append(p)
     return out
 
 
 func _is_zen_prop(n: StringName) -> bool:
     var s := String(n)
     if s.begins_with("pos_offset_"): return true
+    if s.begins_with(ZenAnimBuilder.EASE_PREFIX):
+        return _eased_props().has(s.trim_prefix(ZenAnimBuilder.EASE_PREFIX))
     var p := ZenProps.prop_of_track(s)
     # Only the TRACK spelling: Node2D's own `scale` must reach the engine.
     if ZenProps.track_prop(p) != s: return false
@@ -87,6 +100,7 @@ func _get(n: StringName) -> Variant:
     if not _is_zen_prop(n): return null
     var s := String(n)
     if s.begins_with("pos_offset_"): return Vector2.ZERO
+    if s.begins_with(ZenAnimBuilder.EASE_PREFIX): return "linear"
     var p := ZenProps.prop_of_track(s)
     return base_color(p) if ZenProps.is_color(p) else base_scalar(p)
 
@@ -256,6 +270,21 @@ func mirrors_position() -> bool:
     return true
 
 
+## The drawn extent at `t` in canvas pixels, axis-aligned (a rotated element
+## is boxed around its rotated corners) - for picking and selection outlines
+## in the scene editor. Empty for a kind with no extent of its own.
+func bounds_px(_t: float) -> Rect2:
+    return Rect2()
+
+
+## The axis-aligned box around `local` points rotated by `rot` about `c`.
+static func _box(c: Vector2, local: Array, rot: float) -> Rect2:
+    var r := Rect2(c, Vector2.ZERO)
+    for p in local:
+        r = r.expand(c + (p as Vector2).rotated(rot))
+    return r
+
+
 ## Pose at `t`, then request a redraw. Subclasses override _pose.
 ##
 ## Captures the loop-blend weight NOW, while blend_begin's window is open, so
@@ -423,3 +452,25 @@ func base_scalar(prop_name: String) -> float:
 
 func base_color(_prop_name: String) -> Color:
     return Color(1, 1, 1, 1)
+
+
+## The inverse of base_scalar: write a property's base pose (the scene editor,
+## for an untracked property). Returns false for a prop with no base, so the
+## caller knows the write went nowhere.
+func set_base_scalar(prop_name: String, v: float) -> bool:
+    match prop_name:
+        "pos_x": pos_frac.x = v
+        "pos_y": pos_frac.y = v
+        "rot": rot_base = v
+        _: return false
+    queue_redraw()
+    return true
+
+
+## The inverse of base_color. RGB only: alpha is its own scalar prop.
+func set_base_color(_prop_name: String, _c: Color) -> bool:
+    return false
+
+
+static func _rgb(c: Color, a: float) -> Color:
+    return Color(c.r, c.g, c.b, a)

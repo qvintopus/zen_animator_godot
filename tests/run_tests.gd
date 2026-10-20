@@ -108,6 +108,14 @@ func _run() -> void:
     await test_shape_editor()
     test_zen_settings()
     test_export_dialog_preview()
+    test_ease_tracks()
+    test_key_ops_rebake()
+    test_key_ops_raw_segments()
+    test_key_ops_color_and_stepped()
+    test_elem_ops()
+    test_doc_ops()
+    test_scene_ops_roundtrip()
+    await test_scene_editor()
     print("\n%d checks, %d failures" % [checks, fails])
     quit(1 if fails > 0 else 0)
 
@@ -2645,3 +2653,410 @@ func test_shape_editor() -> void:
     ZenAssets.delete_shape(nm)
     check(not ZenAssets.shape_paths().has(nm), "delete removes the asset")
     ed.queue_free()
+
+
+
+# ---------------------------------------------------------------------------
+#  Authoring core (addons/zen/authoring)
+# ---------------------------------------------------------------------------
+
+## A code-built canvas with one shape keyed by `tracks`, installed.
+func _authoring_canvas(tracks: Dictionary) -> ZenCanvas:
+    var c := ZenCanvas.new()
+    c.live_playback = false
+    c.duration = 2.0
+    var s := ZenShape.new()
+    s.name = "box"
+    s.elem_name = "box"
+    s.tracks = tracks
+    c.add_child(s)
+    s.owner = c
+    ZenAnimBuilder.install(c)
+    return c
+
+
+## Does `prop` on `c`'s box sample the same as a fresh bake of `keys`?
+func _samples_like_bake(c: ZenCanvas, prop: String, keys: Array, what: String) -> void:
+    var ref := _authoring_canvas({prop: keys})
+    var a: ZenElement = c.get_node("box")
+    var b: ZenElement = ref.get_node("box")
+    var worst := 0.0
+    for i in 201:
+        var t := 2.0 * float(i) / 200.0
+        worst = maxf(worst, absf(a.track_or_base(prop, t, 0.0) - b.track_or_base(prop, t, 0.0)))
+    check(worst < 1e-5, "%s (worst %.7f)" % [what, worst])
+    ref.free()
+
+
+func _k(t: float, v: float, e := "linear") -> Dictionary:
+    return {"t": t, "v": v, "ease": e}
+
+
+## {t, v, ease} is split across the bezier and a discrete ease track; fit keys
+## a non-cubic ease adds are bezier-only, and read back as one authored key.
+func test_ease_tracks() -> void:
+    var keys := [_k(0.0, 0.0), _k(1.0, 1.0, "bounceOut"), _k(1.0, 0.5), _k(1.5, 0.2, "cubicIn")]
+    var c := _authoring_canvas({"pos_x": keys, "shape_id": [_k(0.0, 0.0), _k(1.0, 1.0)],
+        "color": [{"t": 0.0, "c": Color(1, 0, 0), "ease": "linear"},
+                  {"t": 1.0, "c": Color(0, 0, 1), "ease": "quadOut"}]})
+    var anim := _zen_anim(c)
+    var et := anim.find_track(NodePath("box:zen_ease_pos_x"), Animation.TYPE_VALUE)
+    check(et >= 0, "a keyed scalar gets an ease track")
+    check(et >= 0 and anim.track_get_key_count(et) == 4, "one ease key per authored key")
+    var bt := anim.find_track(NodePath("box:pos_x"), Animation.TYPE_BEZIER)
+    check(anim.track_get_key_count(bt) > 4, "bounceOut is fit with extra bezier keys")
+    check(anim.find_track(NodePath("box:zen_ease_color"), Animation.TYPE_VALUE) >= 0,
+          "one ease track per colour prop")
+    check(anim.find_track(NodePath("box:zen_ease_shape_id"), Animation.TYPE_VALUE) < 0,
+          "stepped props have no ease track")
+    check(not c.timeline().paths().has("box:zen_ease_pos_x"), "the timeline does not sample ease tracks")
+
+    var el: ZenElement = c.get_node("box")
+    var got := ZenKeyOps.keys(c, el, "pos_x")
+    check(got.size() == 4, "keys() reads back only the authored keys (%d)" % got.size())
+    var eases := got.map(func(k): return k["ease"])
+    check(eases == ["linear", "bounceOut", "linear", "cubicIn"], "eases read back: %s" % [eases])
+    check_near(float(got[1]["v"]), 1.0, "authored value read back")
+    check_near(float(got[2]["t"]), 1.0 + ZenCurveBake.STEP_EPS, "an instant step reads back nudged", 1e-5)
+    check(ZenKeyOps.keyed_props(c, el) == ["pos_x", "shape_id", "color"],
+          "keyed_props lists every keyed prop: %s" % [ZenKeyOps.keyed_props(c, el)])
+    var ck := ZenKeyOps.keys(c, el, "color")
+    check(ck.size() == 2 and ck[1]["ease"] == "quadOut" and (ck[1]["v"] as Color).is_equal_approx(Color(0, 0, 1)),
+          "colour keys read back as one Color per key")
+    check(el.get("zen_ease_pos_x") != null, "the ease track path resolves on the node")
+    c.free()
+
+
+## Every op leaves the track sampling exactly like a fresh bake of the
+## resulting key list - i.e. rebaking only the touched segments is lossless.
+func test_key_ops_rebake() -> void:
+    var keys := [_k(0.0, 0.0), _k(0.5, 1.0, "elasticOut"), _k(1.0, 0.0, "bounceOut"), _k(1.8, 0.5, "sineInOut")]
+    var c := _authoring_canvas({"pos_x": keys.duplicate(true)})
+    var el: ZenElement = c.get_node("box")
+    _samples_like_bake(c, "pos_x", keys, "freshly installed track matches its bake")
+
+    ZenKeyOps.set_ease(c, el, "pos_x", 2, "backOut")
+    keys[2]["ease"] = "backOut"
+    _samples_like_bake(c, "pos_x", keys, "set_ease rebakes the segment")
+
+    ZenKeyOps.set_value(c, el, "pos_x", 1, 0.25)
+    keys[1]["v"] = 0.25
+    _samples_like_bake(c, "pos_x", keys, "set_value rebakes both neighbouring segments")
+
+    ZenKeyOps.move(c, el, "pos_x", 2, 1.2)
+    keys[2]["t"] = 1.2
+    _samples_like_bake(c, "pos_x", keys, "move rebakes both neighbouring segments")
+    check(ZenKeyOps.move(c, el, "pos_x", 2, 5.0) == 2 and
+          float(ZenKeyOps.keys(c, el, "pos_x")[2]["t"]) < 1.8, "a move is clamped short of its neighbour")
+    ZenKeyOps.move(c, el, "pos_x", 2, 1.2)
+
+    var at := ZenKeyOps.insert(c, el, "pos_x", 1.5, 0.9, "quadIn")
+    check(at == 3, "insert lands in time order (%d)" % at)
+    keys.insert(3, _k(1.5, 0.9, "quadIn"))
+    _samples_like_bake(c, "pos_x", keys, "insert splits a segment")
+    check(ZenKeyOps.insert(c, el, "pos_x", 1.5, 0.7) == 3 and ZenKeyOps.keys(c, el, "pos_x").size() == 5,
+          "insert at an existing key sets it instead of adding one")
+    keys[3]["v"] = 0.7
+    _samples_like_bake(c, "pos_x", keys, "insert-as-set rebakes")
+
+    ZenKeyOps.remove(c, el, "pos_x", 1)
+    keys.remove_at(1)
+    _samples_like_bake(c, "pos_x", keys, "remove merges two segments into the next key's ease")
+    ZenKeyOps.remove(c, el, "pos_x", 0)
+    keys.remove_at(0)
+    _samples_like_bake(c, "pos_x", keys, "removing the first key")
+
+    for i in range(ZenKeyOps.keys(c, el, "pos_x").size() - 1, -1, -1):
+        ZenKeyOps.remove(c, el, "pos_x", i)
+    var anim := _zen_anim(c)
+    check(anim.find_track(NodePath("box:pos_x"), Animation.TYPE_BEZIER) < 0 and
+          anim.find_track(NodePath("box:zen_ease_pos_x"), Animation.TYPE_VALUE) < 0,
+          "removing the last key drops the track and its ease track")
+    check(not el.has_track("pos_x"), "the element sees the track gone")
+
+    # Auto-key: the first key also pins the base pose at 0.
+    el.pos_frac.x = 0.3
+    ZenKeyOps.key_at_playhead(c, el, "pos_x", 1.0, 0.8)
+    var ak := ZenKeyOps.keys(c, el, "pos_x")
+    check(ak.size() == 2 and is_zero_approx(float(ak[0]["t"])) and is_equal_approx(float(ak[0]["v"]), 0.3),
+          "auto-key on an untracked prop keys the base pose at 0 first")
+    check_near(el.prop("pos_x", 1.0, 0.0), 0.8, "auto-keyed value plays")
+    c.free()
+
+
+## A track hand-shaped in Godot (no ease track) reads as raw: editing one
+## segment leaves the other segments' handles exactly as they were.
+func test_key_ops_raw_segments() -> void:
+    var c := _authoring_canvas({})
+    var el: ZenElement = c.get_node("box")
+    var anim := _zen_anim(c)
+    var tr := anim.add_track(Animation.TYPE_BEZIER)
+    anim.track_set_path(tr, NodePath("box:w"))
+    anim.bezier_track_insert_key(tr, 0.0, 0.1, Vector2(-0.1, 0), Vector2(0.2, 0.3))
+    anim.bezier_track_insert_key(tr, 1.0, 0.2, Vector2(-0.3, -0.1), Vector2(0.25, 0.05))
+    anim.bezier_track_insert_key(tr, 2.0, 0.4, Vector2(-0.2, 0.1), Vector2(0.1, 0))
+    c.timeline_dirty()
+    var ks := ZenKeyOps.keys(c, el, "w")
+    check(ks.size() == 3 and ks.all(func(k): return k["ease"] == ZenKeyOps.RAW),
+          "a bezier with no ease track is all-authored, ease raw")
+    var before := el.track_or_base("w", 0.5, 0.0)
+    ZenKeyOps.set_value(c, el, "w", 2, 0.6)
+    var t2 := _track_of(anim, "box:w")
+    check(anim.bezier_track_get_key_out_handle(t2, 0) == Vector2(0.2, 0.3) and
+          anim.bezier_track_get_key_in_handle(t2, 1) == Vector2(-0.3, -0.1),
+          "an untouched raw segment keeps its hand-made handles")
+    check_near(el.track_or_base("w", 0.5, 0.0), before, "so it samples exactly as before")
+    check(anim.find_track(NodePath("box:zen_ease_w"), Animation.TYPE_VALUE) >= 0,
+          "the first Zen edit adds the ease track")
+
+    ZenKeyOps.set_ease(c, el, "w", 2, "linear")
+    check_near(el.track_or_base("w", 1.5, 0.0), 0.4, "picking an ease rebakes a raw segment")
+    ZenKeyOps.move(c, el, "w", 1, 0.5)
+    var t3 := _track_of(anim, "box:w")
+    var h := anim.bezier_track_get_key_out_handle(t3, 0)
+    check_near(h.x, 0.5 / 3.0, "a moved raw segment's handle reach follows the new span")
+    check_near(h.y / h.x, 1.5, "and keeps its slope")
+    c.free()
+
+
+func _track_of(anim: Animation, path: String) -> int:
+    return anim.find_track(NodePath(path), Animation.TYPE_BEZIER)
+
+
+func test_key_ops_color_and_stepped() -> void:
+    var c := _authoring_canvas({})
+    var el: ZenElement = c.get_node("box")
+    ZenKeyOps.insert(c, el, "color", 0.0, Color(1, 0, 0), "linear")
+    ZenKeyOps.insert(c, el, "color", 1.0, Color(0, 1, 0), "quadOut")
+    var anim := _zen_anim(c)
+    check(_track_of(anim, "box:color:r") >= 0 and _track_of(anim, "box:color:b") >= 0,
+          "keying a colour creates all three channels")
+    var mid := el.prop_color("color", 0.5, Color.WHITE, 1.0)
+    check_near(mid.r, 0.25, "colour channels follow the shared ease", 0.002)
+    check_near(mid.g, 0.75, "...every channel", 0.002)
+    ZenKeyOps.set_ease(c, el, "color", 1, "linear")
+    check_near(el.prop_color("color", 0.5, Color.WHITE, 1.0).g, 0.5, "set_ease reaches all channels")
+
+    ZenKeyOps.insert(c, el, "shape_id", 0.0, 0.0)
+    ZenKeyOps.insert(c, el, "shape_id", 1.0, 2.0)
+    check(ZenKeyOps.keys(c, el, "shape_id").size() == 2, "stepped keys insert")
+    check_near(el.prop("shape_id", 0.9, -1.0), 0.0, "stepped holds")
+    ZenKeyOps.move(c, el, "shape_id", 1, 0.5)
+    check_near(el.prop("shape_id", 0.6, -1.0), 2.0, "stepped key moves")
+    ZenKeyOps.remove(c, el, "shape_id", 1)
+    ZenKeyOps.remove(c, el, "shape_id", 0)
+    check(not ZenKeyOps.has_track(c, el, "shape_id"), "removing every stepped key drops the track")
+    c.free()
+
+
+func test_elem_ops() -> void:
+    var c := _authoring_canvas({"pos_x": [_k(0.0, 0.1), _k(1.0, 0.9)]})
+    # A signal referencing box, so rename/remove have something to rewrite.
+    var bus := ZenSignalBus.new()
+    bus.name = "Signals"
+    bus.signals_data = [{"name": "go", "length": 1.0, "targets": [
+        {"elem": "box", "prop": "alpha", "keys": [_k(1.0, 0.0)]}],
+        "seq_targets": [], "pos_params": []}]
+    c.add_child(bus)
+    bus.owner = c
+    ZenAnimBuilder.install(c)
+
+    var t := ZenElemOps.add(c, "text")
+    check(t is ZenText and t.elem_name == "text" and (t as ZenText).text == "TEXT", "add text with defaults")
+    check_near(t.pos_frac.y, 0.4, "a new text sits at y 0.4 (AnimElemInit)")
+    var g := ZenElemOps.add(c, "global")
+    check(ZenElemOps.halves(c, g).size() == 2, "a global is added as two nodes")
+    check(ZenElemOps.rows(c).size() == 3, "rows list a global once (%d)" % ZenElemOps.rows(c).size())
+    var s2 := ZenElemOps.add(c, "shape", "box")
+    check(s2.elem_name == "box_2", "names are made unique (%s)" % s2.elem_name)
+    check(c.get_children().back() is AnimationPlayer or c.get_children().back() is ZenSignalBus,
+          "new elements go before the bus and the player")
+
+    var box: ZenElement = c.get_node("box")
+    check(ZenElemOps.rename(c, box, "hero"), "rename succeeds")
+    check(box.name == "hero" and box.elem_name == "hero", "rename moves node and elem name")
+    check(_track_of(_zen_anim(c), "hero:pos_x") >= 0 and _track_of(_zen_anim(c), "box:pos_x") < 0,
+          "rename rewrites track paths")
+    check(_zen_anim(c).find_track(NodePath("hero:zen_ease_pos_x"), Animation.TYPE_VALUE) >= 0,
+          "...including the ease track")
+    var sa := ZenAnimBuilder.find_player(c).get_animation(ZenAnimBuilder.sig_path("go"))
+    check(sa.find_track(NodePath("hero:alpha"), Animation.TYPE_BEZIER) >= 0, "...and signal tracks")
+    check(bus.signals_data[0]["targets"][0]["elem"] == "hero", "...and signal targets")
+    check_near(box.prop("pos_x", 1.0, 0.0), 0.9, "a renamed element still plays its keys")
+    check(not ZenElemOps.rename(c, box, "box_2"), "rename refuses a taken name")
+
+    var d := ZenElemOps.duplicate_elem(c, box)
+    check(d.elem_name == "hero_2" and d.get_index() == box.get_index() + 1, "duplicate lands right after")
+    check_near(d.prop("pos_x", 1.0, 0.0), 0.9, "duplicate copies the keys")
+
+    ZenElemOps.move(c, d, 0)
+    check(ZenElemOps.rows(c)[0] == d and d.z_index == 0, "move reorders and re-assigns z")
+    ZenElemOps.move(c, g, 0)
+    var bg: ZenGlobal = ZenElemOps.halves(c, g)[0]
+    check(bg.is_background and bg.z_index == -1 and g.z_index == 0, "a moved global keeps its bg at -1")
+
+    ZenElemOps.remove(c, box)
+    check(not c.has_node("hero") and _track_of(_zen_anim(c), "hero:pos_x") < 0, "remove drops node and tracks")
+    check((bus.signals_data[0]["targets"] as Array).is_empty(), "remove prunes signal targets")
+    check(sa.find_track(NodePath("hero:alpha"), Animation.TYPE_BEZIER) < 0, "remove drops signal tracks")
+    check_near(d.prop("pos_x", 1.0, 0.0), 0.9, "the duplicate keeps its own keys")
+    c.free()
+
+
+func test_doc_ops() -> void:
+    var c := _authoring_canvas({})
+    ZenDocOps.set_intro_end(c, 0.5)
+    ZenDocOps.set_outro_start(c, 1.5)
+    var anim := _zen_anim(c)
+    check(anim.get_marker_names().has("intro_end") and is_equal_approx(anim.get_marker_time("outro_start"), 1.5),
+          "intro/outro are written as markers")
+    ZenDocOps.add_pause(c, 1.0, true)
+    check(c.pauses.size() == 1 and anim.get_marker_names().has("pause_1_once"), "a pause is a marker")
+    ZenDocOps.move_pause(c, 0, 0.8)
+    check_near(float(c.pauses[0]["t"]), 0.8, "a pause moves")
+    ZenDocOps.remove_pause(c, 0)
+    check(c.pauses.is_empty() and not anim.get_marker_names().has("pause_1_once"), "a pause is removed")
+    ZenDocOps.set_duration(c, 1.2)
+    check(is_equal_approx(anim.length, 1.2) and is_equal_approx(c.duration, 1.2), "duration is the length")
+    check_near(c.outro_start, 1.2, "shortening clamps the outro")
+    ZenDocOps.set_intro_end(c, 0.0)
+    check(not anim.get_marker_names().has("intro_end"), "intro 0 clears the marker")
+    c.free()
+
+
+func test_scene_ops_roundtrip() -> void:
+    var nm := "zz_test_scene"
+    check(ZenSceneOps.clean_name("My Intro!") == "my_intro_", "scene names are cleaned")
+    var c := ZenSceneOps.new_canvas(nm)
+    var title := ZenElemOps.find(c, "title")
+    check(title is ZenText and (title as ZenText).text == "HELLO", "a new scene has the starter title")
+    check(ZenKeyOps.keys(c, title, "alpha").size() == 2, "...fading in")
+    ZenKeyOps.insert(c, title, "pos_x", 1.0, 0.7, "bounceOut")
+    var path := ZenSceneOps.save(c, nm)
+    check(not path.is_empty() and FileAccess.file_exists(path), "save writes the scene (%s)" % path)
+    var imp: GDScript = load("res://addons/zen/importer/zen_cfg_import.gd")
+    check(imp.is_authored(path), "a saved scene is marked authored for the importer")
+    check(ZenSceneOps.path_of(nm) == path, "the saved scene is listed")
+
+    var o := ZenSceneOps.open(path)
+    var ot := ZenElemOps.find(o, "title")
+    var ek := ZenKeyOps.keys(o, ot, "pos_x")
+    check(ek.size() == 1 and ek[0]["ease"] == "bounceOut", "eases survive save/load")
+    check_near(ot.prop("alpha", 0.3, 0.0), title.prop("alpha", 0.3, 0.0), "loaded scene samples the same")
+
+    # detach(): editing the opened copy must not touch the cached scene.
+    ZenKeyOps.set_value(o, ot, "alpha", 1, 0.5)
+    var again := (load(path) as PackedScene).instantiate() as ZenCanvas
+    check_near(ZenElemOps.find(again, "title").prop("alpha", 1.0, 0.0), 1.0,
+               "an open canvas edits its own copy of the Animation")
+    var snap := ZenSceneOps.restore(ZenSceneOps.snapshot(o))
+    ZenKeyOps.set_value(o, ot, "alpha", 1, 0.2)
+    check_near(ZenElemOps.find(snap, "title").prop("alpha", 1.0, 0.0), 0.5,
+               "a snapshot is independent of later edits")
+
+    var dup := nm + "_copy"
+    check(ZenSceneOps.duplicate_scene(nm, dup) == OK and not ZenSceneOps.path_of(dup).is_empty(), "duplicate a scene")
+    check(ZenSceneOps.rename(dup, nm) == ERR_ALREADY_EXISTS, "rename refuses a taken name")
+    var moved := nm + "_moved"
+    check(ZenSceneOps.rename(dup, moved) == OK and ZenSceneOps.path_of(dup).is_empty()
+          and not ZenSceneOps.path_of(moved).is_empty(), "rename a scene")
+    for n in [nm, moved]:
+        DirAccess.remove_absolute(ProjectSettings.globalize_path(ZenSceneOps.path_of(n)))
+    check(ZenSceneOps.path_of(nm).is_empty(), "test scenes cleaned up")
+    for x in [c, o, again, snap]: x.free()
+
+
+
+## The editor screen end to end: open, add, key through auto-key, scrub,
+## undo/redo, reorder, save - driven through its own handlers.
+func test_scene_editor() -> void:
+    # The editor persists its layout and auto-key; keep the user's own.
+    var user_state := ZenSettings.editor_state()
+    var ed: ZenSceneEditor = (load("res://tools/zen_scene_editor.tscn") as PackedScene).instantiate()
+    root.add_child(ed)
+    await process_frame
+    ed.open("res://anims/zooming_box.tscn")
+    await process_frame
+    check(ed._canvas != null and ed.current_name() == "zooming_box", "the editor opens a scene")
+    check(not ed._canvas.live_playback, "the editor drives the clock itself")
+
+    ed._add_element("shape")
+    await process_frame
+    var el := ed._primary()
+    check(el is ZenShape and el.elem_name.begins_with("shape_"), "add shape selects the new, uniquely named element")
+    check(ed._dirty(), "an edit makes the scene dirty")
+    ed._set_autokey(false)
+    ed._on_drag_start()
+    ed._on_drag(Vector2(0.1, 0.0))
+    ed._commit_live()
+    check_near(el.pos_frac.x, 0.6, "auto-key off: a drag moves the base pose")
+    check(not ZenKeyOps.has_track(ed._canvas, el, "pos_x"), "...and writes no key")
+
+    ed._set_autokey(true)
+    ed._scrub_to(1.0)
+    ed._on_drag_start()
+    ed._on_drag(Vector2(0.2, 0.0))
+    ed._on_drag(Vector2(0.25, 0.0))
+    ed._commit_live()
+    var ks := ZenKeyOps.keys(ed._canvas, el, "pos_x")
+    check(ks.size() == 2, "auto-key on: a drag keys the playhead (and pins t=0) (%d)" % ks.size())
+    check_near(el.prop("pos_x", 1.0, 0.0), 0.85, "the dragged position plays at the playhead")
+    check_near(el.prop("pos_x", 0.0, 0.0), 0.6, "the base pose is kept at 0")
+    var steps := ed._undo.get_history_count()
+
+    ed._do_undo()
+    el = ed._primary()
+    check(el != null and not ZenKeyOps.has_track(ed._canvas, el, "pos_x"), "undo removes the drag's keys in one step")
+    ed._do_redo()
+    el = ed._primary()
+    check(el != null and ZenKeyOps.keys(ed._canvas, el, "pos_x").size() == 2, "redo restores them")
+    check(ed._undo.get_history_count() == steps, "undo/redo adds no history")
+
+    ed._refresh_timeline()
+    check(ed._tl.lanes.size() >= 1 and ed._lanes[0]["prop"] == "pos_x", "the timeline shows the keyed prop")
+    ed._on_key_pressed(0, 1, false)
+    ed._on_keys_drag_start()
+    ed._on_keys_dragged(0.5, false)
+    ed._commit_live()
+    check_near(float(ZenKeyOps.keys(ed._canvas, el, "pos_x")[1]["t"]), 1.5, "dragging a key moves it in time")
+    ed._set_ease("bounceOut")
+    check(String(ZenKeyOps.keys(ed._canvas, el, "pos_x")[1]["ease"]) == "bounceOut", "the ease menu sets the key's ease")
+    ed._delete_keys()
+    check(ZenKeyOps.keys(ed._canvas, el, "pos_x").size() == 1, "deleting the selected key")
+
+    var rows := ZenElemOps.rows(ed._canvas)
+    ed._move_selected(-1)
+    check(ZenElemOps.rows(ed._canvas).find(ed._primary()) == rows.size() - 2, "move back reorders")
+
+    ed._toggle_panel("inspector")
+    var insp := ed._panel("inspector")
+    check(insp.is_open, "a panel opens")
+    ed._toggle_panel("document")
+    check(not insp.is_open and ed._panel("document").is_open, "an unpinned panel closes others on its side")
+    ed._panel("document").set_pinned(true)
+    ed._toggle_panel("inspector")
+    check(ed._panel("document").is_open and insp.is_open, "a pinned panel stays when another opens")
+    ed._layout()
+    check(ed._stage.size.x < ed._work.size.x - 1.0, "a pinned panel reserves its edge")
+    ed._panel("document").set_pinned(false)
+    ed._close_unpinned()
+    check(not insp.is_open and not ed._panel("document").is_open, "unpinned panels close on demand")
+
+    var nm := "zz_test_editor"
+    ed._name = nm
+    ed._save()
+    check(not ed._dirty(), "save clears dirty")
+    var saved := ZenSceneOps.open(ZenSceneOps.path_of(nm))
+    var se := ZenElemOps.find(saved, el.elem_name)
+    check(se != null and ZenKeyOps.has_track(saved, se, "pos_x"), "the saved scene has the new element and its key")
+    check(saved.live_playback, "a saved scene still plays on its own")
+    saved.free()
+    DirAccess.remove_absolute(ProjectSettings.globalize_path(ZenSceneOps.path_of(nm)))
+    var orig := ZenSceneOps.open("res://anims/zooming_box.tscn")
+    check(ZenElemOps.find(orig, "shape_2") == null, "the original scene is untouched")
+    check(not FileAccess.get_file_as_string("res://anims/zooming_box.tscn").contains("zen_authored"),
+          "...and not marked authored")
+    orig.free()
+    ed.queue_free()
+    await process_frame
+    ZenSettings.set_editor_state(user_state)

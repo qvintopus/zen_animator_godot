@@ -78,6 +78,28 @@ func base_color(prop_name: String) -> Color:
     return outline_color_base if prop_name == "outline_color" else color_base
 
 
+func set_base_scalar(prop_name: String, v: float) -> bool:
+    match prop_name:
+        "w": size_frac.x = v
+        "h": size_frac.y = v
+        "alpha": color_base.a = v
+        "outline_alpha": outline_color_base.a = v
+        "scale": scale_base = v
+        "outline": outline_base = v
+        _: return super.set_base_scalar(prop_name, v)
+    queue_redraw()
+    return true
+
+
+func set_base_color(prop_name: String, c: Color) -> bool:
+    match prop_name:
+        "color": color_base = _rgb(c, color_base.a)
+        "outline_color": outline_color_base = _rgb(c, outline_color_base.a)
+        _: return false
+    queue_redraw()
+    return true
+
+
 static func kind_from_name(n: String) -> Kind:
     var i := KIND_NAMES.find(n)
     return (i if i >= 0 else 0) as Kind
@@ -94,6 +116,21 @@ func shape_at(t: float) -> ZenPixelShape:
     if idx < 0.0: return shape
     var i := int(idx + 0.5)
     return shape_refs[i] if i < shape_refs.size() else null
+
+
+func bounds_px(t: float) -> Rect2:
+    var sc := maxf(prop("scale", t, scale_base), 0.0)
+    var w_f := prop("w", t, size_frac.x) * sc
+    var h_f := prop("h", t, size_frac.y) * sc
+    var rot := deg_to_rad(prop("rot", t, rot_base))
+    var c := center_px(t)
+    var hw := _uw() * w_f * 0.5
+    var hh := _uh() * h_f * 0.5
+    if shape_kind == Kind.LINE:
+        var d := Vector2(_uw() * w_f * 0.5 * cos(rot), _uh() * w_f * 0.5 * sin(rot))
+        return Rect2(c - d, Vector2.ZERO).expand(c + d).grow(maxf(_uh() * h_f, 1.0) * 0.5)
+    if shape_kind == Kind.SQUARE: hw = hh
+    return _box(c, [Vector2(-hw, -hh), Vector2(hw, -hh), Vector2(hw, hh), Vector2(-hw, hh)], rot)
 
 
 func _draw() -> void:

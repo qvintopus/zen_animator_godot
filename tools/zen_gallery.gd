@@ -19,8 +19,9 @@ extends Control
 ## reason the exporter renders native and upscales afterwards.
 ##
 
-## Where animations are found. Scanned at startup, so dropping a new .tscn in
-## here makes it appear with no code change.
+## Where animations are found: res://anims, plus user://anims for scenes an
+## exported build saved (ZenSceneOps.DIRS). Scanned at startup, so dropping a
+## new .tscn in makes it appear with no code change.
 const ANIM_DIR := "res://anims"
 
 ## Scenes that are test fixtures rather than content. `mouse_ripple_hand` is the
@@ -28,7 +29,7 @@ const ANIM_DIR := "res://anims"
 ## listing both would show the same animation twice under near-identical names.
 const HIDDEN := ["mouse_ripple_hand"]
 
-enum View { GALLERY, PLAYING, OPTIONS, EXPORT, SHAPE_EDITOR }
+enum View { GALLERY, PLAYING, OPTIONS, EXPORT, SHAPE_EDITOR, SCENE_EDITOR }
 
 ## The left column is an accordion of these: one section open at a time, its
 ## header pinned above its own scrolling list.
@@ -37,6 +38,7 @@ enum Section { ANIMS, ASSETS }
 const OPTIONS_SCENE := "res://tools/zen_options.tscn"
 const EXPORT_SCENE := "res://tools/zen_export_dialog.tscn"
 const SHAPE_EDITOR_SCENE := "res://tools/zen_shape_editor.tscn"
+const SCENE_EDITOR_SCENE := "res://tools/zen_scene_editor.tscn"
 
 ## Row 0 of the assets list: create a new asset.
 const NEW_ASSET_ROW := "+ new asset..."
@@ -51,6 +53,12 @@ var _sub: SubViewport = null
 var _options: Control = null
 var _export_dialog: Control = null
 var _shape_editor: Control = null
+var _scene_editor: Control = null
+## The name prompt for rename / duplicate; `_name_action` runs with the name.
+var _name_dialog: ConfirmationDialog
+var _name_edit: LineEdit
+var _name_error: Label
+var _name_action := Callable()
 var _section: Section = Section.ANIMS
 ## [{name, path}] from ZenAssets, sorted. Asset ROW i is _assets[i - 1]; row 0
 ## is NEW_ASSET_ROW.
@@ -102,6 +110,7 @@ func _ready() -> void:
 	_confirm.ok_button_text = "Move to trash"
 	_confirm.confirmed.connect(func(): if _confirm_action.is_valid(): _confirm_action.call())
 	add_child(_confirm)
+	_build_name_dialog()
 	_anim_header.pressed.connect(_set_section.bind(Section.ANIMS))
 	_asset_header.pressed.connect(_set_section.bind(Section.ASSETS))
 	_scan()
@@ -116,19 +125,14 @@ func _ready() -> void:
 ## than filesystem-dependent.
 func _scan() -> void:
 	_entries.clear()
-	var d := DirAccess.open(ANIM_DIR)
-	if d == null:
-		push_error("zen gallery: cannot open %s" % ANIM_DIR)
-		return
+	var paths := ZenSceneOps.scene_paths()
 	var names: Array = []
-	for f in d.get_files():
-		if not f.ends_with(".tscn"): continue
-		var base := f.get_basename()
+	for base in paths:
 		if HIDDEN.has(base): continue
 		names.append(base)
 	names.sort()
 	for base in names:
-		_entries.append(_describe("%s/%s.tscn" % [ANIM_DIR, base], base))
+		_entries.append(_describe(String(paths[base]), base))
 
 
 ## Read an animation's metadata WITHOUT playing it.
@@ -430,6 +434,8 @@ func _render_info(e: Dictionary) -> String:
 			 % [int(e["elements"]), ", ".join(parts) if not parts.is_empty() else "-"])
 	L.append("[color=#61afef]tracks[/color]  %d in the AnimationPlayer, %d keys"
 			 % [int(e["tracks"]), int(e["keys"])])
+	L.append("    [color=#5c6370]%s to edit, %s for a new animation[/color]"
+			 % [ZenHotkeyHelp.key("zen_edit_scene"), ZenHotkeyHelp.key("zen_new")])
 
 
 	# Signals are invisible in an export (the exporter sets every bus inert so a
@@ -475,8 +481,8 @@ func _gallery_hint() -> String:
 		var n := _anim_sel.marks.size()
 		return ZenHotkeyHelp.footer([["zen_export", "export %d" % n], ["zen_delete", "delete %d" % n],
 				["zen_help", "(hold) all hotkeys"], ["zen_back", "clear selection"]])
-	return ZenHotkeyHelp.footer([["zen_play", "play"], ["zen_tab", "assets"],
-			["zen_help", "(hold) all hotkeys"], ["zen_back", "quit"]])
+	return ZenHotkeyHelp.footer([["zen_play", "play"], ["zen_edit_scene", "edit"], ["zen_new", "new"],
+			["zen_tab", "assets"], ["zen_help", "(hold) all hotkeys"], ["zen_back", "quit"]])
 
 
 ## Whether the playing footer currently advertises "continue".
@@ -533,6 +539,8 @@ func _show_help() -> void:
 			["zen_back", "clear the selection, then quit"]])
 	else:
 		rows = [["zen_play", "play"], ["double-click", "play"],
+			["zen_edit_scene", "edit in the scene editor"], ["zen_new", "new animation"],
+			["zen_rename", "rename"], ["zen_duplicate", "duplicate"],
 			["zen_prev", "previous"], ["zen_next", "next"]]
 		rows.append_array(multi)
 		rows.append_array([["zen_delete", "delete the selected animations"],
@@ -632,7 +640,7 @@ func _restart() -> void:
 ## ESC backs out one level, then quits - the usual nesting, so it is never a
 ## surprise which one happens.
 func _back() -> void:
-	if _view == View.SHAPE_EDITOR:
+	if _view == View.SHAPE_EDITOR or _view == View.SCENE_EDITOR:
 		return          # the editor owns ESC (it may have unsaved changes)
 	elif _view == View.OPTIONS:
 		_close_options()
@@ -697,6 +705,110 @@ func _close_shape_editor() -> void:
 	_asset_sel.pick(row)
 	# Animations may now draw a changed shape; their usage lists still hold.
 	_set_section(Section.ASSETS)
+
+
+## The scene editor, on the selected animation (`new_scene`: a fresh one).
+## Closing it rescans - it may have saved, renamed or deleted - and selects
+## what it last had open.
+func _open_scene_editor(new_scene := false) -> void:
+	if _scene_editor != null: return
+	_stop()
+	if _section != Section.ANIMS: _set_section(Section.ANIMS)
+	_scene_editor = (load(SCENE_EDITOR_SCENE) as PackedScene).instantiate()
+	_scene_editor.closed.connect(_close_scene_editor)
+	add_child(_scene_editor)
+	var path := "" if new_scene or _entries.is_empty() else String(_entries[_sel]["path"])
+	_scene_editor.open(path)
+	_view = View.SCENE_EDITOR
+
+
+func _close_scene_editor() -> void:
+	var nm := ""
+	if _scene_editor != null:
+		nm = _scene_editor.current_name()
+		_scene_editor.queue_free()
+		_scene_editor = null
+	_view = View.GALLERY
+	_reselect(nm)
+
+
+## Rescan everything and put the cursor on animation `nm` (or keep it near).
+func _reselect(nm: String) -> void:
+	var keep := _sel
+	_scan()
+	_build_list()
+	_scan_assets()
+	_build_asset_list()
+	_set_section(Section.ANIMS)
+	var row := mini(keep, _entries.size() - 1)
+	for i in _entries.size():
+		if String(_entries[i]["name"]) == nm: row = i
+	_select(maxi(row, 0))
+
+
+func _build_name_dialog() -> void:
+	_name_dialog = ConfirmationDialog.new()
+	var col := VBoxContainer.new()
+	_name_edit = LineEdit.new()
+	_name_edit.custom_minimum_size = Vector2(280, 0)
+	_name_edit.text_changed.connect(func(_t): _validate_name())
+	_name_edit.text_submitted.connect(func(_t): _on_name_ok())
+	col.add_child(_name_edit)
+	_name_error = ZenUI.label("", ZenUI.WARN)
+	col.add_child(_name_error)
+	_name_dialog.add_child(col)
+	_name_dialog.confirmed.connect(_on_name_ok)
+	add_child(_name_dialog)
+
+
+func _ask_name(title: String, initial: String, fn: Callable) -> void:
+	_name_dialog.title = title
+	_name_edit.text = initial
+	_name_action = fn
+	_validate_name()
+	_name_dialog.popup_centered()
+	_name_edit.grab_focus()
+	_name_edit.select_all()
+
+
+func _validate_name() -> bool:
+	var n := ZenSceneOps.clean_name(_name_edit.text)
+	var err := ""
+	if n.is_empty(): err = "type a name"
+	elif not ZenSceneOps.is_name_free(n): err = "an animation called %s already exists" % n
+	elif n != _name_edit.text.strip_edges(): err = "will be named %s" % n
+	_name_error.text = err
+	var ok := not n.is_empty() and ZenSceneOps.is_name_free(n)
+	_name_dialog.get_ok_button().disabled = not ok
+	return ok
+
+
+func _on_name_ok() -> void:
+	if not _validate_name(): return
+	_name_dialog.hide()
+	if _name_action.is_valid(): _name_action.call(ZenSceneOps.clean_name(_name_edit.text))
+
+
+## F2: rename the animation's scene file. Its .cfg source is left alone - a
+## re-import would recreate the old name, which is the importer's one-shot
+## nature, not a rename's.
+func _ask_rename() -> void:
+	if _entries.is_empty(): return
+	var old := String(_entries[_sel]["name"])
+	_ask_name("Rename animation", old, func(n):
+		var err := ZenSceneOps.rename(old, n)
+		_reselect(n if err == OK else old)
+		_status.text = "renamed %s -> %s" % [old, n] if err == OK else "could not rename %s" % old)
+
+
+## Ctrl+D: copy the animation to a new scene.
+func _ask_duplicate() -> void:
+	if _entries.is_empty(): return
+	var src := String(_entries[_sel]["name"])
+	_ask_name("Duplicate animation", ZenSceneOps.unique_name(src + "_copy"), func(n):
+		var err := ZenSceneOps.duplicate_scene(src, n)
+		_reselect(n if err == OK else src)
+		_status.text = "duplicated %s as %s" % [src, n] if err == OK else "could not duplicate %s" % src)
 
 
 ## Export is the same overlay-child pattern as Options - opening it from
@@ -788,7 +900,7 @@ func _ask_delete() -> void:
 		var names := _marked_anims()
 		if names.is_empty(): return
 		for nm in names:
-			files.append("%s/%s.tscn" % [ANIM_DIR, nm])
+			files.append(ZenSceneOps.path_of(nm))
 			var src := _source_cfg(nm)
 			if src != "": files.append(src)
 		L.append("Move %s to the trash?" % ("animation %s" % names[0] if names.size() == 1
@@ -910,7 +1022,7 @@ func _unhandled_input(ev: InputEvent) -> void:
 	if ev.is_action_released("zen_help"):
 		_help.visible = false
 		return
-	if _confirm.visible: return
+	if _confirm.visible or _name_dialog.visible: return
 	if ev.is_echo(): return
 	if ev.is_action_pressed("zen_help"):
 		if _view in [View.GALLERY, View.PLAYING]:
@@ -959,6 +1071,26 @@ func _unhandled_input(ev: InputEvent) -> void:
 		_playing.release_pause()
 		_update_status()
 		get_viewport().set_input_as_handled()
+	elif ev.is_action_pressed("zen_edit_scene"):
+		# Before zen_play: Ctrl+ENTER also satisfies the plain ENTER action.
+		if _view in [View.GALLERY, View.PLAYING] and _section == Section.ANIMS:
+			_open_scene_editor()
+			get_viewport().set_input_as_handled()
+	elif ev.is_action_pressed("zen_duplicate"):
+		if _view == View.GALLERY and _section == Section.ANIMS:
+			_ask_duplicate()
+			get_viewport().set_input_as_handled()
+	elif ev.is_action_pressed("zen_new"):
+		if _view == View.GALLERY:
+			if _section == Section.ASSETS:
+				_select_asset(0)
+				_open_shape_editor()
+			else: _open_scene_editor(true)
+			get_viewport().set_input_as_handled()
+	elif ev.is_action_pressed("zen_rename"):
+		if _view == View.GALLERY and _section == Section.ANIMS:
+			_ask_rename()
+			get_viewport().set_input_as_handled()
 	elif ev.is_action_pressed("zen_play"):
 		if _view == View.GALLERY:
 			if _section == Section.ASSETS: _open_shape_editor()

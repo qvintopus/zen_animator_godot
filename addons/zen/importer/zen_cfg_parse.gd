@@ -115,7 +115,7 @@ static func parse_doc(text: String) -> Dictionary:
                 _close_track(elem, track_prop)
                 track_prop = ""
                 if tk.size() >= 3:
-                    elem = _new_elem(tk[1], tk[2])
+                    elem = new_elem(tk[1], tk[2])
                     doc["elems"].append(elem)
 
             "end":
@@ -215,7 +215,9 @@ static func parse_doc(text: String) -> Dictionary:
     return {"ok": true, "error": "", "doc": doc}
 
 
-static func _new_elem(kind: String, name: String) -> Dictionary:
+## A new element's defaults (AnimElemInit, anim.c:107) - also what the scene
+## editor's "add element" starts from.
+static func new_elem(kind: String, name: String) -> Dictionary:
     return {
         "kind": kind, "name": name, "text": "",
         "color": Color8(245, 245, 245, 255),

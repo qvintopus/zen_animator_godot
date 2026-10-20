@@ -13,9 +13,15 @@ extends SceneTree
 ## It is kept (rather than deleted after the run) only so the import can be
 ## re-run when the node layer gains a feature the importer did not support yet.
 ##
+## A scene the scene editor has saved (canvas meta `zen_authored`) has moved on
+## from its .cfg, so it is SKIPPED - re-importing would throw the edits away.
+## Pass `-- --force` to overwrite it anyway.
+##
 
 const SRC_DIR := "res://anims_src"
 const OUT_DIR := "res://anims"
+## Canvas meta set by ZenSceneOps.save(): the scene is edited, not imported.
+const META_AUTHORED := "zen_authored"
 
 
 func _init() -> void:
@@ -28,8 +34,12 @@ func _init() -> void:
         quit(1)
         return
 
+    var force := OS.get_cmdline_user_args().has("--force")
     var failed := 0
     for file_name in names:
+        if not force and is_authored("%s/%s.tscn" % [OUT_DIR, scene_name(file_name)]):
+            print("  %-22s skipped: edited in the scene editor (--force overwrites)" % file_name)
+            continue
         if not _import_one(file_name): failed += 1
     print("\n%d/%d imported" % [names.size() - failed, names.size()])
     quit(1 if failed > 0 else 0)
@@ -55,6 +65,14 @@ func _list_cfgs() -> Array:
             out.append(f)
     out.sort()
     return out
+
+
+## Has the scene editor saved this scene? Read off the text, so checking does
+## not instantiate (and so run) the scene.
+static func is_authored(tscn_path: String) -> bool:
+    if not FileAccess.file_exists(tscn_path): return false
+    return FileAccess.get_file_as_string(tscn_path).contains(
+        "metadata/%s = true" % META_AUTHORED)
 
 
 ## MAIN_MENU.cfg -> main_menu, "new anim test.cfg" -> new_anim_test

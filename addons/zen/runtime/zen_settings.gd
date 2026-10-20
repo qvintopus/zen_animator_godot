@@ -14,6 +14,8 @@ extends RefCounted
 ##   - EXPORT DEFAULTS: everything else export-related, edited on the Export
 ##     dialog and remembered as one Dictionary so a new field never needs a
 ##     new accessor pair.
+##   - SCENE EDITOR: which panels are open and pinned, and auto-key - one
+##     Dictionary, for the same reason.
 ##
 
 const CFG_PATH := "user://zen_settings.cfg"
@@ -31,6 +33,7 @@ static var _export_scale := 4
 static var _export: Dictionary = EXPORT_DEFAULTS.duplicate()
 static var _play_intro := true
 static var _play_loop := true
+static var _editor: Dictionary = {}
 
 
 static func _ensure_loaded() -> void:
@@ -47,6 +50,7 @@ static func _ensure_loaded() -> void:
         var saved: Dictionary = cfg.get_value(SECTION, "export", {})
         _export = EXPORT_DEFAULTS.duplicate()
         _export.merge(saved, true)
+        _editor = cfg.get_value(SECTION, "editor", {})
 
 
 static func font_name() -> String:
@@ -108,6 +112,19 @@ static func set_export_defaults(d: Dictionary) -> void:
     _save()
 
 
+## The scene editor's remembered layout ({panel_id: {open, pinned}}, autokey).
+## A copy, like export_defaults().
+static func editor_state() -> Dictionary:
+    _ensure_loaded()
+    return _editor.duplicate(true)
+
+
+static func set_editor_state(d: Dictionary) -> void:
+    _ensure_loaded()
+    _editor = d.duplicate(true)
+    _save()
+
+
 static func _save() -> void:
     var cfg := ConfigFile.new()
     cfg.set_value(SECTION, "font_name", _font_name)
@@ -115,6 +132,7 @@ static func _save() -> void:
     cfg.set_value(SECTION, "export", _export)
     cfg.set_value(SECTION, "play_intro", _play_intro)
     cfg.set_value(SECTION, "play_loop", _play_loop)
+    cfg.set_value(SECTION, "editor", _editor)
     cfg.save(CFG_PATH)
 
 

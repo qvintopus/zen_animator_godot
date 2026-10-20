@@ -48,6 +48,29 @@ window's minimum width and pushed the gallery off both sides of the screen). **H
 (**zen_help**) for a sheet of every hotkey of the current screen - gallery, playback or
 shape editor - read from the live InputMap, so rebinding a key updates it.
 
+**Scenes are authored in the scene editor** (`tools/zen_scene_editor.tscn`): **Ctrl+ENTER**
+on an animation opens it, **N** starts a new one (the original editor's HELLO starter),
+**F2** renames and **Ctrl+D** duplicates from the gallery. Three rules keep it from growing
+a second copy of the data:
+
+- **The timeline is the scene's AnimationPlayer.** Lanes, keys, length and markers are read
+  from the `zen` Animation. Scrubbing seeks that player, and every key edit lands in it.
+- **The Elements panel is the node tree.** Add, delete, reorder (drag, or up/down) and
+  rename are node operations, and **Save** packs that same tree.
+- **Panels are summoned.** Elements, Inspector, Document and Timeline stay hidden until
+  opened from the top bar, the View menu or **1-4**. Unpinned, a panel floats and
+  auto-hides (ESC, a click on empty canvas, another panel on its side). Pinned, it stays
+  and the canvas makes room. They slide away while playing.
+
+**Auto-key** (**K**) is the original's: on, every edit keys the playhead; off, keyed props
+are locked and edits change the base pose. Undo (Ctrl+Z / Ctrl+Shift+Z) is snapshot-based,
+one step per gesture. A scene saved from the editor is marked `zen_authored`, and the
+one-shot importer skips it unless given `-- --force`, so a re-import cannot overwrite the
+edits. The editing ops are UI-free and tested headless (`addons/zen/authoring/`):
+`ZenSceneOps` (new/open/save/rename/duplicate/delete, snapshots), `ZenElemOps`,
+`ZenKeyOps` and `ZenDocOps`. Signals are kept consistent across renames and deletes but
+cannot be edited yet.
+
 **Visual assets are pixel shapes** - the original editor's `.shp` files, ported as
 `ZenPixelShape` resources in `assets/shapes/*.tres` (`tools/import_shp.gd` converts them).
 A pixel shape is a grid of fill/outline cells with no colour of its own: a `custom`
@@ -83,7 +106,7 @@ raylib's own bitmap font, rebuilt glyph for glyph; see the design note below). T
 `main_menu` the wrap went from a mean channel delta of **0.587 to 0.019**, which is the
 same order as an ordinary adjacent frame pair (0.007).
 
-The suite stands at **1196 numeric checks** and **31 render checks**, all green. Crumble and
+The suite stands at **1362 numeric checks** and **31 render checks**, all green. Crumble and
 the cursor-anchored ripple render correctly; `VISUAL_CHECKS.md` lists what to look at.
 Final sign-off is the user's.
 
@@ -169,7 +192,7 @@ bundled documents import complete.
 Headless is fine - nothing here renders.
 
 ```sh
-# 1228 checks
+# 1362 checks
 ./Godot_v4.7.2-stable_linux.x86_64 --headless --path . --script res://tests/run_tests.gd
 
 # importer fidelity: 2657 sampled comparisons, must be 0 mismatches
@@ -212,6 +235,9 @@ addons/zen/runtime/    zen_easing, zen_curve, zen_curve_bake (ease -> bezier), z
                        autoload), zen_anim_builder (assembles the saved AnimationPlayer),
                        zen_pixel_shape (the pixel-shape asset), zen_assets (asset lookup/save)
 addons/zen/fonts/      bundled fonts (LICENSES.md) - ZenText's project-default font
+addons/zen/authoring/  the scene editor's UI-free ops: zen_scene_ops (scene CRUD, snapshots),
+                       zen_elem_ops (element CRUD on the node tree), zen_key_ops (keys and
+                       eases, rebaking only the touched segments), zen_doc_ops (clock markers)
 addons/zen/importer/   zen_cfg_parse (grammar), zen_cfg_build (nodes), zen_cfg_import (entry)
 zen_gallery.tscn       the main scene (F5): browse, inspect and play animations
 tools/                 zen_gallery.gd, zen_options.gd (font picker), zen_shape_editor.gd/.tscn
@@ -219,6 +245,9 @@ tools/                 zen_gallery.gd, zen_options.gd (font picker), zen_shape_e
                        zen_hotkey_help.gd (the hold-H hotkey sheet), zen_ui.gd (shared
                        palette, screen shell and selectable-row list),
                        zen_list_selection.gd (Shift/Ctrl multi-selection),
+                       zen_scene_editor.gd/.tscn + zen_editor_panel.gd (summoned, pinnable
+                       panels) + zen_editor_stage.gd (canvas view, picking) +
+                       zen_timeline_view.gd (the AnimationPlayer as a timeline),
                        import_shp.gd (.shp -> .tres), zen_export.gd (the
                        engine: plan_chain + Job), zen_export_dialog.gd/.tscn (the Export
                        screen, E / Ctrl+E), export_scene.tscn (CLI door onto the same
@@ -256,6 +285,17 @@ cannot express) register by name and **shadow** a built-in of the same name.
 ENDING at a key) while Godot's `transition` is outgoing, so each segment is baked into
 bezier handles (exact for linear/quad/cubic/back, adaptive Hermite fit within 2e-4 of the
 ease for the rest). Godot interpolates; `ZenTimeline` samples the Animation purely.
+
+**A key is split across two tracks: `{t, v}` and `{t, ease}`.** Baking is one-way: a
+bounce or elastic ease becomes several fitted bezier keys, and the ease's name is gone.
+So each eased prop also gets a discrete String track at `Node:zen_ease_<prop>`, holding one
+key per *authored* key at that key's time. A bezier key whose time has no ease key is a fit
+key belonging to its segment, so the editor neither draws nor edits it. Editing a key
+rebakes only the segments touching it. Every other segment is written back as read, so
+handles shaped by hand in Godot's own Animation panel survive an unrelated edit. A track
+with no ease track, for example one made by hand in Godot, reads as all-authored with
+ease `bezier` ("keep the handles"). Colour props share one ease track across `:r|g|b`, and
+stepped props have none. `ZenTimeline` never samples ease tracks.
 
 **The `AnimationPlayer` owns time; `pose_looping()` owns the resolve.** Zen geometry is
 *resolved*, not stored (a fraction of the canvas, times `scale`, times the unit mode,
