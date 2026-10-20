@@ -111,6 +111,10 @@ func _ready() -> void:
 	_confirm.confirmed.connect(func(): if _confirm_action.is_valid(): _confirm_action.call())
 	add_child(_confirm)
 	_build_name_dialog()
+	# A click on the playing animation continues it from a pause marker, like
+	# SPACE (zen_continue).
+	_screen.mouse_filter = Control.MOUSE_FILTER_STOP
+	_screen.gui_input.connect(_on_screen_input)
 	_anim_header.pressed.connect(_set_section.bind(Section.ANIMS))
 	_asset_header.pressed.connect(_set_section.bind(Section.ASSETS))
 	_scan()
@@ -956,6 +960,15 @@ func _delete_files(files: Array[String]) -> void:
 	if not failed.is_empty(): _status.text += "   could not delete: %s" % ", ".join(failed)
 
 
+func _on_screen_input(ev: InputEvent) -> void:
+	var mb := ev as InputEventMouseButton
+	if mb == null or not mb.pressed or mb.button_index != MOUSE_BUTTON_LEFT: return
+	if _view == View.PLAYING and _playing != null and _playing.held_pause >= 0:
+		_playing.release_pause()
+		_update_status()
+		_screen.accept_event()
+
+
 ## Fire a signal by number while playing. This is the only interactive way to
 ## see one: an export never fires a signal, by design.
 func _fire(n: int) -> void:
@@ -981,7 +994,7 @@ func _update_status() -> void:
 	var extra := ""
 	if bus != null and bus.is_running(): extra = "   [signal]"
 	elif bus != null and bus.is_holding(): extra = "   [signal end]"
-	elif _playing.held_pause >= 0: extra = "   [paused - SPACE to continue]"
+	elif _playing.held_pause >= 0: extra = "   [paused - SPACE or click to continue]"
 	if _view == View.PLAYING and _hint_paused != (_playing.held_pause >= 0):
 		_show_playing(_title.text)
 

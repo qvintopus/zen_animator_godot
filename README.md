@@ -60,7 +60,11 @@ a second copy of the data:
 - **Panels are summoned.** Elements, Inspector, Document and Timeline stay hidden until
   opened from the top bar, the View menu or **1-4**. Unpinned, a panel floats and
   auto-hides (ESC, a click on empty canvas, another panel on its side). Pinned, it stays
-  and the canvas makes room. They slide away while playing.
+  and the canvas makes room. While playing, the unpinned ones slide away and a pinned
+  one stays (a pinned Timeline shows the playhead running).
+
+SPACE plays from the playhead, or from 0 once the end is reached; a click on the canvas
+(or SPACE) continues playback held at a pause marker, in the editor and the gallery.
 
 **Auto-key** (**K**) is the original's: on, every edit keys the playhead; off, keyed props
 are locked and edits change the base pose. Undo (Ctrl+Z / Ctrl+Shift+Z) is snapshot-based,
@@ -106,7 +110,7 @@ raylib's own bitmap font, rebuilt glyph for glyph; see the design note below). T
 `main_menu` the wrap went from a mean channel delta of **0.587 to 0.019**, which is the
 same order as an ordinary adjacent frame pair (0.007).
 
-The suite stands at **1362 numeric checks** and **31 render checks**, all green. Crumble and
+The suite stands at **1372 numeric checks** and **31 render checks**, all green. Crumble and
 the cursor-anchored ripple render correctly; `VISUAL_CHECKS.md` lists what to look at.
 Final sign-off is the user's.
 
@@ -192,7 +196,7 @@ bundled documents import complete.
 Headless is fine - nothing here renders.
 
 ```sh
-# 1362 checks
+# 1372 checks
 ./Godot_v4.7.2-stable_linux.x86_64 --headless --path . --script res://tests/run_tests.gd
 
 # importer fidelity: 2657 sampled comparisons, must be 0 mismatches

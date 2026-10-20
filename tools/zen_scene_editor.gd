@@ -327,6 +327,7 @@ func _build_ui() -> void:
     _stage.drag_started.connect(_on_drag_start)
     _stage.dragged.connect(_on_drag)
     _stage.drag_ended.connect(_commit_live)
+    _stage.play_clicked.connect(_continue)
     _work.add_child(_stage)
 
     _p_elems = _add_panel("elements", "Elements", ZenEditorPanel.Edge.LEFT, 230)
@@ -600,41 +601,51 @@ func _on_panel_state(p: ZenEditorPanel) -> void:
 
 
 ## Place the panels and the canvas. Pinned panels reserve their edge; open
-## panels on one side stack; while playing everything slides out by `_slide`.
+## panels on one side stack. While playing, the UNPINNED panels slide out by
+## `_slide`; pinned ones stay, so a pinned timeline can be watched playing.
 func _layout() -> void:
     if _work == null: return
     var w := _work.size.x
     var h := _work.size.y
-    var keep := 1.0 - _slide
     var bottom := _open_on(ZenEditorPanel.Edge.BOTTOM)
     var bot_h := 0.0
-    for p in bottom: bot_h = maxf(bot_h, p.extent)
+    var bot_shown := 0.0                # how much of the bottom edge is covered now
+    for p in bottom:
+        bot_h = maxf(bot_h, p.extent)
     bot_h = minf(bot_h, h * 0.6)
+    for p in bottom:
+        bot_shown = maxf(bot_shown, bot_h * (1.0 - _slide_of(p)))
     var reserve := {"l": 0.0, "r": 0.0, "b": 0.0}
     for p in _panels:
         if not (p.is_open and p.pinned): continue
         if p.side == ZenEditorPanel.Edge.LEFT: reserve["l"] = maxf(reserve["l"], p.extent)
         elif p.side == ZenEditorPanel.Edge.RIGHT: reserve["r"] = maxf(reserve["r"], p.extent)
         else: reserve["b"] = bot_h
-    var side_h := h - (bot_h if not bottom.is_empty() else 0.0)
+    var side_h := h - bot_shown
     for s in [ZenEditorPanel.Edge.LEFT, ZenEditorPanel.Edge.RIGHT]:
         var ps := _open_on(s)
         for i in ps.size():
             var p: ZenEditorPanel = ps[i]
             var ph := side_h / ps.size()
-            var x := -p.extent * _slide if s == ZenEditorPanel.Edge.LEFT \
-                else w - p.extent * keep
+            var out := _slide_of(p)
+            var x := -p.extent * out if s == ZenEditorPanel.Edge.LEFT \
+                else w - p.extent * (1.0 - out)
             p.position = Vector2(x, ph * i)
             p.size = Vector2(p.extent, ph)
     for p in bottom:
-        p.position = Vector2(0, h - bot_h * keep)
+        p.position = Vector2(0, h - bot_h * (1.0 - _slide_of(p)))
         p.size = Vector2(w, bot_h)
-    _stage.position = Vector2(reserve["l"] * keep, 0)
-    _stage.size = Vector2(w - (reserve["l"] + reserve["r"]) * keep, h - reserve["b"] * keep)
+    _stage.position = Vector2(reserve["l"], 0)
+    _stage.size = Vector2(w - reserve["l"] - reserve["r"], h - reserve["b"])
     for p in _panels:
         # Above the stage in draw order, and gone once fully slid away.
         _work.move_child(p, -1)
-        p.visible = p.is_open and _slide < 0.999
+        p.visible = p.is_open and _slide_of(p) < 0.999
+
+
+## How far `p` is slid out for playback: never, once it is pinned.
+func _slide_of(p: ZenEditorPanel) -> float:
+    return 0.0 if p.pinned else _slide
 
 
 func _open_on(s: int) -> Array:
@@ -1323,15 +1334,27 @@ func _on_context_ruler(t: float, at: Vector2) -> void:
 # ---------------------------------------------------------------- playback
 
 func _toggle_play() -> void:
-    if _playing: _stop()
+    if _playing and _canvas.held_pause >= 0: _continue()
+    elif _playing: _stop()
     else: _play()
 
 
+## Release playback held at a pause marker (SPACE, or a click on the canvas).
+func _continue() -> void:
+    if not _playing or _canvas.held_pause < 0: return
+    _canvas.release_pause()
+    _set_status("continued")
+
+
+## Play from the playhead - or, at (or past) the end, from the start, the
+## same as Home then play.
 func _play() -> void:
     _commit_live()
     var t := _t if _t < _canvas.play_end() - 0.01 else 0.0
+    if t == 0.0: _scrub_to(0.0)
     _canvas.play_from(t)
     _playing = true
+    _stage.playing = true
     _play_btn.text = "pause"
     _slide_to(1.0)
 
@@ -1339,6 +1362,7 @@ func _play() -> void:
 func _stop() -> void:
     if not _playing: return
     _playing = false
+    _stage.playing = false
     _canvas.stop_timeline()
     _t = _canvas.pose_time
     _canvas.scrub(_t)
@@ -1354,6 +1378,8 @@ func _process(_dt: float) -> void:
     _tl.playhead = _t
     _tl.queue_redraw()
     _sync_time()
+    if _p_insp.is_open and _p_insp.pinned: _refresh_inspector_values()
+    if _canvas.held_pause >= 0: _set_status("paused at a marker - click the canvas or SPACE to continue")
     if _canvas.is_finished(): _stop()
 
 

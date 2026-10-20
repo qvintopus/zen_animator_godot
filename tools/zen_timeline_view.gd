@@ -167,7 +167,10 @@ func _draw() -> void:
             _diamond(c, KEY_R + (1.0 if sel else 0.0), ease_color(String(k["ease"])), sel)
 
     # Markers on top of the lanes, in the ruler.
-    if intro_end > 0.0: _marker_tri(t_to_x(intro_end), ZenUI.LABEL, true)
+    # Always drawn, at 0 when unset, so it can be dragged out from the start.
+    # It sits in the ruler's lower half in its own colour; the playhead's
+    # handle is the upper half, so at 0 the two are told apart by height.
+    _marker_tri(t_to_x(intro_end), ZenUI.LABEL, true)
     if outro_start > 0.0: _marker_tri(t_to_x(outro_start), ZenUI.WARN, false)
     for p in pauses:
         var px := t_to_x(float(p["t"]))
@@ -236,10 +239,12 @@ func lane_at(y: float) -> int:
 
 ## ["intro"|"outro"|"pause", idx] under `p` in the ruler, or ["", -1].
 func marker_at(p: Vector2) -> Array:
-    if p.y > RULER_H + 2.0: return ["", -1]
+    # Markers live in the lower half of the ruler; the upper half is the
+    # playhead's, so a marker at the playhead's time can still be told apart.
+    if p.y > RULER_H + 2.0 or p.y < RULER_H - 13.0: return ["", -1]
     for i in pauses.size():
         if absf(p.x - t_to_x(float(pauses[i]["t"]))) <= 5.0: return ["pause", i]
-    if intro_end > 0.0 and absf(p.x - t_to_x(intro_end) - 3.0) <= 6.0: return ["intro", 0]
+    if absf(p.x - t_to_x(intro_end) - 3.0) <= 6.0: return ["intro", 0]
     if outro_start > 0.0 and absf(p.x - t_to_x(outro_start) + 3.0) <= 6.0: return ["outro", 0]
     return ["", -1]
 

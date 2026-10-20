@@ -2972,6 +2972,7 @@ func test_scene_ops_roundtrip() -> void:
 func test_scene_editor() -> void:
     # The editor persists its layout and auto-key; keep the user's own.
     var user_state := ZenSettings.editor_state()
+    ZenSettings.set_editor_state({})          # start from the default layout
     var ed: ZenSceneEditor = (load("res://tools/zen_scene_editor.tscn") as PackedScene).instantiate()
     root.add_child(ed)
     await process_frame
@@ -3042,6 +3043,28 @@ func test_scene_editor() -> void:
     ed._close_unpinned()
     check(not insp.is_open and not ed._panel("document").is_open, "unpinned panels close on demand")
 
+    # A pinned timeline stays on screen while playing; unpinned panels slide.
+    ed._panel("timeline").set_open(true)
+    ed._panel("timeline").set_pinned(true)
+    ed._toggle_panel("inspector")
+    ed._slide = 1.0
+    ed._layout()
+    var tlp := ed._panel("timeline")
+    check(tlp.visible and tlp.position.y + 1.0 < ed._work.size.y, "a pinned timeline stays on screen while playing")
+    check(not insp.visible, "an unpinned panel slides away while playing")
+    ed._slide = 0.0
+    ed._panel("timeline").set_pinned(false)
+    ed._close_unpinned()
+    ed._layout()
+
+    # The intro marker is there (at 0) even when unset, below the playhead.
+    var tv := ed._tl
+    tv.intro_end = 0.0
+    check(tv.marker_at(Vector2(tv.t_to_x(0.0) + 3.0, ZenTimelineView.RULER_H - 5.0))[0] == "intro",
+          "an unset intro marker is grabbable at 0")
+    check(tv.marker_at(Vector2(tv.t_to_x(0.0) + 3.0, 4.0))[0] == "",
+          "the ruler's top half stays the playhead's")
+
     var nm := "zz_test_editor"
     ed._name = nm
     ed._save()
@@ -3057,6 +3080,55 @@ func test_scene_editor() -> void:
     check(not FileAccess.get_file_as_string("res://anims/zooming_box.tscn").contains("zen_authored"),
           "...and not marked authored")
     orig.free()
+    ed.queue_free()
+    await process_frame
+    ZenSettings.set_editor_state(user_state)
+    await test_scene_editor_playback()
+
+
+## SPACE at the end restarts (like Home, then play); a click continues a pause.
+func test_scene_editor_playback() -> void:
+    var user_state := ZenSettings.editor_state()
+    ZenSettings.set_editor_state({})          # start from the default layout
+    var ed: ZenSceneEditor = (load("res://tools/zen_scene_editor.tscn") as PackedScene).instantiate()
+    root.add_child(ed)
+    await process_frame
+    ed.open("")
+    var c := ed._canvas
+    c.loop_play = false
+    ed._scrub_to(c.play_end())
+    ed._toggle_play()
+    check(ed._playing, "space plays")
+    await process_frame
+    await process_frame
+    check(c.animation_player().current_animation_position < 0.5,
+          "play at the end restarts from 0 (%.3f)" % c.animation_player().current_animation_position)
+    ed._stop()
+    # Finish a one-shot for real, then play again.
+    ed._scrub_to(c.play_end() - 0.05)
+    ed._toggle_play()
+    var guard := 0
+    while ed._playing and guard < 600:
+        await process_frame
+        guard += 1
+    check(not ed._playing and ed._t > c.play_end() - 0.02, "a one-shot stops at its end")
+    ed._toggle_play()
+    await process_frame
+    check(ed._playing and c.animation_player().is_playing() and
+          c.animation_player().current_animation_position < 0.5, "space after the end replays from 0")
+    ed._stop()
+
+    ZenDocOps.add_pause(c, 0.3)
+    ed._scrub_to(0.25)
+    ed._toggle_play()
+    guard = 0
+    while c.held_pause < 0 and guard < 600:
+        await process_frame
+        guard += 1
+    check(c.held_pause >= 0 and ed._playing, "playback holds at a pause marker")
+    ed._stage.play_clicked.emit()
+    check(c.held_pause < 0 and ed._playing, "a click on the canvas continues")
+    ed._stop()
     ed.queue_free()
     await process_frame
     ZenSettings.set_editor_state(user_state)

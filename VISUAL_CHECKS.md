@@ -452,7 +452,14 @@ Not yet run by eye - added 2026-10-20 with the editor. Work on a copy: open a sc
   Timeline. An unpinned panel floats over the canvas and closes on ESC, on a click on
   empty canvas, or when another unpinned panel opens on its side. **pin** keeps it open
   and the canvas shrinks to make room. Pins survive a restart. During playback (SPACE)
-  every panel slides away and comes back on pause.
+  the unpinned panels slide away and come back on pause; pinned ones (a pinned
+  Timeline) stay, so the playhead can be watched running through the keys.
+- **Playback.** SPACE at (or after) the end replays from 0, like Home then SPACE. With a
+  pause marker (right-click the ruler > add pause), playback holds there; a click on the
+  canvas, or SPACE, continues - in the gallery too.
+- **Intro marker.** With no intro set (`zooming_box`), the blue intro triangle sits at
+  0.00 in the lower half of the ruler, under the gold playhead handle; dragging the lower
+  half moves the intro, dragging the upper half scrubs.
 - **The timeline is the AnimationPlayer.** Select `title`: its `pos_x` and `alpha` lanes
   show the authored keys only (no fit keys), with intro/outro triangles at 0.62 / 3.21.
   Drag on the ruler: the canvas follows. Drag a key (Ctrl snaps to 0.1s); right-click it,

@@ -20,12 +20,16 @@ signal empty_clicked
 signal drag_started
 signal dragged(delta_frac: Vector2)
 signal drag_ended
+## A left click while the scene plays (picking is off then): continues a
+## pause marker.
+signal play_clicked
 
 const DRAG_SLOP := 3.0
 
 var canvas: ZenCanvas = null
 var selected: Array = []                ## ZenElements to outline
 var time := 0.0                         ## the t the outlines are drawn at
+var playing := false
 var _sub: SubViewport
 var _bg: ColorRect
 var _press := Vector2.ZERO
@@ -129,6 +133,11 @@ func hits(p: Vector2) -> Array:
 func _gui_input(ev: InputEvent) -> void:
     if canvas == null: return
     var mb := ev as InputEventMouseButton
+    if playing:
+        if mb != null and mb.button_index == MOUSE_BUTTON_LEFT and mb.pressed:
+            play_clicked.emit()
+            accept_event()
+        return
     if mb != null and mb.button_index == MOUSE_BUTTON_LEFT:
         if mb.pressed:
             grab_focus()

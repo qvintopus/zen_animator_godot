@@ -538,7 +538,10 @@ func play_from(t: float) -> void:
 	if _ap == null: edit_begin()
 	if _ap == null: return
 	setup_animation_player(true)
-	if t > 0.0001 and t < play_end() - 0.0001: _seek_safe(t)
+	# Always seek, 0 included: play_section() on a PAUSED player resumes where
+	# it was paused rather than at the section start (measured), so after a
+	# one-shot ran out it would resume at its end and finish again at once.
+	_seek_safe(clampf(t, 0.0, play_end()))
 	set_process(true)
 
 
