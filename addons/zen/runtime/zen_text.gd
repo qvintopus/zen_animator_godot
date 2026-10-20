@@ -57,7 +57,7 @@ signal text_changed(text: String)
 
 ## Per-element font override. Null falls back to the project default
 ## (default_font() below), so an existing scene needs no .tscn change - the
-## .cfg grammar has no font field, so the bundled default is project-level.
+## bundled default is project-level.
 ## Per-animation font choice is a later change.
 @export var font: Font = null
 var _t := 0.0
@@ -79,7 +79,7 @@ static func set_font_override(f: Font) -> void:
 
 ## The project default font, loaded once and cached. A static func rather than
 ## a member so it resolves correctly even for a node that is instantiated but
-## never enters the tree (dump_scene.gd, the importer) - _ready() is not
+## never enters the tree (dump_scene.gd, the gallery) - _ready() is not
 ## guaranteed to have run.
 static func default_font() -> Font:
     if _font_override != null:

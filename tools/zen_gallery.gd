@@ -24,11 +24,6 @@ extends Control
 ## new .tscn in makes it appear with no code change.
 const ANIM_DIR := "res://anims"
 
-## Scenes that are test fixtures rather than content. `mouse_ripple_hand` is the
-## hand-built twin the importer is checked against (tools/compare_ripple.gd);
-## listing both would show the same animation twice under near-identical names.
-const HIDDEN := ["mouse_ripple_hand"]
-
 enum View { GALLERY, PLAYING, OPTIONS, EXPORT, SHAPE_EDITOR, SCENE_EDITOR }
 
 ## The left column is an accordion of these: one section open at a time, its
@@ -130,10 +125,7 @@ func _ready() -> void:
 func _scan() -> void:
 	_entries.clear()
 	var paths := ZenSceneOps.scene_paths()
-	var names: Array = []
-	for base in paths:
-		if HIDDEN.has(base): continue
-		names.append(base)
+	var names: Array = paths.keys()
 	names.sort()
 	for base in names:
 		_entries.append(_describe(String(paths[base]), base))
@@ -793,9 +785,7 @@ func _on_name_ok() -> void:
 	if _name_action.is_valid(): _name_action.call(ZenSceneOps.clean_name(_name_edit.text))
 
 
-## F2: rename the animation's scene file. Its .cfg source is left alone - a
-## re-import would recreate the old name, which is the importer's one-shot
-## nature, not a rename's.
+## F2: rename the animation's scene file.
 func _ask_rename() -> void:
 	if _entries.is_empty(): return
 	var old := String(_entries[_sel]["name"])
@@ -894,9 +884,8 @@ func _queue_name(nm: String) -> bool:
 # ---------------------------------------------------------------- delete
 
 ## DEL: move the selected rows' files to the trash, after a confirmation that
-## lists every file. An animation takes its .cfg source with it, or the next
-## import would bring it straight back; an asset still drawn by an animation
-## is named, since that animation then draws the missing-shape box.
+## lists every file. An asset still drawn by an animation is named, since that
+## animation then draws the missing-shape box.
 func _ask_delete() -> void:
 	var files: Array[String] = []
 	var L: Array = []
@@ -905,8 +894,6 @@ func _ask_delete() -> void:
 		if names.is_empty(): return
 		for nm in names:
 			files.append(ZenSceneOps.path_of(nm))
-			var src := _source_cfg(nm)
-			if src != "": files.append(src)
 		L.append("Move %s to the trash?" % ("animation %s" % names[0] if names.size() == 1
 				 else "%d animations" % names.size()))
 	else:
@@ -927,17 +914,6 @@ func _ask_delete() -> void:
 	_confirm.dialog_text = "\n".join(L)
 	_confirm_action = _delete_files.bind(files)
 	_confirm.popup_centered()
-
-
-## The anims_src/*.cfg an animation was imported from, or "".
-func _source_cfg(nm: String) -> String:
-	var importer: Script = load("res://addons/zen/importer/zen_cfg_import.gd")
-	var d := DirAccess.open(importer.SRC_DIR)
-	if d == null: return ""
-	for f in d.get_files():
-		if f.ends_with(".cfg") and not f.begins_with("_") and importer.scene_name(f) == nm:
-			return "%s/%s" % [importer.SRC_DIR, f]
-	return ""
 
 
 func _delete_files(files: Array[String]) -> void:

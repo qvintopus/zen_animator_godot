@@ -11,7 +11,7 @@ extends ZenElement
 ##
 ## bg_alpha 0 means "draw no background at all", letting whatever is behind show
 ## through - that is how a Zen overlay composites over live gameplay
-## (anim_stage.h:20-27). GAME_START.cfg uses it as a fade-from-black.
+## (anim_stage.h:20-27). game_start uses it as a fade-from-black.
 ##
 ## Two nodes rather than one because the two rects live at different depths; the
 ## background half is parented separately by the builder.

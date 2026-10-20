@@ -41,7 +41,7 @@ signal terminal_finished(signal_name: String)
 ## not require knowing the document's signal names up front.
 signal signal_fired(signal_name: String, params: Dictionary)
 
-## The authored signals, ZenCfgParse shape. Array of Dictionary round-trips
+## The authored signals, as Dictionaries. Array of Dictionary round-trips
 ## through a .tscn natively - the same storage ZenElement.tracks already uses -
 ## so no Resource subclass is needed.
 @export var signals_data: Array = []
@@ -269,7 +269,6 @@ func _capture(elem_name: String, prop: String, t: float) -> Variant:
 
 ## Elements are referenced BY NAME, not by index as in the C.
 ##
-## The .cfg already stores names, so the C's elemIdx is a derived field - and
 ## Godot scenes are the source of truth, where an author reordering children in
 ## the editor would silently repoint every index at the wrong element. The name
 ## matched is `elem_name`, the AUTHORED name, not Node.name, which has been

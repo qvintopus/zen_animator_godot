@@ -28,10 +28,10 @@ extends RefCounted
 ##
 
 ## Parallel to the C's ANIM_SIG_* caps. Not enforced - Godot arrays grow - but
-## kept as documentation of the authoring limits the .cfg format assumes.
+## kept as documentation of the authoring limits the C assumed.
 const KEYS_MAX := 8
 
-var sig: Dictionary = {}          ## the authored signal (ZenCfgParse shape)
+var sig: Dictionary = {}          ## the authored signal (ZenSignalBus.signals_data entry)
 var clock := 0.0
 var playing := false
 ## True once a TERMINAL signal has run to its end: the player keeps answering
@@ -99,8 +99,8 @@ func start(signal_data: Dictionary, p: Dictionary, seq_index: int,
     var targets: Array = sig.get("targets", [])
     var pos_params: Array = sig.get("pos_params", [])
     var seq_targets: Array = sig.get("seq_targets", [])
-    # A signal driving NOTHING does not start. `signal enter` in
-    # mouse_ripple.cfg is exactly this (anim.c:1505-1507). A signal with only
+    # A signal driving NOTHING does not start. mouse_ripple's `enter` signal
+    # is exactly this (anim.c:1505-1507). A signal with only
     # posparams or only seqtargets DOES start: it has a pose to ease from and a
     # length to run.
     if targets.is_empty() and pos_params.is_empty() and seq_targets.is_empty():
@@ -265,7 +265,7 @@ func _target_index(elem: String, prop: String) -> int:
 ##
 ## The CORNER branch is deferred - no bundled document binds a corner, and the C
 ## itself flags the mode as limited (fire-time pose, no live scale tracking).
-## `corner_mode` is carried as data so nothing is lost at import.
+## `corner_mode` is carried as data so nothing is lost.
 func _pos_param_eval(elem: String, prop: String) -> Variant:
     if not bool(sig.get("uses_pos", false)): return null
     if not has_pos(): return null

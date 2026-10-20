@@ -21,7 +21,7 @@ extends Node2D
 ## exactly as confusing as it sounds.
 @export var design_size := Vector2(320, 180)
 
-## Document clock, straight off the `doc` line of a .cfg. NOT exported: the
+## Document clock. NOT exported: the
 ## scene's AnimationPlayer ("zen" length and markers) is the one stored copy,
 ## and sync_from_animation() reads these back out of it.
 var duration := 2.0
@@ -265,8 +265,7 @@ func pose(t: float) -> void:
 ## Does playback WRAP at play_end(), or hold the last pose? Separate from
 ## loop_smooth, which only decides whether the wrap is BLENDED - a document can
 ## wrap hard (loop_smooth=false) or hold without wrapping at all. Explicit, not
-## derived: the importer (zen_cfg_build.gd) sets it from `loop_smooth or
-## intro_end > 0.0`.
+## derived: ZenElemFactory.build sets it from `loop_smooth or intro_end > 0.0`.
 @export var loop_play := false
 
 ## Viewer overrides for LIVE playback (the gallery's I / L toggles). Not

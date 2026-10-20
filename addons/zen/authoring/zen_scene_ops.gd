@@ -23,8 +23,6 @@ extends RefCounted
 ##
 
 const DIRS := ["res://anims", "user://anims"]
-## Canvas meta marking a scene the editor saved; zen_cfg_import.gd skips those.
-const META_AUTHORED := "zen_authored"
 ## The C editor's new-document clock (AnimDocInit, anim.c:90-105).
 const NEW_DURATION := 2.0
 const NEW_BLEND := 0.3
@@ -53,7 +51,7 @@ static func save_path(nm: String) -> String:
     return "%s/%s.tscn" % [dir, nm]
 
 
-## A file-safe scene name ("My Intro!" -> "my_intro_"), the importer's rule.
+## A file-safe scene name ("My Intro!" -> "my_intro_").
 static func clean_name(raw: String) -> String:
     var out := ""
     for ch in raw.strip_edges().to_lower():
@@ -75,18 +73,6 @@ static func unique_name(base: String) -> String:
     return "%s_%d" % [base, n]
 
 
-## Register the shared custom easings (anims_src/_easings.cfg) so a key the
-## editor rebakes with one gets its real curve - ZenEasing falls back to linear
-## for a name it does not know. Played scenes never need this: their curves
-## are already baked.
-static func load_custom_easings() -> void:
-    var path := "res://anims_src/_easings.cfg"
-    if not FileAccess.file_exists(path): return
-    var parsed := ZenCfgParse.parse_easings(FileAccess.get_file_as_string(path))
-    for n in parsed["curves"]:
-        ZenEasing.register_custom(n, parsed["curves"][n])
-
-
 # ---------------------------------------------------------------------------
 #  Create / open
 # ---------------------------------------------------------------------------
@@ -94,7 +80,7 @@ static func load_custom_easings() -> void:
 ## A new document with the C editor's starter content (anim_editor_zen.c:143):
 ## a "title" text reading HELLO that fades in over the first 0.6s.
 static func new_canvas(nm: String) -> ZenCanvas:
-    var title := ZenCfgParse.new_elem("text", "title")
+    var title := ZenElemFactory.new_elem("text", "title")
     title["text"] = "HELLO"
     title["pos"] = Vector2(0.5, 0.10)
     title["size"] = Vector2(0.12, 0.12)
@@ -106,7 +92,7 @@ static func new_canvas(nm: String) -> ZenCanvas:
         "outro_start": NEW_DURATION, "loop_blend": NEW_BLEND, "loop_smooth": true,
         "elems": [title], "signals": [], "pauses": [],
     }
-    var canvas: ZenCanvas = ZenCfgBuild.build(doc)["canvas"]
+    var canvas := ZenElemFactory.build(doc)
     canvas.sync_from_animation()
     return canvas
 
@@ -198,14 +184,12 @@ static func _own(canvas: ZenCanvas) -> void:
 #  Save / rename / duplicate / delete
 # ---------------------------------------------------------------------------
 
-## Save `canvas` as scene `nm`. Marks it authored so the one-shot importer will
-## not overwrite it, and replaces any cached copy so the gallery plays the
-## saved version. Returns the path written, or "".
+## Save `canvas` as scene `nm`, replacing any cached copy so the gallery plays
+## the saved version. Returns the path written, or "".
 static func save(canvas: ZenCanvas, nm: String) -> String:
     var path := save_path(nm)
     DirAccess.make_dir_recursive_absolute(path.get_base_dir())
     _own(canvas)
-    canvas.set_meta(META_AUTHORED, true)
     # The editor runs its canvas with live playback off; the saved scene must
     # still play on its own when opened (F6, the gallery).
     var live := canvas.live_playback
@@ -236,7 +220,7 @@ static func duplicate_scene(from: String, to: String) -> Error:
     if not is_name_free(to): return ERR_ALREADY_EXISTS
     var canvas := open(src)
     if canvas == null: return ERR_CANT_OPEN
-    canvas.name = ZenCfgBuild.node_name(to)
+    canvas.name = ZenElemFactory.node_name(to)
     var ok := not save(canvas, to).is_empty()
     canvas.free()
     return OK if ok else ERR_CANT_CREATE

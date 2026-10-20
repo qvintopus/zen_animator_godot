@@ -38,8 +38,7 @@ func _run() -> void:
     test_easing_against_godot()
     test_custom_curve()
     test_export_plan()
-    test_cfg_parse()
-    test_real_cfgs()
+    test_easing_set()
     test_text_layout()
     test_crumble_hash()
     test_canvas_size()
@@ -58,7 +57,7 @@ func _run() -> void:
     test_pause_across_wrap()
     test_export_pause_source()
     await test_canvas_idle_until_played()
-    test_imported_scenes_inert()
+    test_scenes_inert()
     test_export_pause_holds()
     test_chain_frame_plan()
     test_chain_rejects_size_mismatch()
@@ -67,7 +66,6 @@ func _run() -> void:
     test_cutout_snaps_alpha()
     test_ffmpeg_args_per_format()
     await test_job_cancel_png()
-    test_props_registry_agrees()
     test_signal_u_normalization()
     test_signal_no_start()
     test_signal_seq_offset()
@@ -89,7 +87,7 @@ func _run() -> void:
     test_signal_bases_match_draw()
     test_signal_captures_posed_time()
     test_signal_unknown_element()
-    test_imported_signals_present()
+    test_scene_signals_present()
     test_signal_export_purity()
     await test_anim_player_plays()
     test_anim_player_markers()
@@ -99,7 +97,6 @@ func _run() -> void:
     await test_loop_play_separate_from_smooth()
     await test_viewer_intro_loop_toggles()
     test_pixel_shape()
-    test_shp_migration()
     test_custom_shape_resolution()
     test_options_font_sort_filter()
     test_raylib_font()
@@ -115,7 +112,7 @@ func _run() -> void:
     test_elem_ops()
     test_doc_ops()
     test_scene_ops_roundtrip()
-    test_string_pool_import()
+    test_string_pool_scenes()
     test_string_ops()
     test_string_pool_shared()
     await test_scene_editor()
@@ -160,8 +157,8 @@ func test_signal_u_normalization() -> void:
     check(q.is_done(), "length=0 is done on its first update")
 
 
-## A signal driving NOTHING must not start (anim.c:1505-1507). `signal enter`
-## in mouse_ripple.cfg is exactly this, and a player that "ran" would install an
+## A signal driving NOTHING must not start (anim.c:1505-1507). mouse_ripple's
+## `enter` signal is exactly this, and a player that "ran" would install an
 ## override that drives no property while still blocking the loop blend.
 func test_signal_no_start() -> void:
     var empty := {"name": "enter", "length": 1.0, "targets": [], "pos_params": [],
@@ -218,31 +215,6 @@ func test_signal_seq_offset() -> void:
     check_near(r.seq_offset("shape", "scale"), 1.0, "no env keys = constant full offset")
 
 
-## ZenProps and the parser's per-kind lists must name the SAME properties.
-##
-## They are two tables of the same truth, and a disagreement is invisible: the
-## parser produced an `outline` track while ZenProps called it `outline_thick`,
-## which nothing noticed because nothing enumerated the list. The signal layer
-## DOES enumerate it (the pose capture walks scalars_for + colors_for), so a
-## mismatch there would silently swallow every signal targeting that property.
-func test_props_registry_agrees() -> void:
-    var parser := {"text": ZenCfgParse.TEXT_PROPS, "shape": ZenCfgParse.SHAPE_PROPS,
-                   "global": ZenCfgParse.GLOBAL_PROPS}
-    for kind in parser:
-        var mine: Array = ZenProps.scalars_for(kind) + ZenProps.colors_for(kind)
-        for prop in parser[kind]:
-            check(mine.has(prop), "ZenProps[%s] knows parser prop '%s'" % [kind, prop])
-        for prop in mine:
-            check((parser[kind] as Array).has(prop),
-                  "parser[%s] knows ZenProps prop '%s'" % [kind, prop])
-
-    # And the two classifications must agree, not just the names.
-    for prop in ZenCfgParse.STEPPED_PROPS:
-        check(ZenProps.is_stepped(prop), "'%s' stepped in both tables" % prop)
-    for prop in ZenCfgParse.COLOR_PROPS:
-        check(ZenProps.is_color(prop), "'%s' colour in both tables" % prop)
-
-
 ## Every built-in must match the generated reference, which comes from GODOT's
 ## Tween family (see zen_easing.gd for why Godot owns these curves, and what
 ## that changed). Regenerate with tools/gen_ease_ref.gd. The raylib curves and
@@ -271,12 +243,6 @@ func test_easing_against_godot() -> void:
     # unknown name degrades to linear, never errors (AnimEaseByName semantics)
     check_near(ZenEasing.apply("no_such_ease", 0.42), 0.42, "unknown -> linear")
 
-    # Every name a .cfg may carry must resolve, or the importer would silently
-    # linearize an authored curve. This is the check that stops CFG_NAMES and
-    # GODOT_EASE drifting apart.
-    for nm2 in ZenEasing.CFG_NAMES:
-        check(ZenEasing.is_builtin(nm2), "cfg easing '%s' is backed" % nm2)
-
     # Endpoints. p=0 must be exactly 0 for every curve; p=1 is exact for all
     # but expo, where Godot's formulation reaches 0.999 (measured, not a bug
     # here - it leaves pause_menu's slide-in 0.07px short on a 320px canvas,
@@ -301,15 +267,13 @@ func test_easing_against_godot() -> void:
 
 ## Custom curves: endpoints exact, overshoot preserved, hold steps honoured.
 func test_custom_curve() -> void:
-    # bop_n_up from anims_src/_easings.cfg - has a hold step (two knots at
+    # bop_n_up from assets/easings.tres - has a hold step (two knots at
     # x=0.284375) and overshoots to y=1.5.
-    var nums := PackedFloat32Array([4,
-        0,0,0,0,0.06875,1.5,
-        0.284375,0.6,-0.1625,1.275,0.1625,-1.275,
-        0.284375,0.3,-0.107344,0,0.107344,0,
-        1,1,-0.25,-0.25,0,0])
-    var c := ZenCurve.from_tokens(nums)
-    check(c.knots.size() == 4, "bop_n_up parsed 4 knots")
+    var c := ZenCurve.new()
+    c.knots = [PackedFloat32Array([0, 0, 0, 0, 0.06875, 1.5]),
+               PackedFloat32Array([0.284375, 0.6, -0.1625, 1.275, 0.1625, -1.275]),
+               PackedFloat32Array([0.284375, 0.3, -0.107344, 0, 0.107344, 0]),
+               PackedFloat32Array([1, 1, -0.25, -0.25, 0, 0])]
     check_near(c.sample(0.0), 0.0, "custom p=0 -> first knot y")
     check_near(c.sample(1.0), 1.0, "custom p=1 -> last knot y")
     # Between the two coincident knots the curve must not explode.
@@ -368,174 +332,24 @@ func test_export_plan() -> void:
     check(ZenExport.sanitize("my anim; rm -rf") == "my_anim__rm_-rf", "name sanitized")
 
 
-## Parser edge cases that the real documents actually contain.
-func test_cfg_parse() -> void:
-    # Text escaping: a whole string is ONE whitespace-delimited token.
-    check(ZenCfgParse.decode_text("MAIN\\sMENU") == "MAIN MENU", "\\s -> space")
-    check(ZenCfgParse.decode_text("a\\nb") == "a\nb", "\\n -> newline")
-    check(ZenCfgParse.decode_text("a\\\\b") == "a\\b", "\\\\ -> backslash")
-    check(ZenCfgParse.decode_text("plain_text") == "plain_text", "underscore survives")
-
-    var doc_text := """
-doc TEST 3.000000 0.500000 2.500000 0.250000 1
-elem shape box
-  shape circle
-  outline 10 20 30 255 1.500000
-  scale 2.000000
-  color 40 50 60 128
-  pos 0.250000 0.750000
-  size 16.000000 24.000000
-  unit abs
-  outline_style crisp
-  rot -45.000000
-  frobnicate 1 2 3
-  track rot 0
-  track alpha 2
-    key 0.000000 0.000000 linear
-    key 1.000000 1.000000 sineIn
-  track color 2
-    key 0.000000 1 2 3 linear
-    key 1.000000 4 5 6 quadIn
-  end
-pause 1.250000 1
-signal zap 0.800000 1 1 1 1
-  posparam box 0 1
-    poskey 0.000000 0.000000 0.000000 sineOut
-  target box pos_x 1
-    key 0.500000 0.900000 sineIn
-  endsig
-"""
-    var r := ZenCfgParse.parse_doc(doc_text)
-    check(r["ok"], "parse ok")
-    var d: Dictionary = r["doc"]
-    check(String(d["name"]) == "TEST", "doc name")
-    check_near(d["duration"], 3.0, "doc duration")
-    check_near(d["intro_end"], 0.5, "doc intro_end")
-    check_near(d["outro_start"], 2.5, "doc outro_start")
-    check_near(d["loop_blend"], 0.25, "doc loop_blend")
-    check(bool(d["loop_smooth"]), "doc loop_smooth")
-
-    check(d["elems"].size() == 1, "one element")
-    var e: Dictionary = d["elems"][0]
-    check(String(e["shape"]) == "circle", "shape kind")
-    check(bool(e["unit_abs"]), "unit abs parsed")
-    check(bool(e["outline_crisp"]), "outline_style crisp parsed")
-    check_near(e["scale"], 2.0, "scale")
-    check_near(e["rot"], -45.0, "rot")
-    check_near(e["outline"], 1.5, "outline thickness")
-    check(e["outline_color"].r8 == 10 and e["outline_color"].g8 == 20,
-          "outline colour split from thickness")
-    check(e["color"].a8 == 128, "base colour keeps its alpha")
-    check_near(e["pos"].x, 0.25, "pos x")
-    check_near(e["size"].y, 24.0, "size y (pixels in abs mode)")
-
-    # An EMPTY track is legal and must be preserved - both menu files have one.
-    check(e["tracks"].has("rot"), "empty track kept")
-    check((e["tracks"]["rot"] as Array).is_empty(), "empty track has no keys")
-    # Unknown leading keys are skipped, not fatal.
-    check(not e["tracks"].has("frobnicate"), "unknown key skipped")
-
-    var alpha: Array = e["tracks"]["alpha"]
-    check(alpha.size() == 2, "alpha keys")
-    check(String(alpha[1]["ease"]) == "sineIn", "key ease name read")
-    # Colour keys are RGB-only; alpha never rides along.
-    var col: Array = e["tracks"]["color"]
-    check(col.size() == 2, "colour keys")
-    check(col[0].has("c") and not col[0].has("v"), "colour key stores a Color")
-    check(col[1]["c"].r8 == 4, "colour key rgb")
-
-    check(d["pauses"].size() == 1, "pause parsed")
-    check(bool(d["pauses"][0]["once"]), "pause once flag")
-
-    check(d["signals"].size() == 1, "signal parsed")
-    var sg: Dictionary = d["signals"][0]
-    check(String(sg["name"]) == "zap", "signal name")
-    check_near(sg["length"], 0.8, "signal length")
-    check(bool(sg["terminal"]) and bool(sg["uses_pos"])
-          and bool(sg["pos_anchor"]) and bool(sg["replay"]), "signal flags")
-    check(sg["targets"].size() == 1, "signal target")
-    check(sg["pos_params"].size() == 1, "signal posparam")
-
-    # The crumble group shares ONE key line and fans out into five tracks.
-    var cr := ZenCfgParse.parse_doc("""
-elem text t
-  track crumble 1
-    key 2.418417 1.000000 0.000000 145.565216 0.500000 720.000000 linear
-  end
-""")
-    var ce: Dictionary = cr["doc"]["elems"][0]
-    for m in ZenCfgParse.CRUMBLE_MEMBERS:
-        check(ce["tracks"].has(m), "crumble fans out to %s" % m)
-    check_near(ce["tracks"]["crumble"][0]["v"], 1.0, "crumble amount")
-    check_near(ce["tracks"]["crumble_dir"][0]["v"], 0.0, "crumble dir")
-    check_near(ce["tracks"]["crumble_spread"][0]["v"], 145.565216, "crumble spread", 0.001)
-    check_near(ce["tracks"]["crumble_dist"][0]["v"], 0.5, "crumble dist")
-    check_near(ce["tracks"]["crumble_spin"][0]["v"], 720.0, "crumble spin")
-
-    # outro_start <= 0 means "unset" and resolves to the duration.
-    var nd := ZenCfgParse.parse_doc("doc X 4.0 0.0 0.0")
-    check_near(nd["doc"]["outro_start"], 4.0, "outro_start 0 -> duration")
-
-
-## The real documents must parse, and their known contents must survive.
-func test_real_cfgs() -> void:
-    var mm := ZenCfgParse.parse_doc(
-        FileAccess.get_file_as_string("res://anims_src/MAIN_MENU.cfg"))
-    check(mm["ok"], "MAIN_MENU parses")
-    var d: Dictionary = mm["doc"]
-    check(d["elems"].size() == 6, "MAIN_MENU has 6 elements (got %d)" % d["elems"].size())
-    check_near(d["intro_end"], 0.619826, "MAIN_MENU intro_end")
-    check_near(d["outro_start"], 3.210659, "MAIN_MENU outro_start")
-    check(d["signals"].size() == 1, "MAIN_MENU has the TV-out signal")
-    check(String(d["signals"][0]["name"]) == "TV-out", "TV-out name")
-    check(bool(d["signals"][0]["terminal"]), "TV-out is terminal")
-    check(d["signals"][0]["targets"].size() == 12, "TV-out has 12 targets (got %d)"
-          % d["signals"][0]["targets"].size())
-    # the_ball is the unit-abs one.
-    var ball := {}
-    for e in d["elems"]:
-        if String(e["name"]) == "the_ball": ball = e
-    check(not ball.is_empty(), "the_ball found")
-    check(bool(ball["unit_abs"]), "the_ball is unit abs")
-    check(bool(ball["outline_crisp"]), "the_ball is crisp")
-    check_near(ball["size"].x, 16.0, "the_ball is 16px")
-    # Corner-anchored diagonals.
-    var diag := {}
-    for e in d["elems"]:
-        if String(e["name"]) == "line_diag_bottleft": diag = e
-    check(bool(diag["corner_mode"]), "diagonal uses corner anchoring")
-    check_near(diag["rot"], -45.108170, "diagonal rotation", 0.001)
-
-    var pm := ZenCfgParse.parse_doc(
-        FileAccess.get_file_as_string("res://anims_src/PAUSE_MENU.cfg"))
-    check(pm["ok"], "PAUSE_MENU parses")
-    check(pm["doc"]["elems"].size() == 2, "PAUSE_MENU has 2 elements")
-    check(String(pm["doc"]["signals"][0]["name"]) == "exit", "exit signal")
-    # Text escaping survived into the element.
-    check(String(pm["doc"]["elems"][0]["text"]) == "PAUSE MENU", "title text decoded")
-    check(String(pm["doc"]["elems"][1]["text"]) == "still, all the buttons",
-          "subtitle text decoded")
-
-    var mr := ZenCfgParse.parse_doc(
-        FileAccess.get_file_as_string("res://anims_src/mouse_ripple.cfg"))
-    var rs: Dictionary = mr["doc"]["signals"][1]
-    check(String(rs["name"]) == "ripple", "ripple signal")
-    check(bool(rs["uses_pos"]) and bool(rs["pos_anchor"]) and bool(rs["replay"]),
-          "ripple is usesPos+posAnchor+replay")
-    check(rs["targets"].is_empty(), "ripple has NO targets - only a posparam")
-    check(rs["pos_params"].size() == 1, "ripple posparam")
-
-    # The shared custom easings must all load and evaluate.
-    var ez := ZenCfgParse.parse_easings(
-        FileAccess.get_file_as_string("res://anims_src/_easings.cfg"))
-    check(ez["curves"].size() == 7, "7 custom easings (got %d)" % ez["curves"].size())
-    check(ez["hidden"].size() == 5, "5 hidden builtins")
-    for n in ez["curves"]:
-        var c: ZenCurve = ez["curves"][n]
+## The project's custom easings (assets/easings.tres) load, register by name
+## and evaluate.
+func test_easing_set() -> void:
+    var es := load(ZenEasingSet.PATH) as ZenEasingSet
+    check(es != null and es.curves.size() == 7, "7 custom easings (%d)" % (es.curves.size() if es else 0))
+    if es == null: return
+    for n in es.curves:
+        var c: ZenCurve = es.curves[n]
         check(c.knots.size() >= 2, "%s has knots" % n)
         check_near(c.sample(0.0), c.knots[0][1], "%s starts at its first knot" % n)
         for i in 21:
             check(is_finite(c.sample(float(i) / 20.0)), "%s finite" % n)
+    ZenEasing.clear_custom()
+    ZenEasingSet.load_project()
+    check(ZenEasing.custom_names().size() == 7 and ZenEasing.has("bop_n_up"),
+          "the project's custom easings register")
+    check_near(ZenEasing.apply("bop_n_up", 0.0), 0.0, "...and bop_n_up evaluates")
+    ZenEasing.clear_custom()
 
 
 ## Text layout against a real Godot font. Property-based rather than pinned to
@@ -620,7 +434,7 @@ func test_canvas_size() -> void:
     check(c.design_size == Vector2(320, 180),
           "default canvas is 320x180 (got %s)" % c.design_size)
 
-    # Every imported scene must agree.
+    # Every bundled scene must agree.
     for nm in ["main_menu", "pause_menu", "mouse_ripple", "zooming_box", "game_start"]:
         var path := "res://anims/%s.tscn" % nm
         if not ResourceLoader.exists(path): continue
@@ -1012,9 +826,9 @@ func test_canvas_idle_until_played() -> void:
     c.queue_free()
 
 
-## No imported scene carries a Player node any more - the clock is the
-## canvas's own, and live_playback=false is what keeps it inert for a test.
-func test_imported_scenes_inert() -> void:
+## No bundled scene carries a Player node - the clock is the canvas's own, and
+## live_playback=false is what keeps it inert for a test.
+func test_scenes_inert() -> void:
     for nm in ["main_menu", "pause_menu", "mouse_ripple", "zooming_box", "game_start"]:
         var path := "res://anims/%s.tscn" % nm
         if not ResourceLoader.exists(path): continue
@@ -1861,9 +1675,8 @@ func test_signal_unknown_element() -> void:
     canvas.queue_free()
 
 
-## The real documents must declare the signals their .cfg authored - the
-## importer no longer drops them.
-func test_imported_signals_present() -> void:
+## The bundled scenes declare the signals they were authored with.
+func test_scene_signals_present() -> void:
     var want := {"main_menu": ["TV-out"], "pause_menu": ["exit"],
                  "mouse_ripple": ["enter", "ripple"],
                  "zooming_box": ["ripple_old", "TV-out"]}
@@ -2297,7 +2110,7 @@ func test_export_dialog_preview() -> void:
 ## actually differ. Proves the section API replaced the hand-rolled wrap.
 func test_section_loops_into_body() -> void:
     var pm: ZenCanvas = (load("res://anims/pause_menu.tscn") as PackedScene).instantiate()
-    pm.loop_play = true   # not yet authored on the scene - Task 1c re-import sets this
+    pm.loop_play = true
     root.add_child(pm)
     await process_frame
     var ap := pm.animation_player()
@@ -2433,37 +2246,14 @@ func test_pixel_shape() -> void:
           "shape name rules")
 
 
-## The one-shot .shp migration (tools/import_shp.gd, the only code that
-## knows the format): every ported asset matches its source file, and a row
-## starting with '#' is a row of fill, not a comment.
-func test_shp_migration() -> void:
-    var imp: Script = load("res://tools/import_shp.gd")
-    var names := ZenAssets.shape_names()
-    check(names.size() >= 9, "the 9 ported shapes are present (%d)" % names.size())
-    var src := ProjectSettings.globalize_path("res://").path_join("../raylib_base_template")
-    for n in names:
-        var path := ""
-        for sub in ["shapes", "resources/shapes"]:
-            if path == "" and FileAccess.file_exists(src.path_join(sub).path_join(n + ".shp")):
-                path = src.path_join(sub).path_join(n + ".shp")
-        if path == "": continue        # source tree not checked out next to this one
-        var a := ZenAssets.load_shape(n)
-        var b: ZenPixelShape = imp.parse(FileAccess.get_file_as_string(path))
-        check(b != null and b.size == a.size and b.cells == a.cells, "%s matches its .shp source" % n)
-    var t: ZenPixelShape = imp.parse("# c\nshape x\nsize 3 2\nrows\n##O\n.#.\nend\n")
-    check(t != null and t.get_cell(0, 0) == ZenPixelShape.FILL and t.get_cell(2, 0) == ZenPixelShape.OUTLINE
-          and t.get_cell(1, 1) == ZenPixelShape.FILL, "a '#'-leading row is pixels")
-    check(imp.parse("rows\n##\nend") == null, "rows without size is rejected")
-
-
-## Import keeps shape_name, resolves shape_ref through to `shape_refs`, and
-## shape_at() follows the stepped track.
+## A custom shape keeps its shape_name, its `shape_refs` list, and shape_at()
+## follows the stepped track.
 func test_custom_shape_resolution() -> void:
     var c: ZenCanvas = (load("res://anims/ma_prog_02_coding.tscn") as PackedScene).instantiate()
     var icon: ZenShape = null
     for e in c.elements():
         if e is ZenShape and (e as ZenShape).elem_name == "icon_ai": icon = e
-    check(icon != null and icon.shape_kind == ZenShape.Kind.CUSTOM, "icon_ai imports as CUSTOM")
+    check(icon != null and icon.shape_kind == ZenShape.Kind.CUSTOM, "icon_ai is CUSTOM")
     if icon != null:
         check(icon.shape_name == "ai_icon_128" and icon.shape != null, "shape_name resolves to an asset")
         check(icon.shape_refs.size() >= 1, "shape_ref lines resolve into shape_refs")
@@ -2585,8 +2375,6 @@ func test_gallery_multi_select() -> void:
     var ok := true
     for nm in g._marked_anims(): ok = ok and listed.contains("res://anims/%s.tscn" % nm)
     check(ok and g._confirm.visible, "delete asks first, listing every scene")
-    check(g._source_cfg("pause_menu") == "res://anims_src/PAUSE_MENU.cfg",
-          "an animation's delete takes its .cfg source too")
     g._confirm.hide()
     g._open_export()
     check(g._export_dialog.get_chain() == g._marked_anims(), "export opens with the selection as the chain")
@@ -2948,8 +2736,6 @@ func test_scene_ops_roundtrip() -> void:
     ZenKeyOps.insert(c, title, "pos_x", 1.0, 0.7, "bounceOut")
     var path := ZenSceneOps.save(c, nm)
     check(not path.is_empty() and FileAccess.file_exists(path), "save writes the scene (%s)" % path)
-    var imp: GDScript = load("res://addons/zen/importer/zen_cfg_import.gd")
-    check(imp.is_authored(path), "a saved scene is marked authored for the importer")
     check(ZenSceneOps.path_of(nm) == path, "the saved scene is listed")
 
     var o := ZenSceneOps.open(path)
@@ -2981,10 +2767,10 @@ func test_scene_ops_roundtrip() -> void:
 
 
 
-## The original documents' string pools, imported: one ZenStrings per scene,
-## referenced by the canvas and every text, at the .cfg's own indices, and the
-## stepped `string` track switches the label that game code reads.
-func test_string_pool_import() -> void:
+## The bundled scenes' string pools: one ZenStrings per scene, referenced by
+## the canvas and every text, entries at stable indices, and the stepped
+## `string` track switches the label that game code reads.
+func test_string_pool_scenes() -> void:
     var c: ZenCanvas = (load("res://anims/ma_prog_01.tscn") as PackedScene).instantiate()
     c.live_playback = false
     var texts := ZenStringOps.texts(c)
@@ -2995,7 +2781,7 @@ func test_string_pool_import() -> void:
     check(t1.string_base == 6 and c.strings.at(6).strip_edges().begins_with("Just like a cup"),
           "t1's own words were pooled onto the identical entry #6 (%d)" % t1.string_base)
     check(c.strings.at(0) == "What Is Programming?" and c.strings.at(10) == "coding w/ ai",
-          "pool entries keep their .cfg indices")
+          "pool entries keep their indices")
     c.pose(0.0)
     check(t1.text == "What Is Programming?", "the label is the entry the string track holds at 0 (%s)" % t1.text)
     var seen: Array = []
@@ -3013,10 +2799,11 @@ func test_string_pool_import() -> void:
 
     var c2: ZenCanvas = (load("res://anims/ma_prog_02_coding.tscn") as PackedScene).instantiate()
     c2.live_playback = false
-    check(c2.strings.at(9) == "coding" and c2.strings.at(11) == "codebase", "holes keep later indices stable")
+    check(c2.strings.at(9) == "coding" and c2.strings.at(13) == "CODE", "a full pool keeps its indices")
     var t2 := ZenElemOps.find(c2, "t2") as ZenText
-    check(t2.string_base == 1, "an element's own words fill the first free hole (%d)" % t2.string_base)
-    check(ZenStringOps.holes(c2).size() == 7, "the remaining gap is 7 holes (%d)" % ZenStringOps.holes(c2).size())
+    check(t2.string_base == 14 and c2.strings.at(14).begins_with("so does AI"),
+          "t2's own words are entry #14 (%d)" % t2.string_base)
+    check(ZenStringOps.holes(c2).is_empty(), "a full pool has no holes (%d)" % ZenStringOps.holes(c2).size())
     c2.free()
 
     var shapes: ZenCanvas = (load("res://anims/zooming_box.tscn") as PackedScene).instantiate()
@@ -3133,15 +2920,22 @@ func test_scene_editor_strings() -> void:
         for t in ZenStringOps.texts(ed._canvas):
             for tt in times: out.append((t as ZenText).text_at(tt))
         return out
+    # The bundled pool is full; punch two interior holes to clean up.
+    var h := [ZenStringOps.add(ed._canvas, "h1"), ZenStringOps.add(ed._canvas, "h2"),
+              ZenStringOps.add(ed._canvas, "h3")]
+    ZenStringOps.remove(ed._canvas, h[0])
+    ZenStringOps.remove(ed._canvas, h[1])
+    ed._refresh_strings()
+    var full: int = ed._canvas.strings.entries.size()
     var before: Array = shown.call()
-    check(ed._str_btns["clean"].text == "clean up holes (7)" and not ed._str_btns["clean"].disabled,
+    check(ed._str_btns["clean"].text == "clean up holes (2)" and not ed._str_btns["clean"].disabled,
           "the clean-up button counts the holes")
     ed._clean_strings()
-    check(ZenStringOps.holes(ed._canvas).is_empty() and ed._canvas.strings.entries.size() == 5,
+    check(ZenStringOps.holes(ed._canvas).is_empty() and ed._canvas.strings.entries.size() == full - 2,
           "clean-up compacts the pool (%d)" % ed._canvas.strings.entries.size())
     check(shown.call() == before, "...and every element shows the same words as before")
     ed._do_undo()
-    check(ZenStringOps.holes(ed._canvas).size() == 7, "undo brings the holes back")
+    check(ZenStringOps.holes(ed._canvas).size() == 2, "undo brings the holes back")
 
     ed._str_sel = 9
     ed._refresh_strings()
@@ -3271,8 +3065,6 @@ func test_scene_editor() -> void:
     DirAccess.remove_absolute(ProjectSettings.globalize_path(ZenSceneOps.path_of(nm)))
     var orig := ZenSceneOps.open("res://anims/zooming_box.tscn")
     check(ZenElemOps.find(orig, "shape_2") == null, "the original scene is untouched")
-    check(not FileAccess.get_file_as_string("res://anims/zooming_box.tscn").contains("zen_authored"),
-          "...and not marked authored")
     orig.free()
     ed.queue_free()
     await process_frame

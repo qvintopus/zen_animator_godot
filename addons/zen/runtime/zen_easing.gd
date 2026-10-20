@@ -49,8 +49,8 @@ extends RefCounted
 ## Built-in name -> [Tween.TransitionType, Tween.EaseType].
 ##
 ## Godot names a curve FAMILY (`TRANS_SINE`) plus a direction (`EASE_IN`); Zen
-## names the pair as one string ("sineIn"), which is also the stable .cfg
-## spelling. This table is the whole of the mapping, so the full Godot family is
+## names the pair as one string ("sineIn"), which is also the stable name a
+## scene's ease tracks store. This table is the whole of the mapping, so the full Godot family is
 ## exposed - including the in/inOut directions the C never had names for, and
 ## circ/spring, which it had no curve for at all.
 const GODOT_EASE := {
@@ -101,22 +101,9 @@ const GODOT_EASE := {
     "springInOut": [Tween.TRANS_SPRING,  Tween.EASE_IN_OUT],
 }
 
-## The names the C editor could author. Kept as its own list because the
-## IMPORTER must still accept exactly these and nothing more - a .cfg cannot
-## legally name "springIn". Every one of them is a key of GODOT_EASE; a test
-## pins that, so the two cannot drift.
-const CFG_NAMES := [
-    "linear",
-    "sineIn", "sineOut", "sineInOut",
-    "quadIn", "quadOut", "quadInOut",
-    "cubicIn", "cubicOut", "cubicInOut",
-    "expoIn", "expoOut",
-    "backIn", "backOut",
-    "elasticOut", "bounceOut",
-]
-
-# name -> ZenCurve, loaded from _easings.cfg. Referenced by NAME because custom
-# easing ids are not stable across runs (anim_ease_custom.h:13-17).
+# name -> ZenCurve, registered from assets/easings.tres (ZenEasingSet).
+# Referenced by NAME because custom easing ids are not stable across runs
+# (anim_ease_custom.h:13-17).
 static var _custom: Dictionary = {}
 
 
@@ -138,11 +125,6 @@ static func apply(ease_name: String, p: float) -> float:
 ## Is this a stock Godot-backed curve?
 static func is_builtin(ease_name: String) -> bool:
     return GODOT_EASE.has(ease_name)
-
-
-## Is this a name a .cfg document may legally carry?
-static func is_cfg_name(ease_name: String) -> bool:
-    return CFG_NAMES.has(ease_name)
 
 
 static func has(ease_name: String) -> bool:

@@ -56,8 +56,7 @@ func add(text: String, free: Array = []) -> int:
     return entries.size() - 1
 
 
-## Put `text` at exactly index `i`, growing the pool with holes as needed -
-## the .cfg's `string <i> <words>` line, which names its slot explicitly.
+## Put `text` at exactly index `i`, growing the pool with holes as needed.
 func put(i: int, text: String) -> void:
     if i < 0: return
     while entries.size() <= i: entries.append("")

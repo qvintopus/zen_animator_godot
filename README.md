@@ -5,7 +5,7 @@ Animations are authored as Godot scenes and exported to video.
 
 ## Status
 
-What works: the one-shot `.cfg` importer (shape/text/global elements); intro/loop/outro
+What works: shape, text and global elements; intro/loop/outro
 trim with a smooth-loop blend and pause markers; signals (a named transition that
 overrides the timeline per-property, so `crumble` and the cursor-anchored ripple are
 reachable); frame-exact video export; and a gallery (F5) and live playback (F6) built on
@@ -39,7 +39,6 @@ header stays pinned while its own list scrolls, and the selection is kept in vie
 Both lists **multi-select**: Shift+click or Shift+UP/DOWN selects a range, Ctrl+click adds
 or removes one row, ESC clears the selection before it quits. **Delete** (**zen_delete**)
 moves the selected rows to the OS trash after a confirmation listing every file - an
-animation takes its `anims_src/*.cfg` with it so a re-import cannot bring it back, and an
 asset still drawn by an animation is named. **E** on several animations opens Export with
 them as the chain, in list order; **Ctrl+E** appends them all to the export queue.
 
@@ -68,9 +67,7 @@ SPACE plays from the playhead, or from 0 once the end is reached; a click on the
 
 **Auto-key** (**K**) is the original's: on, every edit keys the playhead; off, keyed props
 are locked and edits change the base pose. Undo (Ctrl+Z / Ctrl+Shift+Z) is snapshot-based,
-one step per gesture. A scene saved from the editor is marked `zen_authored`, and the
-one-shot importer skips it unless given `-- --force`, so a re-import cannot overwrite the
-edits. The editing ops are UI-free and tested headless (`addons/zen/authoring/`):
+one step per gesture. The editing ops are UI-free and tested headless (`addons/zen/authoring/`):
 `ZenSceneOps` (new/open/save/rename/duplicate/delete, snapshots), `ZenElemOps`,
 `ZenKeyOps`, `ZenDocOps` and `ZenStringOps`. Signals are kept consistent across renames and deletes but
 cannot be edited yet.
@@ -89,8 +86,7 @@ the next added entry refills it - and the **Strings** panel's **clean up holes**
 the pool, rewriting every `string_base` and every `string` key (signals included). An entry
 still in use cannot be deleted.
 
-**Visual assets are pixel shapes** - the original editor's `.shp` files, ported as
-`ZenPixelShape` resources in `assets/shapes/*.tres` (`tools/import_shp.gd` converts them).
+**Visual assets are pixel shapes** - `ZenPixelShape` resources in `assets/shapes/*.tres`.
 A pixel shape is a grid of fill/outline cells with no colour of its own: a `custom`
 `ZenShape` tints fill with its `color` track and outline with `outline_color`, and a
 stepped `shape_id` track switches between `shape_refs`. A missing asset draws a magenta
@@ -99,8 +95,7 @@ opens the **shape editor** (`tools/zen_shape_editor.tscn`): pen / line / rect / 
 with fill, rim or erase ink, brush size, mirror X, resize, clear, bulk ink, auto-outline,
 UndoRedo-backed undo/redo, a reference image (native file dialog or drag-and-drop) traced
 with fade/threshold/scale/offset and converted to pixels, a live preview tinted with
-pickable colours, and rename / duplicate / delete. It knows nothing of the old `.shp`
-text format - only `tools/import_shp.gd`, the one-shot migration, does. The editor works on a copy; **Save** writes the `.tres` and updates the
+pickable colours, and rename / duplicate / delete. The editor works on a copy; **Save** writes the `.tres` and updates the
 already-loaded resource, so animations using it redraw at once.
 
 **Scenes play on F6, and the AnimationPlayer is the scene's timeline.** Every
@@ -191,32 +186,20 @@ its authored tail exactly as keyed.
 
 Output lands in `exports/`.
 
-## Import
+## Custom easings
 
-One-shot: native Godot scenes are the source of truth, so this exists to carry the
-existing documents across once. Headless - it authors resources and renders nothing.
-
-```sh
-./Godot_v4.7.2-stable_linux.x86_64 --headless --path . \
-    --script res://addons/zen/importer/zen_cfg_import.gd
-```
-
-Reads `anims_src/*.cfg` -> writes `anims/<snake_name>.tscn`, and reports any element
-kind it had to defer. All three kinds (shape, text, global) are supported, so the five
-bundled documents import complete.
+The custom easings live in `assets/easings.tres` (`ZenEasingSet`, name -> `ZenCurve`);
+the scene editor registers them so a key it rebakes keeps its real curve.
 
 ## Tests
 
 Headless is fine - nothing here renders.
 
 ```sh
-# 1425 checks
+# 1263 checks
 ./Godot_v4.7.2-stable_linux.x86_64 --headless --path . --script res://tests/run_tests.gd
 
-# importer fidelity: 2657 sampled comparisons, must be 0 mismatches
-./Godot_v4.7.2-stable_linux.x86_64 --headless --path . --script res://tools/compare_ripple.gd
-
-# what an imported scene actually resolves to, without a display
+# what a scene actually resolves to, without a display
 ./Godot_v4.7.2-stable_linux.x86_64 --headless --path . \
     --script res://tools/dump_scene.gd -- main_menu
 
@@ -236,9 +219,6 @@ Headless is fine - nothing here renders.
 The 34 built-in easings are compared against `tests/ease_ref.txt`, which is GENERATED
 from Godot by `tools/gen_ease_ref.gd` - never hand-edited. A drift in the easing table is
 caught immediately.
-`compare_ripple.gd` checks the importer against the hand-built `mouse_ripple_hand.tscn`
-by sampling every property across the whole timeline - two scenes can differ in text and
-animate identically, so what is compared is what gets drawn.
 
 Visual checks needing a display are collected in `VISUAL_CHECKS.md`.
 
@@ -252,13 +232,14 @@ addons/zen/runtime/    zen_easing, zen_curve, zen_curve_bake (ease -> bezier), z
                        zen_signal_bus (per-canvas dispatch), zen_signals (global relay
                        autoload), zen_anim_builder (assembles the saved AnimationPlayer),
                        zen_pixel_shape (the pixel-shape asset), zen_assets (asset lookup/save),
-                       zen_strings (the scene's text string pool)
+                       zen_strings (the scene's text string pool),
+                       zen_easing_set (the project's custom easings)
 addons/zen/fonts/      bundled fonts (LICENSES.md) - ZenText's project-default font
 addons/zen/authoring/  the scene editor's UI-free ops: zen_scene_ops (scene CRUD, snapshots),
                        zen_elem_ops (element CRUD on the node tree), zen_key_ops (keys and
                        eases, rebaking only the touched segments), zen_doc_ops (clock markers),
-                       zen_string_ops (string pool: usage, holes, clean-up, assign)
-addons/zen/importer/   zen_cfg_parse (grammar), zen_cfg_build (nodes), zen_cfg_import (entry)
+                       zen_string_ops (string pool: usage, holes, clean-up, assign),
+                       zen_elem_factory (elements and canvases from Dictionaries)
 zen_gallery.tscn       the main scene (F5): browse, inspect and play animations
 tools/                 zen_gallery.gd, zen_options.gd (font picker), zen_shape_editor.gd/.tscn
                        + zen_pixel_canvas.gd + zen_shape_preview.gd (shape editor),
@@ -268,18 +249,18 @@ tools/                 zen_gallery.gd, zen_options.gd (font picker), zen_shape_e
                        zen_scene_editor.gd/.tscn + zen_editor_panel.gd (summoned, pinnable
                        panels) + zen_editor_stage.gd (canvas view, picking) +
                        zen_timeline_view.gd (the AnimationPlayer as a timeline),
-                       import_shp.gd (.shp -> .tres), zen_export.gd (the
+                       zen_export.gd (the
                        engine: plan_chain + Job), zen_export_dialog.gd/.tscn (the Export
                        screen, E / Ctrl+E), export_scene.tscn (CLI door onto the same
-                       engine), build_ripple.gd, compare_ripple.gd, dump_scene.gd,
+                       engine), dump_scene.gd,
                        test_render.tscn,
                        signal_shots.tscn (renders what an export cannot show),
                        gen_ease_ref.gd (regenerates tests/ease_ref.txt),
                        gen_raylib_font.gd (regenerates the default raylib font),
                        gen_input_map.gd (regenerates project.godot's [input] section)
 assets/shapes/         pixel-shape assets (ZenPixelShape .tres)
+assets/easings.tres    the custom easings (ZenEasingSet)
 anims/                 authored Godot scenes (source of truth)
-anims_src/             the original .cfg files, input to the one-shot importer
 tests/                 run_tests.gd + the generated easing reference
 ```
 

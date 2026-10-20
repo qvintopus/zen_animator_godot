@@ -3,8 +3,8 @@ class_name ZenProps
 extends RefCounted
 ##
 ## The property registry: names, per-kind lists, and the stepped/colour
-## classification. One table, consulted by both the importer and the runtime,
-## so the two can never disagree about what a property IS.
+## classification. One table, consulted by both the element factory and the
+## runtime, so the two can never disagree about what a property IS.
 ##
 ## Mirrors the PropRow tables in anim_io.c:85+ and AnimPropIsStepped (anim.c).
 ##

@@ -17,7 +17,7 @@ extends Node2D
 ##
 ## The keys live in the canvas's AnimationPlayer ("zen" animation) and are
 ## sampled through ZenTimeline. `tracks` is only the INPUT the baker turns into
-## that animation (importer, tests); it is not saved with the scene.
+## that animation (ZenElemFactory, tests); it is not saved with the scene.
 ##
 
 @export var elem_name := ""
@@ -25,11 +25,10 @@ extends Node2D
 @export var pos_frac := Vector2(0.5, 0.5)
 @export var rot_base := 0.0
 
-## `anchor corners` in the .cfg. AUTHORING-ONLY metadata: it selects how a
+## Corner anchoring. AUTHORING-ONLY metadata: it selects how a
 ## pos-param BINDING interprets its slot (centre vs the P0/P1 corners), and in
 ## the C it is read at exactly one place (anim.c:1548, setting fromPose.corner)
-## and never affects drawing. Carried so the data stops being lost at import;
-## the corner-stretch branch itself is deferred (no bundled document binds a
+## and never affects drawing. Carried as data; the corner-stretch branch itself is deferred (no bundled document binds a
 ## corner).
 @export var corner_mode := false
 

@@ -1,19 +1,37 @@
 @tool
-class_name ZenCfgBuild
+class_name ZenElemFactory
 extends RefCounted
 ##
-## Turns a parsed .cfg document (ZenCfgParse.parse_doc) into a ZenCanvas tree.
+## Builds Zen elements and canvases from plain element/document Dictionaries:
+## the scene editor's "add element" and "new scene".
 ##
-## Element kinds the node layer does not implement are SKIPPED and reported
-## rather than half-built: a text element silently rendering as nothing would
-## look like a broken animation, whereas a named deferral is a to-do.
+## Track props are the per-kind lists in ZenProps.
 ##
 
-## Element kinds that currently have a node.
-const SUPPORTED := ["shape", "text", "global"]
+const CRUMBLE_DEFAULTS := {"crumble_spin": 90.0, "crumble_dir": 90.0,
+    "crumble_spread": 12.0, "crumble_dist": 0.5}
 
 
-static func build(doc: Dictionary) -> Dictionary:
+## A new element's defaults (AnimElemInit, anim.c:107) - what the scene
+## editor's "add element" starts from.
+static func new_elem(kind: String, name: String) -> Dictionary:
+    return {
+        "kind": kind, "name": name, "text": "",
+        "color": Color8(245, 245, 245, 255),
+        "bg_color": Color(0, 0, 0, 0),
+        "outline_color": Color8(245, 245, 245, 255),
+        "outline": 0.0,
+        "pos": Vector2(0.5, 0.5), "size": Vector2(0.2, 0.2),
+        "scale": 1.0, "rot": 0.0,
+        "shape": "rect", "shape_name": "",
+        "unit_abs": false, "corner_mode": false, "outline_crisp": false,
+        "crumble_fx": CRUMBLE_DEFAULTS.duplicate(),
+        "tracks": {},
+    }
+
+
+## A canvas holding `doc`'s elements and signals, its keys installed.
+static func build(doc: Dictionary) -> ZenCanvas:
     var canvas := ZenCanvas.new()
     canvas.set_script(load("res://addons/zen/runtime/zen_canvas.gd"))
     canvas.name = node_name(String(doc["name"]))
@@ -33,15 +51,9 @@ static func build(doc: Dictionary) -> Dictionary:
     # element; the preview grey keeps an exported clip from being pure black.
     canvas.clear_color = Color(0.1, 0.12, 0.16, 1.0)
 
-    var pool := build_strings(doc)
-    var free := free_slots(doc, pool)
-
-    var skipped: Array = []
+    var pool := ZenStrings.new()
     for e in doc["elems"]:
         var kind := String(e["kind"])
-        if not SUPPORTED.has(kind):
-            if not skipped.has(kind): skipped.append(kind)
-            continue
         # A global element is TWO rects at different depths: its background half
         # is drawn before every element, its fade half at its own index.
         if kind == "global":
@@ -49,7 +61,7 @@ static func build(doc: Dictionary) -> Dictionary:
             canvas.add_child(bg)
             bg.owner = canvas
             bg.z_index = -1                     # behind every element
-        var node: Node2D = build_text(e, pool, free) if kind == "text" else (
+        var node: Node2D = build_text(e, pool) if kind == "text" else (
             build_global(e, false) if kind == "global" else build_shape(e))
         canvas.add_child(node)
         node.owner = canvas
@@ -66,7 +78,7 @@ static func build(doc: Dictionary) -> Dictionary:
     # The keys are stored in the scene's AnimationPlayer, not on the nodes.
     ZenAnimBuilder.install(canvas)
 
-    return {"canvas": canvas, "skipped": skipped}
+    return canvas
 
 
 ## Element order IS draw order in Zen (anim.h:556), so child index -> z_index.
@@ -86,9 +98,8 @@ static func assign_z(canvas: ZenCanvas) -> void:
 
 ## The signal bus, or null for a document that authored no signals.
 ##
-## Signals reference elements BY NAME (which is what the .cfg already stores),
-## so nothing here needs resolving to an index: the bus looks elements up at
-## fire time. That also means an element renamed in the Godot editor breaks its
+## Signals reference elements BY NAME, so nothing here needs resolving to an
+## index: the bus looks elements up at fire time. That also means an element renamed in the Godot editor breaks its
 ## signal loudly, rather than an index silently repointing at a neighbour.
 static func _build_bus(doc: Dictionary) -> ZenSignalBus:
     var sigs: Array = doc.get("signals", [])
@@ -98,32 +109,6 @@ static func _build_bus(doc: Dictionary) -> ZenSignalBus:
     bus.name = "Signals"
     bus.signals_data = sigs.duplicate(true)
     return bus
-
-
-## The document's string pool, at the .cfg's own indices: `string <i>` names
-## its slot, and a gap stays a hole so every `string` key keeps pointing at the
-## entry it was authored against (anim.c:873-876).
-static func build_strings(doc: Dictionary) -> ZenStrings:
-    var pool := ZenStrings.new()
-    var src: Dictionary = doc.get("strings", {})
-    var idx := src.keys()
-    idx.sort()
-    for i in idx:
-        pool.put(int(i), String(src[i]))
-    return pool
-
-
-## Empty slots no `string` key points at - holes a text element's own words
-## may fill, as AnimDocAddString prefers a hole over growing.
-static func free_slots(doc: Dictionary, pool: ZenStrings) -> Array:
-    var used := {}
-    for e in doc["elems"]:
-        for k in (e["tracks"] as Dictionary).get("string", []):
-            used[int(float(k["v"]) + 0.5)] = true
-    var out: Array = []
-    for i in pool.entries.size():
-        if pool.entries[i].is_empty() and not used.has(i): out.append(i)
-    return out
 
 
 ## A text element's own words become a pool entry - reused when the pool
@@ -150,7 +135,7 @@ static func build_text(e: Dictionary, pool: ZenStrings, free: Array = []) -> Zen
     n.crumble_dir = float(fx["crumble_dir"])
     n.crumble_spread = float(fx["crumble_spread"])
     n.crumble_dist = float(fx["crumble_dist"])
-    n.tracks = _tracks_for(e, ZenCfgParse.TEXT_PROPS)
+    n.tracks = _tracks_for(e, "text")
     return n
 
 
@@ -163,7 +148,7 @@ static func build_global(e: Dictionary, background: bool) -> ZenGlobal:
     n.corner_mode = bool(e["corner_mode"])
     n.color_base = e["color"]
     n.bg_color_base = e["bg_color"]
-    n.tracks = _tracks_for(e, ZenCfgParse.GLOBAL_PROPS)
+    n.tracks = _tracks_for(e, "global")
     return n
 
 
@@ -183,52 +168,19 @@ static func build_shape(e: Dictionary) -> ZenShape:
     s.outline_color_base = e["outline_color"]
     s.outline_base = float(e["outline"])
     s.outline_crisp = bool(e["outline_crisp"])
-    s.tracks = _tracks_for(e, ZenCfgParse.SHAPE_PROPS)
+    s.tracks = _tracks_for(e, "shape")
     if s.shape_kind == ZenShape.Kind.CUSTOM:
-        _resolve_shapes(s, e)
+        s.shape_name = String(e["shape_name"])
+        if not s.shape_name.is_empty():
+            s.shape = ZenAssets.load_shape(s.shape_name)
+            if s.shape == null: push_warning("zen: missing pixel shape '%s'" % s.shape_name)
     return s
-
-
-## Pixel shapes are referenced BY NAME, resolved against ZenAssets.
-##
-## A `shape_id` key holds a pool slot index from the SAVING build, which
-## means nothing here; the element's `shape_ref` lines map those indices to
-## names (anim_io.c FixupShapeRefs). Each key is rewritten to an index into
-## `shape_refs`, and a name with no asset becomes SHAPE_MISSING so it draws
-## the placeholder rather than whichever shape inherited the number.
-static func _resolve_shapes(s: ZenShape, e: Dictionary) -> void:
-    var nm := String(e.get("shape_name", ""))
-    s.shape_name = nm
-    if not nm.is_empty():
-        s.shape = ZenAssets.load_shape(nm)
-        if s.shape == null: push_warning("zen import: missing pixel shape '%s'" % nm)
-    if not s.tracks.has("shape_id"): return
-    var refs: Dictionary = e.get("shape_refs", {})
-    var order: Array[String] = []
-    var list: Array[ZenPixelShape] = []
-    for k in s.tracks["shape_id"]:
-        var saved := int(float(k["v"]) + 0.5)
-        if not refs.has(saved):
-            k["v"] = ZenShape.SHAPE_MISSING
-            continue
-        var ref_name := String(refs[saved])
-        var res := ZenAssets.load_shape(ref_name)
-        if res == null:
-            push_warning("zen import: missing pixel shape '%s'" % ref_name)
-            k["v"] = ZenShape.SHAPE_MISSING
-            continue
-        var i := order.find(ref_name)
-        if i < 0:
-            order.append(ref_name)
-            list.append(res)
-            i = order.size() - 1
-        k["v"] = float(i)
-    s.shape_refs = list
 
 
 ## Keep only the tracks valid for this element kind. A cross-kind track would
 ## silently do nothing, so dropping it here keeps the scene honest.
-static func _tracks_for(e: Dictionary, valid: Array) -> Dictionary:
+static func _tracks_for(e: Dictionary, kind: String) -> Dictionary:
+    var valid: Array = ZenProps.scalars_for(kind) + ZenProps.colors_for(kind)
     var out := {}
     for prop in e["tracks"]:
         if valid.has(prop):

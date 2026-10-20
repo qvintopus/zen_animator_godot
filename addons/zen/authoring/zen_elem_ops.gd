@@ -51,7 +51,7 @@ static func find(canvas: ZenCanvas, elem_name: String) -> ZenElement:
 
 static func is_name_free(canvas: ZenCanvas, nm: String) -> bool:
     if nm.strip_edges().is_empty(): return false
-    var node := ZenCfgBuild.node_name(nm)
+    var node := ZenElemFactory.node_name(nm)
     for c in canvas.get_children():
         if c is ZenElement and (c as ZenElement).elem_name == nm: return false
         var cn := String(c.name)
@@ -76,7 +76,7 @@ static func unique_name(canvas: ZenCanvas, base: String) -> String:
 
 ## The defaults a new element starts from (AnimElemInit, anim.c:107-151).
 static func defaults(kind: String, nm: String) -> Dictionary:
-    var e := ZenCfgParse.new_elem(kind, nm)
+    var e := ZenElemFactory.new_elem(kind, nm)
     match kind:
         "text":
             e["text"] = "TEXT"
@@ -100,9 +100,9 @@ static func add(canvas: ZenCanvas, kind: String, nm := "", e := {}) -> ZenElemen
         "text":
             var free: Array = []
             free.assign(ZenStringOps.holes(canvas))
-            nodes = [ZenCfgBuild.build_text(e, ZenStringOps.pool(canvas), free)]
-        "shape": nodes = [ZenCfgBuild.build_shape(e)]
-        "global": nodes = [ZenCfgBuild.build_global(e, true), ZenCfgBuild.build_global(e, false)]
+            nodes = [ZenElemFactory.build_text(e, ZenStringOps.pool(canvas), free)]
+        "shape": nodes = [ZenElemFactory.build_shape(e)]
+        "global": nodes = [ZenElemFactory.build_global(e, true), ZenElemFactory.build_global(e, false)]
         _: return null
     var at := _end_of_elements(canvas)
     for n in nodes:
@@ -111,7 +111,7 @@ static func add(canvas: ZenCanvas, kind: String, nm := "", e := {}) -> ZenElemen
         at += 1
         n.owner = _owner(canvas)
     _install_tracks(canvas, nodes)
-    ZenCfgBuild.assign_z(canvas)
+    ZenElemFactory.assign_z(canvas)
     return nodes[nodes.size() - 1]
 
 
@@ -120,7 +120,7 @@ static func _owner(canvas: ZenCanvas) -> Node:
 
 
 ## Child index just past the last element: new elements go before the bus and
-## the player, so the child list reads elements-first like an imported scene.
+## the player, so the child list reads elements-first like a bundled scene.
 static func _end_of_elements(canvas: ZenCanvas) -> int:
     var at := 0
     for c in canvas.get_children():
@@ -165,13 +165,13 @@ static func duplicate_elem(canvas: ZenCanvas, el: ZenElement) -> ZenElement:
         n.owner = _owner(canvas)
         _copy_tracks(canvas, String((s as Node).name), String(n.name))
         made = n
-    ZenCfgBuild.assign_z(canvas)
+    ZenElemFactory.assign_z(canvas)
     return row_of(canvas, made)
 
 
 static func _node_for(half: ZenElement, nm: String) -> String:
     var bg := half is ZenGlobal and (half as ZenGlobal).is_background
-    return ZenCfgBuild.node_name(nm) + (BG_SUFFIX if bg else "")
+    return ZenElemFactory.node_name(nm) + (BG_SUFFIX if bg else "")
 
 
 static func _copy_tracks(canvas: ZenCanvas, from_node: String, to_node: String) -> void:
@@ -204,7 +204,7 @@ static func remove(canvas: ZenCanvas, el: ZenElement) -> void:
         canvas.remove_child(h)
         (h as Node).queue_free()
     _prune_signals(canvas, nm)
-    ZenCfgBuild.assign_z(canvas)
+    ZenElemFactory.assign_z(canvas)
     canvas.timeline_dirty()
 
 
@@ -290,7 +290,7 @@ static func move(canvas: ZenCanvas, el: ZenElement, to: int) -> void:
         for h in halves(canvas, r):
             canvas.move_child(h, at)
             at += 1
-    ZenCfgBuild.assign_z(canvas)
+    ZenElemFactory.assign_z(canvas)
 
 
 # ---------------------------------------------------------------------------

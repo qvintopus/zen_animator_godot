@@ -6,8 +6,8 @@ export, the crumble transform, and the signal override) - all now pinned automat
 `tools/test_render.tscn`. Final sign-off is the user's.
 
 **Needs a fresh eye (2026-10-19, not yet confirmed):** text now draws through a real Godot
-font instead of raylib's bitmap metrics (section 3), and `pause_menu`'s live loop behaviour
-changed - it now loops back into its body instead of freezing at its outro (section 6). Any
+font instead of raylib's bitmap metrics (section 2), and `pause_menu`'s live loop behaviour
+changed - it now loops back into its body instead of freezing at its outro (section 5). Any
 PNG/webm exported before 2026-10-19 is NOT byte-comparable to a fresh export of the same
 scene. See `docs/plans/session-2026-10-19-log.md` for what changed and why.
 
@@ -36,23 +36,7 @@ ffprobe -v error -count_frames \
 Expect at `--scale=2`: `vp9 640 360 60/1 120` (the canvas is 320x180). Watch it: a thin ring expands from the centre
 and fades out over 2s. No flicker, no pop at the start.
 
-## 2. Imported vs hand-built ripple
-
-The importer's output must match the hand-built scene that was already verified.
-`tools/compare_ripple.gd` does this numerically and headlessly (see below), but
-confirm it visually too:
-
-```sh
-$EXPORT --anim=mouse_ripple_imported --fps=60 --fmt=webm --scale=2
-ffmpeg -y -v error -i exports/mouse_ripple.webm          -vf "select=eq(n\,80)" -vframes 1 /tmp/hand.png
-ffmpeg -y -v error -i exports/mouse_ripple_imported.webm -vf "select=eq(n\,80)" -vframes 1 /tmp/imp.png
-ffmpeg -v error -i /tmp/hand.png -i /tmp/imp.png -lavfi ssim -f null -
-```
-
-Expect: SSIM `All:1.000000` - verified byte-identical. Anything below ~0.99 means the
-importer changed the animation.
-
-## 3. The two menus
+## 2. The two menus
 
 ```sh
 $EXPORT --anim=main_menu  --fps=60 --fmt=webm --scale=2            # seamless loop
@@ -60,7 +44,7 @@ $EXPORT --anim=main_menu  --fps=60 --fmt=webm --scale=2 --intro    # one-shot wi
 $EXPORT --anim=pause_menu --fps=60 --fmt=webm --scale=2 --intro
 ```
 
-Check against the raylib reference `../raylib_base_template/anims/exports/MAIN_MENU.webm`:
+Check:
 
 - title "MAIN MENU" and subtitle slide in from the left while fading up, finishing
   together around t=0.6;
@@ -85,7 +69,7 @@ fired - see the signals section below. An ordinary export never fires one (that 
 guard), so crumble does not appear in any of the renders above. That is correct,
 not a missing feature.
 
-## 4. Alpha / transparency
+## 3. Alpha / transparency
 
 ```sh
 $EXPORT --anim=mouse_ripple --fps=30 --fmt=png --transparent --scale=1
@@ -105,7 +89,7 @@ $EXPORT --anim=mouse_ripple --fps=30 --fmt=gif --transparent --scale=1
 Do NOT expect webm/mp4 transparency: libvpx-vp9 accepts `yuva420p` and even
 reports it, but the frames decode back fully opaque.
 
-## 5. Frame alignment (off-by-one guard)
+## 4. Frame alignment (off-by-one guard)
 
 Frame 0 must be the pose at `t = start`, not one frame late.
 
@@ -119,7 +103,7 @@ shows a visible ring, the seek is landing one frame ahead.
 
 ---
 
-## 6. Loop seam, intro trim, pauses
+## 5. Loop seam, intro trim, pauses
 
 The seam is now pinned automatically by `tools/test_render.tscn`
 (`test_loop_seam_pixels`), so these are confirmations rather than the only safety net.
@@ -153,8 +137,8 @@ authored tail; without it, it is a seamless loop.
 ### 3. A pause marker freezes the export
 
 `ma_prog_01` has four pause markers (`pause_1`.. in its `zen` animation); another is
-added by a `pause 1.0 0` line plus a re-import, or by dragging/adding a `pause_N`
-marker in Godot's animation panel. In the gallery, playback holds at a marker and SPACE
+added by dragging/adding a `pause_N` marker in the scene editor's timeline or Godot's
+animation panel. In the gallery, playback holds at a marker and SPACE
 continues. At `--fps=30 --pause_hold=2` the output should grow by
 60 frames, all of them identical, starting at the marker's own frame.
 
@@ -165,7 +149,7 @@ from after 3.211 - the tail exists in the document for the editor's benefit only
 
 ---
 
-## 7. Signals (override layer)
+## 6. Signals (override layer)
 
 A signal overrides the timeline per-property, easing from the pose on screen *right
 now* into its authored keys. Three of these checks are pinned automatically by
@@ -272,14 +256,14 @@ instant. Guarded three ways: `inert` during export, `set_process(false)` until f
 
 ---
 
-## 8. Easings are Godot's now
+## 7. Easings are Godot's now
 
 `ZenEasing` is backed by `Tween.interpolate_value`, not the raylib/Penner port. The
 raylib `.webm` is NO LONGER the fidelity target - a visual diff against it will show real
 differences and that is expected.
 
 What actually changed, measured rather than guessed: linear/sine/quad/cubic agree with
-raylib to 1e-7, which covers 165 of the 170 keys in the bundled documents. Only **four**
+raylib to 1e-7, which covers 165 of the 170 keys in the bundled documents. Only **three**
 keys use a curve where the families differ:
 
 | scene | element | track |
@@ -287,7 +271,6 @@ keys use a curve where the families differ:
 | `main_menu` | `line_sub_title` | `color` (bounceOut) |
 | `main_menu` | `Signals` | a `TV-out` key (bounceOut) |
 | `mouse_ripple` | `shape` | `scale` (bounceOut) |
-| `mouse_ripple_hand` | `shape` | `scale` (bounceOut) |
 
 Measured effect of the swap at the bounce peak: **1.4-3.9% of pixels differ, worst
 channel delta 0.07** (an upper bound - it includes VP9 re-encode noise).
@@ -305,7 +288,7 @@ Note: Godot's expo does not reach its endpoint (`expoIn(1.0) = 0.999`). On `paus
 slide-in that leaves the element 0.07px short on a 320px canvas, corrected by the next
 key. Invisible, but it is why the endpoint test allows a wider tolerance for `expo*`.
 
-## 9. Scenes play on F6
+## 8. Scenes play on F6
 
 This is the one that had no coverage at all before: every scene opened **static**.
 
@@ -341,7 +324,7 @@ defers `_ready()` past `add_child()`. Pinned by the distinct-frames check - a li
 during the export await collapses every frame to the same instant.
 
 
-## 10. The gallery (F5)
+## 9. The gallery (F5)
 
 ```sh
 ./Godot_v4.7.2-stable_linux.x86_64 --path . --rendering-driver opengl3
@@ -369,7 +352,7 @@ keeps the document's own aspect, so a non-16:9 window letterboxes rather than cr
 Zen geometry is fractional, so cropping silently hides elements instead of scaling them.
 
 
-## 11. Export dialog (E / Ctrl+E)
+## 10. Export dialog (E / Ctrl+E)
 
 ```sh
 ./Godot_v4.7.2-stable_linux.x86_64 --path . --rendering-driver opengl3
@@ -437,8 +420,8 @@ $G --path .          # F5: the gallery
 - **Multi-select.** Click `game_start`, Shift+click `main_menu`: three rows highlight, the
   right pane lists them, the footer shows `E export 3  Delete delete 3`. E opens Export with
   that chain; ESC there and ESC again clears the selection (it does not quit). Ctrl+click
-  toggles single rows; Shift+DOWN extends. Delete on copies only: the dialog lists the
-  `.tscn` and its `.cfg`, and "Move to trash" puts both in the OS trash. In assets, a
+  toggles single rows; Shift+DOWN extends. Delete on copies only: the dialog lists each
+  `.tscn`, and "Move to trash" puts them in the OS trash. In assets, a
   shape used by an animation is named in the dialog.
 
 ## 12. Scene editor (Ctrl+ENTER / N)
@@ -470,14 +453,14 @@ Not yet run by eye - added 2026-10-20 with the editor. Work on a copy: open a sc
 - **Elements = node tree.** +shape adds `shape` at the centre, frontmost. Drag a row in
   the Elements list to reorder; draw order follows. Double-click (or F2) renames, and its
   keys keep playing. Delete removes it and its keys.
-- **String pool.** Open `ma_prog_01` and press 5: eleven entries, each with its usage
+- **String pool.** Open `ma_prog_01` and press 5: thirteen entries, each with its usage
   count. Select `t1`: the Inspector's words picker shows #0 at 0s and #3 after
   scrubbing past 2.45s, and the `string` lane steps at 2.45 / 4.62 / 6.60. Type in the
   words box: the canvas updates as you type, and an entry used twice shows "used by 2"
-  in gold. **new** gives `t1` its own entry. In `ma_prog_02_coding` the panel shows 7
-  dimmed holes (#2-#8). **delete** stays disabled for an entry that is in use, and
-  **clean up holes (7)** renumbers the pool to five entries while every text keeps
-  playing the same words. One undo step brings the holes back.
+  in gold. **new** gives `t1` its own entry. **delete** stays disabled for an entry that is
+  in use; delete two unused entries in the middle and they stay as dimmed holes, and
+  **clean up holes (2)** renumbers the pool while every text keeps playing the same
+  words. One undo step brings the holes back.
 - **Undo.** Ctrl+Z / Ctrl+Shift+Z step through every edit above; a whole drag is one step.
 - **Save.** Ctrl+S, back to the gallery: the copy is listed and plays exactly as edited.
   Open the copy's `.tscn` in the Godot editor: the Animation panel shows the bezier tracks

@@ -76,24 +76,3 @@ func sample(p: float) -> float:
     var p3: float = b[1]
     return u*u*u*p0 + 3.0*u*u*t*p1 + 3.0*u*t*t*p2 + t*t*t*p3
 
-
-## Parse the `ease <name> <n>` then n*(x y ix iy ox oy) grammar of _easings.cfg.
-## Legacy 4-float form is a single cubic-bezier (x1,y1,x2,y2).
-static func from_tokens(nums: PackedFloat32Array) -> ZenCurve:
-    var c := ZenCurve.new()
-    if nums.size() == 4:
-        c.knots = [
-            PackedFloat32Array([0.0, 0.0, 0.0, 0.0, nums[0], nums[1]]),
-            PackedFloat32Array([1.0, 1.0, nums[2] - 1.0, nums[3] - 1.0, 0.0, 0.0]),
-        ]
-        return c
-    if nums.size() < 7: return c
-    var n := int(nums[0])
-    var rows: Array[PackedFloat32Array] = []
-    for i in n:
-        var o := 1 + i * 6
-        if o + 5 >= nums.size(): break
-        rows.append(PackedFloat32Array([
-            nums[o], nums[o+1], nums[o+2], nums[o+3], nums[o+4], nums[o+5]]))
-    c.knots = rows
-    return c

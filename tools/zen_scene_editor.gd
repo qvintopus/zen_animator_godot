@@ -116,7 +116,7 @@ var _help := ZenHotkeyHelp.new()
 
 
 func _ready() -> void:
-    ZenSceneOps.load_custom_easings()
+    ZenEasingSet.load_project()
     var st := ZenSettings.editor_state()
     _autokey = bool(st.get("autokey", false))
     _build_ui()
@@ -1565,7 +1565,7 @@ func _save() -> void:
         _ask_save_as()
         return
     _stop()
-    _canvas.name = ZenCfgBuild.node_name(_name)
+    _canvas.name = ZenElemFactory.node_name(_name)
     var path := ZenSceneOps.save(_canvas, _name)
     if path.is_empty():
         _set_status("could not save %s" % _name)
@@ -1619,7 +1619,7 @@ func _ask_rename() -> void:
             _set_status("could not rename %s" % old)
             return
         _name = n
-        _canvas.name = ZenCfgBuild.node_name(n)
+        _canvas.name = ZenElemFactory.node_name(n)
         _sync_title()
         _set_status("renamed %s -> %s (not yet saved under the new name)" % [old, n]
                     if _dirty() else "renamed %s -> %s" % [old, n]))

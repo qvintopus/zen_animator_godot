@@ -1,7 +1,7 @@
 extends SceneTree
 ##
-## Headless sanity check: pose an imported scene across its play range and
-## report what each element resolves to. Catches "imported but renders nothing"
+## Headless sanity check: pose a scene across its play range and report what
+## each element resolves to. Catches "saved but renders nothing"
 ## without needing a display.
 ##
 ##   Godot --headless --path . --script res://tools/dump_scene.gd -- <name>
