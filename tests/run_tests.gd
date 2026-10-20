@@ -115,7 +115,11 @@ func _run() -> void:
     test_elem_ops()
     test_doc_ops()
     test_scene_ops_roundtrip()
+    test_string_pool_import()
+    test_string_ops()
+    test_string_pool_shared()
     await test_scene_editor()
+    await test_scene_editor_strings()
     print("\n%d checks, %d failures" % [checks, fails])
     quit(1 if fails > 0 else 0)
 
@@ -2965,6 +2969,186 @@ func test_scene_ops_roundtrip() -> void:
     check(ZenSceneOps.path_of(nm).is_empty(), "test scenes cleaned up")
     for x in [c, o, again, snap]: x.free()
 
+
+
+## The original documents' string pools, imported: one ZenStrings per scene,
+## referenced by the canvas and every text, at the .cfg's own indices, and the
+## stepped `string` track switches the label that game code reads.
+func test_string_pool_import() -> void:
+    var c: ZenCanvas = (load("res://anims/ma_prog_01.tscn") as PackedScene).instantiate()
+    c.live_playback = false
+    var texts := ZenStringOps.texts(c)
+    check(c.strings != null and texts.size() == 3, "ma_prog_01 has a pool and three texts")
+    check(texts.all(func(t): return (t as ZenText).strings == c.strings),
+          "every text references the canvas's one pool instance")
+    var t1 := ZenElemOps.find(c, "t1") as ZenText
+    check(t1.string_base == 6 and c.strings.at(6).strip_edges().begins_with("Just like a cup"),
+          "t1's own words were pooled onto the identical entry #6 (%d)" % t1.string_base)
+    check(c.strings.at(0) == "What Is Programming?" and c.strings.at(10) == "coding w/ ai",
+          "pool entries keep their .cfg indices")
+    c.pose(0.0)
+    check(t1.text == "What Is Programming?", "the label is the entry the string track holds at 0 (%s)" % t1.text)
+    var seen: Array = []
+    t1.text_changed.connect(func(w): seen.append(w))
+    c.pose(2.5)
+    check(t1.text == "Just like a tree grows its branches", "the string track switches the label at 2.45s")
+    check(seen == ["Just like a tree grows its branches"], "text_changed fires once per switch (%s)" % [seen])
+    c.pose(2.6)
+    check(seen.size() == 1, "no text_changed while the words stay")
+    c.pose(7.0)
+    check(t1.text == "coding w/ ai", "...and again at 6.6s")
+    check(not FileAccess.get_file_as_string("res://anims/ma_prog_01.tscn").contains("\ntext = "),
+          "the label is not stored in the scene")
+    c.free()
+
+    var c2: ZenCanvas = (load("res://anims/ma_prog_02_coding.tscn") as PackedScene).instantiate()
+    c2.live_playback = false
+    check(c2.strings.at(9) == "coding" and c2.strings.at(11) == "codebase", "holes keep later indices stable")
+    var t2 := ZenElemOps.find(c2, "t2") as ZenText
+    check(t2.string_base == 1, "an element's own words fill the first free hole (%d)" % t2.string_base)
+    check(ZenStringOps.holes(c2).size() == 7, "the remaining gap is 7 holes (%d)" % ZenStringOps.holes(c2).size())
+    c2.free()
+
+    var shapes: ZenCanvas = (load("res://anims/zooming_box.tscn") as PackedScene).instantiate()
+    check(shapes.strings == null, "a scene with no text carries no pool")
+    check(ZenStringOps.pool(shapes) != null and shapes.strings != null, "...and gets one on demand")
+    shapes.free()
+
+
+## Pool editing: dedupe, in-place edit, references in the document AND signal
+## Animations, stable holes, refill, and the clean-up that renumbers.
+func test_string_ops() -> void:
+    var c := _authoring_canvas({})
+    var bus := ZenSignalBus.new()
+    bus.name = "Signals"
+    bus.signals_data = [{"name": "go", "length": 1.0, "targets": [
+        {"elem": "box", "prop": "alpha", "keys": [_k(1.0, 0.0)]}],
+        "seq_targets": [], "pos_params": []}]
+    c.add_child(bus)
+    bus.owner = c
+    ZenAnimBuilder.install(c)
+
+    var a := ZenElemOps.add(c, "text", "a") as ZenText
+    var b := ZenElemOps.add(c, "text", "b") as ZenText
+    check(a.strings == c.strings and b.strings == c.strings, "added texts reference the canvas pool")
+    check(a.string_base == 0 and b.string_base == 0 and c.strings.entries.size() == 1,
+          "identical words share one entry")
+    var i1 := ZenStringOps.add(c, "one")
+    var i2 := ZenStringOps.add(c, "two")
+    var i3 := ZenStringOps.add(c, "three")
+    check([i1, i2, i3] == [1, 2, 3], "new entries append (%s)" % [[i1, i2, i3]])
+    check(ZenStringOps.add(c, "two") == i2, "adding existing words reuses the entry")
+    ZenStringOps.set_text(c, 0, "shared")
+    check(a.text == "shared" and b.text == "shared", "an in-place edit reaches every element using it")
+    check(ZenStringOps.users(c, 0) == 2, "both texts count as users")
+
+    ZenStringOps.assign(c, b, i3, 1.0, true)
+    check(b.text_at(1.5) == "three" and b.text_at(0.5) == "shared", "assign keys the playhead, base kept at 0")
+    check(ZenStringOps.users(c, i3) == 1, "a key is a reference")
+    var sa := ZenAnimBuilder.find_player(c).get_animation(ZenAnimBuilder.sig_path("go"))
+    var tr := ZenAnimBuilder.add_discrete(sa, "a:string")
+    sa.track_insert_key(tr, 0.0, float(i2))
+    check(ZenStringOps.users(c, i2) == 1, "a signal key is a reference too")
+    check(not ZenStringOps.remove(c, i2), "an entry in use cannot be removed")
+
+    check(ZenStringOps.remove(c, i1), "an unused entry is removed")
+    check(c.strings.entries.size() == 4 and c.strings.at(1) == "" and ZenStringOps.holes(c) == [1],
+          "...leaving a hole, so later indices hold")
+    check(b.text_at(1.5) == "three", "later entries keep their words")
+    check(ZenStringOps.add(c, "four") == 1, "a new entry refills the hole")
+    ZenStringOps.remove(c, 1)
+
+    check(ZenStringOps.compact(c) == 1, "clean-up removes the hole")
+    check(c.strings.entries == PackedStringArray(["shared", "two", "three"]), "...and renumbers (%s)" % c.strings.entries)
+    check(b.text_at(1.5) == "three", "document keys are rewritten to the new index")
+    check(int(float(sa.track_get_key_value(tr, 0)) + 0.5) == 1, "signal keys are rewritten too")
+    check(a.string_base == 0 and a.text == "shared", "base indices survive the renumber")
+    var last := ZenStringOps.add(c, "last")
+    check(ZenStringOps.remove(c, last) and c.strings.entries.size() == 3, "removing the tail entry trims the pool")
+    c.free()
+
+
+## The pool is ONE instance per canvas through every copy the editor makes:
+## open, snapshot/restore, element duplicate and save/load.
+func test_string_pool_shared() -> void:
+    var cached: ZenCanvas = (load("res://anims/ma_prog_01.tscn") as PackedScene).instantiate()
+    var o := ZenSceneOps.open("res://anims/ma_prog_01.tscn")
+    var shared_by := func(c: ZenCanvas) -> bool:
+        return ZenStringOps.texts(c).all(func(t): return (t as ZenText).strings == c.strings)
+    check(o.strings != cached.strings and shared_by.call(o), "open gives the canvas its own shared pool")
+    ZenStringOps.set_text(o, 0, "changed")
+    check(cached.strings.at(0) == "What Is Programming?", "editing it leaves the cached scene alone")
+
+    var snap := ZenSceneOps.restore(ZenSceneOps.snapshot(o))
+    check(snap.strings != o.strings and shared_by.call(snap) and snap.strings.at(0) == "changed",
+          "a snapshot holds its own copy, still shared by its texts")
+    check(shared_by.call(o), "the live canvas keeps its pool after a snapshot")
+    ZenStringOps.set_text(o, 0, "later")
+    check(snap.strings.at(0) == "changed", "a snapshot is independent of later pool edits")
+
+    var d := ZenElemOps.duplicate_elem(o, ZenElemOps.find(o, "t1")) as ZenText
+    check(d.strings == o.strings, "a duplicated text references the same pool")
+
+    var nm := "zz_test_strings"
+    var path := ZenSceneOps.save(o, nm)
+    var src := FileAccess.get_file_as_string(path)
+    var ids := {}
+    for m in RegEx.create_from_string("strings = SubResource\\(\"([^\"]+)\"\\)").search_all(src):
+        ids[m.get_string(1)] = true
+    check(ids.size() == 1, "the saved scene stores the pool once (%d ids)" % ids.size())
+    var back := ZenSceneOps.open(path)
+    check(shared_by.call(back) and back.strings.at(0) == "later", "it loads back shared, with the edit")
+    DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
+    for x in [cached, o, snap, back]: x.free()
+
+
+## The Strings panel and the text inspector, driven through their handlers.
+func test_scene_editor_strings() -> void:
+    var user_state := ZenSettings.editor_state()
+    ZenSettings.set_editor_state({})
+    var ed: ZenSceneEditor = (load("res://tools/zen_scene_editor.tscn") as PackedScene).instantiate()
+    root.add_child(ed)
+    await process_frame
+    ed.open("res://anims/ma_prog_02_coding.tscn")
+    await process_frame
+    check(ed._panel("strings") != null, "the editor has a Strings panel")
+    ed._sel.assign(["t2"])
+    ed._on_selection_changed(true)
+    await process_frame
+    check(ed._insp.get_children().any(func(n): return n is TextEdit), "the text inspector edits the words")
+
+    var times := [0.0, 0.3, 1.0, 5.0]
+    var shown := func() -> Array:
+        var out: Array = []
+        for t in ZenStringOps.texts(ed._canvas):
+            for tt in times: out.append((t as ZenText).text_at(tt))
+        return out
+    var before: Array = shown.call()
+    check(ed._str_btns["clean"].text == "clean up holes (7)" and not ed._str_btns["clean"].disabled,
+          "the clean-up button counts the holes")
+    ed._clean_strings()
+    check(ZenStringOps.holes(ed._canvas).is_empty() and ed._canvas.strings.entries.size() == 5,
+          "clean-up compacts the pool (%d)" % ed._canvas.strings.entries.size())
+    check(shown.call() == before, "...and every element shows the same words as before")
+    ed._do_undo()
+    check(ZenStringOps.holes(ed._canvas).size() == 7, "undo brings the holes back")
+
+    ed._str_sel = 9
+    ed._refresh_strings()
+    check(ed._str_btns["delete"].disabled, "an entry in use cannot be deleted")
+    ed._t = 0.0
+    ed._assign_string()
+    var t2 := ZenElemOps.find(ed._canvas, "t2") as ZenText
+    check(t2.string_index_at(0.0) == 9 and t2.text_at(0.0) == "coding", "assign points the selection at the entry")
+
+    ed._add_string()
+    var sel := ed._str_sel
+    check(ed._canvas.strings.at(sel).begins_with("new words"), "add makes and selects a fresh entry (#%d)" % sel)
+    ed._delete_string()
+    check(ed._canvas.strings.at(sel) == "" or not ed._canvas.strings.has_index(sel), "an unused entry deletes")
+    ed.queue_free()
+    await process_frame
+    ZenSettings.set_editor_state(user_state)
 
 
 ## The editor screen end to end: open, add, key through auto-key, scrub,

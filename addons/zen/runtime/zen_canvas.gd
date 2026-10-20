@@ -38,6 +38,11 @@ var pauses: Array = []
 ## `pauses`. Release it with release_pause().
 signal paused(index: int)
 
+## The scene's text string pool. The canvas OWNS it; every ZenText child
+## references this same instance (see ZenStrings). adopt_strings() repairs a
+## text node that has none, so a hand-built scene still resolves its words.
+@export var strings: ZenStrings
+
 ## Background colour painted before any element. Alpha 0 means "draw nothing",
 ## letting whatever is behind show through (anim_stage.h:20-27).
 @export var clear_color := Color(0, 0, 0, 0)
@@ -81,6 +86,7 @@ const GROUP := "zen_canvas"
 
 func _ready() -> void:
 	sync_from_animation()
+	adopt_strings()
 	_join_group()
 	set_process(false)
 	if Engine.is_editor_hint(): return
@@ -206,6 +212,17 @@ func sync_from_animation() -> void:
 	var ap := ZenAnimBuilder.find_player(self)
 	if ap == null or not ap.has_animation(ZenAnimBuilder.ANIM): return
 	ZenAnimBuilder.sync_markers(ap.get_animation(ZenAnimBuilder.ANIM), self)
+
+
+## Make sure there is a pool, and point every text child without one at it.
+## A text that already references a pool is left alone: only the scene ops
+## (ZenStringOps.repoint) move a whole canvas onto another instance.
+func adopt_strings() -> ZenStrings:
+	if strings == null: strings = ZenStrings.new()
+	for e in elements():
+		if e is ZenText and (e as ZenText).strings == null:
+			(e as ZenText).strings = strings
+	return strings
 
 
 ## The signal bus child, or null for a document that authored no signals.

@@ -34,12 +34,12 @@ const LIVE_QUIET := 0.6                 ## a gesture commits after this much qui
 const SAMPLES := 96                     ## sparkline resolution per lane
 const FRAME := 1.0 / 60.0
 
-## Props the inspector offers per kind, in the C editor's order. `string` is
-## left out: the string pool it indexes is not ported.
+## Props the inspector offers per kind, in the C editor's order. A text's
+## `string` is the pool entry it shows (ZenStrings), keyed like any stepped prop.
 const PROPS := {
     "shape": ["pos_x", "pos_y", "w", "h", "scale", "rot", "alpha", "color",
               "outline", "outline_alpha", "outline_color"],
-    "text": ["pos_x", "pos_y", "size", "rot", "alpha", "color", "crumble",
+    "text": ["pos_x", "pos_y", "size", "rot", "alpha", "color", "string", "crumble",
              "crumble_dir", "crumble_spread", "crumble_dist", "crumble_spin"],
     "global": ["fade", "color", "bg_alpha", "bg_color"],
 }
@@ -53,6 +53,7 @@ const RANGES := {
     "crumble": [0.0, 1.0, 0.01], "crumble_dir": [-360.0, 360.0, 1.0],
     "crumble_spread": [0.0, 360.0, 1.0], "crumble_dist": [0.0, 4.0, 0.01],
     "crumble_spin": [-3600.0, 3600.0, 1.0], "shape_id": [-2.0, 64.0, 1.0],
+    "string": [0.0, 255.0, 1.0],
 }
 
 var _canvas: ZenCanvas = null
@@ -88,6 +89,12 @@ var _p_elems: ZenEditorPanel
 var _p_insp: ZenEditorPanel
 var _p_doc: ZenEditorPanel
 var _p_tl: ZenEditorPanel
+var _p_str: ZenEditorPanel
+var _str_list: ItemList
+var _str_edit: TextEdit
+var _str_info: Label
+var _str_btns: Dictionary = {}          ## "add" | "assign" | "delete" | "clean" -> Button
+var _str_sel := -1                      ## the pool entry the Strings panel edits
 var _tree: Tree
 var _insp: VBoxContainer
 var _insp_rows: Array = []              ## [{prop, node, editor, key}]
@@ -272,6 +279,7 @@ func _after_edit(rebuild := true) -> void:
         _refresh_inspector_values()
     _refresh_timeline()
     _refresh_doc()
+    _refresh_strings(not rebuild)
     _sync_title()
 
 
@@ -291,7 +299,8 @@ func _build_ui() -> void:
     _menu.flat = true
     bar.add_child(_menu)
     _build_menus()
-    for spec in [["elements", "1"], ["inspector", "2"], ["document", "3"], ["timeline", "4"]]:
+    for spec in [["elements", "1"], ["inspector", "2"], ["document", "3"], ["timeline", "4"],
+                 ["strings", "5"]]:
         var b := ZenEditorPanel._tool_button(spec[0], "Show / hide the %s panel (%s)" % spec)
         b.flat = false
         b.toggle_mode = true
@@ -344,6 +353,8 @@ func _build_ui() -> void:
     _build_doc(_p_doc.body)
     _p_tl = _add_panel("timeline", "Timeline", ZenEditorPanel.Edge.BOTTOM, 230)
     _build_timeline(_p_tl.body)
+    _p_str = _add_panel("strings", "Strings", ZenEditorPanel.Edge.LEFT, 260)
+    _build_strings(_p_str.body)
 
     _status = ZenUI.label("", ZenUI.TEXT)
     _status.clip_text = true
@@ -384,6 +395,7 @@ func _build_menus() -> void:
     _menu.add_child(_popup("View", [
         ["Elements", _toggle_panel.bind("elements")], ["Inspector", _toggle_panel.bind("inspector")],
         ["Document", _toggle_panel.bind("document")], ["Timeline", _toggle_panel.bind("timeline")],
+        ["Strings", _toggle_panel.bind("strings")],
         [], ["Fit timeline", func(): _tl.fit()], ["Unpin all panels", _unpin_all]]))
 
 
@@ -556,6 +568,125 @@ func _build_dialogs() -> void:
     _leave_dialog.custom_action.connect(_on_leave_action)
     _leave_dialog.confirmed.connect(func(): closed.emit())
     add_child(_leave_dialog)
+
+
+# ---------------------------------------------------------------- string pool
+
+func _build_strings(p: VBoxContainer) -> void:
+    _str_list = ItemList.new()
+    _str_list.size_flags_vertical = SIZE_EXPAND_FILL
+    _str_list.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+    _str_list.item_selected.connect(func(ix):
+        _str_sel = _str_list.get_item_metadata(ix)
+        _refresh_strings())
+    p.add_child(_str_list)
+    _str_edit = TextEdit.new()
+    _str_edit.custom_minimum_size = Vector2(0, 64)
+    _str_edit.text_changed.connect(func():
+        if _syncing or not ZenStringOps.pool(_canvas).has_index(_str_sel): return
+        var i := _str_sel
+        _live("words #%d" % i, func(): ZenStringOps.set_text(_canvas, i, _str_edit.text)))
+    p.add_child(_str_edit)
+    var g := HFlowContainer.new()
+    p.add_child(g)
+    for spec in [["add", "Add a new pool entry", _add_string],
+                 ["assign", "Point the selected text elements at this entry (a key at the playhead when auto-key is on or they key `string`)", _assign_string],
+                 ["delete", "Delete this entry - only when nothing uses it; it leaves a hole", _delete_string],
+                 ["clean", "Remove every hole and renumber the pool, rewriting every reference", _clean_strings]]:
+        var b := ZenEditorPanel._tool_button(spec[0], spec[1])
+        b.flat = false
+        b.pressed.connect(spec[2])
+        g.add_child(b)
+        _str_btns[spec[0]] = b
+    _str_info = ZenUI.label("", ZenUI.DIM, 11)
+    _str_info.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+    p.add_child(_str_info)
+
+
+## "#3  Just like a tree…  ×2" - an entry as the lists show it.
+static func _string_label(i: int, words: String, users: int) -> String:
+    var one := words.replace("\n", " / ").strip_edges()
+    if one.length() > 34: one = one.substr(0, 33) + "…"
+    if words.is_empty(): one = "(hole)" if users == 0 else "(empty)"
+    return "#%d  %s  ×%d" % [i, one, users]
+
+
+## Words for a new entry that no other entry already holds, so add() cannot
+## fold it into an existing one.
+func _fresh_words(base: String) -> String:
+    var pool := ZenStringOps.pool(_canvas)
+    if base.is_empty(): base = "TEXT"
+    var w := base
+    var n := 2
+    while pool.find_text(w) >= 0:
+        w = "%s %d" % [base, n]
+        n += 1
+    return w
+
+
+## Rebuild the pool list. `keep_edit`: an edit is being typed, so the edit box
+## is left alone (replacing its text would move the caret).
+func _refresh_strings(keep_edit := false) -> void:
+    if _str_list == null or _canvas == null: return
+    var pool := ZenStringOps.pool(_canvas)
+    var use := ZenStringOps.usage(_canvas)
+    var holes := ZenStringOps.holes(_canvas)
+    if not pool.has_index(_str_sel): _str_sel = -1
+    _str_list.clear()
+    for i in pool.entries.size():
+        var ix := _str_list.add_item(_string_label(i, pool.at(i), int(use.get(i, 0))))
+        _str_list.set_item_metadata(ix, i)
+        _str_list.set_item_tooltip(ix, pool.at(i))
+        if holes.has(i): _str_list.set_item_custom_fg_color(ix, ZenUI.DIM)
+        if i == _str_sel: _str_list.select(ix)
+    var has := _str_sel >= 0
+    var users := int(use.get(_str_sel, 0)) if has else 0
+    if not keep_edit:
+        _syncing = true
+        _str_edit.text = pool.at(_str_sel) if has else ""
+        _syncing = false
+    _str_edit.editable = has
+    _str_btns["assign"].disabled = not has or _selected_texts().is_empty()
+    _str_btns["delete"].disabled = not has or users > 0 or holes.has(_str_sel)
+    _str_btns["clean"].text = "clean up holes (%d)" % holes.size()
+    _str_btns["clean"].disabled = holes.is_empty()
+    _str_info.text = "%d entries, %d holes. Text elements always show a pool entry; an edit changes it for everyone using it." % [
+        pool.entries.size() - holes.size(), holes.size()]
+    if has: _str_info.text = "#%d used by %d.  " % [_str_sel, users] + _str_info.text
+
+
+func _selected_texts() -> Array:
+    return _selected_nodes().filter(func(e): return e is ZenText)
+
+
+func _add_string() -> void:
+    var made := [-1]                    # a lambda captures locals by value
+    _command("add words", func(): made[0] = ZenStringOps.add(_canvas, _fresh_words("new words")))
+    _str_sel = made[0]
+    _refresh_strings()
+
+
+func _assign_string() -> void:
+    var ts := _selected_texts()
+    if ts.is_empty() or _str_sel < 0: return
+    var i := _str_sel
+    _command("words #%d" % i, func():
+        for t in ts: ZenStringOps.assign(_canvas, t, i, _t, _autokey))
+
+
+func _delete_string() -> void:
+    var i := _str_sel
+    if i < 0: return
+    if ZenStringOps.users(_canvas, i) > 0:
+        _set_status("#%d is still in use" % i)
+        return
+    _command("delete words #%d" % i, func(): ZenStringOps.remove(_canvas, i))
+
+
+func _clean_strings() -> void:
+    if ZenStringOps.holes(_canvas).is_empty(): return
+    _str_sel = -1
+    _command("clean up string holes", func(): ZenStringOps.compact(_canvas))
 
 
 # ---------------------------------------------------------------- panels
@@ -798,6 +929,7 @@ func _on_selection_changed(rebuild_tree: bool) -> void:
     _key_sel.clear()
     _build_inspector.call_deferred()
     _refresh_timeline()
+    _refresh_strings()
     _stage.selected = _selected_nodes()
 
 
@@ -941,14 +1073,47 @@ func _inspect_shape(g: GridContainer, s: ZenShape) -> void:
         g.add_child(ab)
 
 
+## A text's words are ALWAYS a pool entry. The picker shows the entry on
+## screen at the playhead; the box edits THAT entry in place, so every element
+## and key sharing it follows (the count says how many); "new" gives this
+## element an entry of its own.
 func _inspect_text(t: ZenText) -> void:
-    _insp.add_child(ZenUI.label("text", ZenUI.LABEL))
+    var pool := ZenStringOps.pool(_canvas)
+    var use := ZenStringOps.usage(_canvas)
+    var cur := t.string_index_at(_t)
+    var head := HBoxContainer.new()
+    _insp.add_child(head)
+    var wl := ZenUI.label("words", ZenUI.LABEL)
+    wl.size_flags_horizontal = SIZE_EXPAND_FILL
+    head.add_child(wl)
+    var n := int(use.get(cur, 0))
+    head.add_child(ZenUI.label("#%d  used by %d" % [cur, n], ZenUI.TITLE if n > 1 else ZenUI.DIM, 11))
+    var row := HBoxContainer.new()
+    _insp.add_child(row)
+    var ob := OptionButton.new()
+    ob.size_flags_horizontal = SIZE_EXPAND_FILL
+    ob.clip_text = true
+    ob.fit_to_longest_item = false
+    var holes := ZenStringOps.holes(_canvas)
+    for i in pool.entries.size():
+        if holes.has(i) and i != cur: continue
+        ob.add_item(_string_label(i, pool.at(i), int(use.get(i, 0))), i)
+    ob.select(ob.get_item_index(cur))
+    ob.item_selected.connect(func(ix): _command("%s words #%d" % [t.elem_name, ob.get_item_id(ix)],
+        func(): ZenStringOps.assign(_canvas, t, ob.get_item_id(ix), _t, _autokey)))
+    row.add_child(ob)
+    var nb := ZenEditorPanel._tool_button("new", "Give this element a new pool entry of its own")
+    nb.flat = false
+    nb.pressed.connect(func(): _command("%s new words" % t.elem_name, func():
+        ZenStringOps.assign(_canvas, t, ZenStringOps.add(_canvas, _fresh_words(pool.at(cur))),
+            _t, _autokey)))
+    row.add_child(nb)
     var te := TextEdit.new()
-    te.text = t.text
+    te.text = pool.at(cur)
     te.custom_minimum_size = Vector2(0, 54)
-    te.text_changed.connect(func(): _live("text", func():
-        t.text = te.text
-        t.queue_redraw()))
+    te.tooltip_text = "Edits pool entry #%d in place - every element and key using it follows" % cur
+    te.text_changed.connect(func(): _live("words #%d" % cur, func():
+        ZenStringOps.set_text(_canvas, cur, te.text)))
     _insp.add_child(te)
     var g := GridContainer.new()
     g.columns = 2
@@ -1540,6 +1705,7 @@ func _show_help() -> void:
         ["zen_edit_autokey", "auto-key on / off"],
         ["zen_edit_panel_1", "elements panel"], ["zen_edit_panel_2", "inspector"],
         ["zen_edit_panel_3", "document"], ["zen_edit_panel_4", "timeline"],
+        ["zen_edit_panel_5", "string pool"],
         ["click / Shift+click", "select / add an element on the canvas"],
         ["drag", "move the selection (Shift: lock to an axis)"],
         ["zen_delete", "delete the selected keys, else the selected elements"],
@@ -1590,8 +1756,8 @@ func _unhandled_input(ev: InputEvent) -> void:
     elif ev.is_action_pressed("zen_edit_frame_next", true): _scrub_to(_t + FRAME)
     elif ev.is_action_pressed("zen_edit_fit"): _tl.fit()
     else:
-        var ids := ["elements", "inspector", "document", "timeline"]
-        for i in 4:
+        var ids := ["elements", "inspector", "document", "timeline", "strings"]
+        for i in ids.size():
             if ev.is_action_pressed("zen_edit_panel_%d" % (i + 1)):
                 if not echo: _toggle_panel(ids[i])
     # Swallow every key: the gallery underneath must not react to its own.

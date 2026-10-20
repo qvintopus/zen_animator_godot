@@ -227,12 +227,12 @@ _data = {
 &"ripple": SubResource("Animation_6o0yx")
 }
 
-[node name="mouse_ripple" type="Node2D" unique_id=1503837966]
+[node name="mouse_ripple" type="Node2D" unique_id=274850099]
 script = ExtResource("1_nx2l5")
 loop_blend = 0.0
 clear_color = Color(0.1, 0.12, 0.16, 1)
 
-[node name="shape" type="Node2D" parent="." unique_id=1022495112]
+[node name="shape" type="Node2D" parent="." unique_id=55472323]
 script = ExtResource("2_vl4oy")
 shape_kind = 1
 size_frac = Vector2(32, 32)
@@ -243,7 +243,7 @@ outline_base = 9.0
 elem_name = "shape"
 unit_abs = true
 
-[node name="Signals" type="Node" parent="." unique_id=1534422391]
+[node name="Signals" type="Node" parent="." unique_id=1797251932]
 script = ExtResource("3_hfn6v")
 signals_data = [{
 "length": 1.0,
@@ -277,7 +277,7 @@ signals_data = [{
 "uses_seq": false
 }]
 
-[node name="AnimationPlayer" type="AnimationPlayer" parent="." unique_id=1736844123]
+[node name="AnimationPlayer" type="AnimationPlayer" parent="." unique_id=857376277]
 callback_mode_method = 1
 libraries/ = SubResource("AnimationLibrary_5c7n0")
 libraries/sig = SubResource("AnimationLibrary_paagk")

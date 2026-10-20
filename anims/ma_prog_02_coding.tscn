@@ -1,16 +1,21 @@
 [gd_scene format=3]
 
-[ext_resource type="Script" path="res://addons/zen/runtime/zen_canvas.gd" id="1_ea4qs"]
-[ext_resource type="Script" path="res://addons/zen/runtime/zen_text.gd" id="2_ie7he"]
-[ext_resource type="Script" path="res://addons/zen/runtime/zen_shape.gd" id="3_u2q0y"]
-[ext_resource type="Resource" path="res://assets/shapes/ai_icon_128.tres" id="4_1cvba"]
-[ext_resource type="Script" path="res://addons/zen/runtime/zen_pixel_shape.gd" id="5_gxjjr"]
-[ext_resource type="Resource" path="res://assets/shapes/page_icon.tres" id="6_jtfem"]
-[ext_resource type="Resource" path="res://assets/shapes/coder_icon_128.tres" id="7_o6lnj"]
-[ext_resource type="Resource" path="res://assets/shapes/book_icon.tres" id="8_ifyda"]
-[ext_resource type="Script" path="res://addons/zen/runtime/zen_signal_bus.gd" id="9_jlval"]
+[ext_resource type="Script" path="res://addons/zen/runtime/zen_canvas.gd" id="1_ie7he"]
+[ext_resource type="Script" path="res://addons/zen/runtime/zen_strings.gd" id="2_u2q0y"]
+[ext_resource type="Script" path="res://addons/zen/runtime/zen_text.gd" id="3_1cvba"]
+[ext_resource type="Script" path="res://addons/zen/runtime/zen_shape.gd" id="4_gxjjr"]
+[ext_resource type="Resource" path="res://assets/shapes/ai_icon_128.tres" id="5_jtfem"]
+[ext_resource type="Script" path="res://addons/zen/runtime/zen_pixel_shape.gd" id="6_o6lnj"]
+[ext_resource type="Resource" path="res://assets/shapes/page_icon.tres" id="7_ifyda"]
+[ext_resource type="Resource" path="res://assets/shapes/coder_icon_128.tres" id="8_jlval"]
+[ext_resource type="Resource" path="res://assets/shapes/book_icon.tres" id="9_siq4j"]
+[ext_resource type="Script" path="res://addons/zen/runtime/zen_signal_bus.gd" id="10_yupq1"]
 
-[sub_resource type="Animation" id="Animation_siq4j"]
+[sub_resource type="Resource" id="Resource_t53h8"]
+script = ExtResource("2_u2q0y")
+entries = PackedStringArray("code (text)", "so does AI-assistance is\nused at various amounts", "", "", "", "", "", "", "", "coding", "coding w/ ai", "codebase")
+
+[sub_resource type="Animation" id="Animation_oafsk"]
 length = 12.0
 step = 0.0166667
 markers = [{
@@ -1245,108 +1250,111 @@ tracks/106/keys = {
 "values": ["linear", "linear", "expoOut"]
 }
 
-[sub_resource type="AnimationLibrary" id="AnimationLibrary_yupq1"]
+[sub_resource type="AnimationLibrary" id="AnimationLibrary_24pcb"]
 _data = {
-&"zen": SubResource("Animation_siq4j")
+&"zen": SubResource("Animation_oafsk")
 }
 
-[sub_resource type="Animation" id="Animation_t53h8"]
+[sub_resource type="Animation" id="Animation_tqxe1"]
 step = 0.0166667
 
-[sub_resource type="AnimationLibrary" id="AnimationLibrary_oafsk"]
+[sub_resource type="AnimationLibrary" id="AnimationLibrary_50n0l"]
 _data = {
-&"enter": SubResource("Animation_t53h8")
+&"enter": SubResource("Animation_tqxe1")
 }
 
-[node name="ma_prog_02_coding" type="Node2D" unique_id=1964579120]
-script = ExtResource("1_ea4qs")
+[node name="ma_prog_02_coding" type="Node2D" unique_id=2045058153]
+script = ExtResource("1_ie7he")
 loop_smooth = true
+strings = SubResource("Resource_t53h8")
 clear_color = Color(0.1, 0.12, 0.16, 1)
 loop_play = true
 
-[node name="t1" type="Node2D" parent="." unique_id=1813063482]
-script = ExtResource("2_ie7he")
-text = "coding w/ ai"
+[node name="t1" type="Node2D" parent="." unique_id=680767315]
+script = ExtResource("3_1cvba")
+strings = SubResource("Resource_t53h8")
+string_base = 10
 size_frac = Vector2(0.12, 0.12)
 color_base = Color(0.9607843, 0.9607843, 0.9607843, 0)
 elem_name = "t1"
 pos_frac = Vector2(0.5, 0.1)
 
-[node name="t2" type="Node2D" parent="." unique_id=1586259612]
+[node name="t2" type="Node2D" parent="." unique_id=1691098935]
 z_index = 1
-script = ExtResource("2_ie7he")
-text = "so does AI-assistance is
-used at various amounts"
+script = ExtResource("3_1cvba")
+strings = SubResource("Resource_t53h8")
+string_base = 1
 size_frac = Vector2(0.12, 0.1)
 color_base = Color(0.9607843, 0.9607843, 0.9607843, 1)
 elem_name = "t2"
 pos_frac = Vector2(0.5, 0.26378)
 
-[node name="t3" type="Node2D" parent="." unique_id=1310101743]
+[node name="t3" type="Node2D" parent="." unique_id=1266613904]
 z_index = 2
-script = ExtResource("2_ie7he")
-text = "codebase"
+script = ExtResource("3_1cvba")
+strings = SubResource("Resource_t53h8")
+string_base = 11
 size_frac = Vector2(0.08, 0.1)
 color_base = Color(0.9607843, 0.9607843, 0.9607843, 1)
 elem_name = "t3"
 pos_frac = Vector2(0.595499, 0.93982)
 
-[node name="icon_ai" type="Node2D" parent="." unique_id=1234566692]
+[node name="icon_ai" type="Node2D" parent="." unique_id=847495357]
 z_index = 3
-script = ExtResource("3_u2q0y")
+script = ExtResource("4_gxjjr")
 shape_kind = 6
 size_frac = Vector2(128, 128)
 scale_base = 10.0
 color_base = Color(0.9607843, 0.9607843, 0.9607843, 1)
 outline_color_base = Color(0.9607843, 0.9607843, 0.9607843, 1)
-shape = ExtResource("4_1cvba")
+shape = ExtResource("5_jtfem")
 shape_name = "ai_icon_128"
-shape_refs = Array[ExtResource("5_gxjjr")]([ExtResource("4_1cvba"), ExtResource("6_jtfem")])
+shape_refs = Array[ExtResource("6_o6lnj")]([ExtResource("5_jtfem"), ExtResource("7_ifyda")])
 elem_name = "icon_ai"
 unit_abs = true
 
-[node name="icon_coder" type="Node2D" parent="." unique_id=1210730032]
+[node name="icon_coder" type="Node2D" parent="." unique_id=637551087]
 z_index = 4
-script = ExtResource("3_u2q0y")
+script = ExtResource("4_gxjjr")
 shape_kind = 6
 size_frac = Vector2(128, 128)
 scale_base = 10.0
 color_base = Color(0.9607843, 0.9607843, 0.9607843, 1)
 outline_color_base = Color(0.9607843, 0.9607843, 0.9607843, 1)
-shape = ExtResource("7_o6lnj")
+shape = ExtResource("8_jlval")
 shape_name = "coder_icon_128"
 elem_name = "icon_coder"
 unit_abs = true
 
-[node name="sh_book" type="Node2D" parent="." unique_id=1712155963]
+[node name="sh_book" type="Node2D" parent="." unique_id=1889745424]
 z_index = 5
-script = ExtResource("3_u2q0y")
+script = ExtResource("4_gxjjr")
 shape_kind = 6
 size_frac = Vector2(88, 64)
 color_base = Color(0.93333334, 0.99215686, 0.7921569, 1)
 outline_color_base = Color(0.9607843, 0.9607843, 0.827451, 1)
-shape = ExtResource("8_ifyda")
+shape = ExtResource("9_siq4j")
 shape_name = "book_icon"
 elem_name = "sh_book"
 unit_abs = true
 pos_frac = Vector2(0.597847, 0.725397)
 
-[node name="sh_page1" type="Node2D" parent="." unique_id=1695258300]
+[node name="sh_page1" type="Node2D" parent="." unique_id=390729560]
 z_index = 6
-script = ExtResource("3_u2q0y")
+script = ExtResource("4_gxjjr")
 shape_kind = 6
 size_frac = Vector2(64, 64)
 scale_base = 0.760001
 color_base = Color(0.972549, 0.972549, 0.9019608, 1)
 outline_color_base = Color(0.96862745, 0.9764706, 0.9764706, 1)
-shape = ExtResource("6_jtfem")
+shape = ExtResource("7_ifyda")
 shape_name = "page_icon"
 elem_name = "sh_page1"
 unit_abs = true
 pos_frac = Vector2(0.655571, 0.73671)
 
-[node name="Signals" type="Node" parent="." unique_id=2079824613]
-script = ExtResource("9_jlval")
+[node name="Signals" type="Node" parent="." unique_id=1685780783]
+script = ExtResource("10_yupq1")
 signals_data = [{
 "length": 1.0,
 "name": "enter",
@@ -1362,7 +1370,7 @@ signals_data = [{
 "uses_seq": false
 }]
 
-[node name="AnimationPlayer" type="AnimationPlayer" parent="." unique_id=406942398]
+[node name="AnimationPlayer" type="AnimationPlayer" parent="." unique_id=886782738]
 callback_mode_method = 1
-libraries/ = SubResource("AnimationLibrary_yupq1")
-libraries/sig = SubResource("AnimationLibrary_oafsk")
+libraries/ = SubResource("AnimationLibrary_24pcb")
+libraries/sig = SubResource("AnimationLibrary_50n0l")

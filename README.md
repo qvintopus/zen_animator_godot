@@ -57,8 +57,8 @@ a second copy of the data:
   from the `zen` Animation. Scrubbing seeks that player, and every key edit lands in it.
 - **The Elements panel is the node tree.** Add, delete, reorder (drag, or up/down) and
   rename are node operations, and **Save** packs that same tree.
-- **Panels are summoned.** Elements, Inspector, Document and Timeline stay hidden until
-  opened from the top bar, the View menu or **1-4**. Unpinned, a panel floats and
+- **Panels are summoned.** Elements, Inspector, Document, Timeline and Strings stay hidden
+  until opened from the top bar, the View menu or **1-5**. Unpinned, a panel floats and
   auto-hides (ESC, a click on empty canvas, another panel on its side). Pinned, it stays
   and the canvas makes room. While playing, the unpinned ones slide away and a pinned
   one stays (a pinned Timeline shows the playhead running).
@@ -72,8 +72,22 @@ one step per gesture. A scene saved from the editor is marked `zen_authored`, an
 one-shot importer skips it unless given `-- --force`, so a re-import cannot overwrite the
 edits. The editing ops are UI-free and tested headless (`addons/zen/authoring/`):
 `ZenSceneOps` (new/open/save/rename/duplicate/delete, snapshots), `ZenElemOps`,
-`ZenKeyOps` and `ZenDocOps`. Signals are kept consistent across renames and deletes but
+`ZenKeyOps`, `ZenDocOps` and `ZenStringOps`. Signals are kept consistent across renames and deletes but
 cannot be edited yet.
+
+**Text is always a string-pool reference** - the original editor's string pool, ported as
+one `ZenStrings` resource (`entries: PackedStringArray`) that the canvas owns
+(`ZenCanvas.strings`) and every `ZenText` references: a single shared sub-resource in the
+saved scene. A text has no private words: `string_base` is the entry it shows untracked,
+and a stepped `string` track keys entries by index, so a one-off label and a label that
+switches words are the same case. `ZenText.text` is the **current label** - an output
+rewritten on every pose (never stored, read-only in Godot's Inspector) for game code to
+read, with `text_changed` when it switches. Sharing is deliberate: the Inspector's words box
+edits the entry in place and shows how many elements and keys use it; **new** gives an
+element an entry of its own. Indices are stable - deleting an unused entry leaves a hole,
+the next added entry refills it - and the **Strings** panel's **clean up holes** renumbers
+the pool, rewriting every `string_base` and every `string` key (signals included). An entry
+still in use cannot be deleted.
 
 **Visual assets are pixel shapes** - the original editor's `.shp` files, ported as
 `ZenPixelShape` resources in `assets/shapes/*.tres` (`tools/import_shp.gd` converts them).
@@ -196,7 +210,7 @@ bundled documents import complete.
 Headless is fine - nothing here renders.
 
 ```sh
-# 1372 checks
+# 1425 checks
 ./Godot_v4.7.2-stable_linux.x86_64 --headless --path . --script res://tests/run_tests.gd
 
 # importer fidelity: 2657 sampled comparisons, must be 0 mismatches
@@ -237,11 +251,13 @@ addons/zen/runtime/    zen_easing, zen_curve, zen_curve_bake (ease -> bezier), z
                        zen_props (property registry), zen_signal_player (override eval),
                        zen_signal_bus (per-canvas dispatch), zen_signals (global relay
                        autoload), zen_anim_builder (assembles the saved AnimationPlayer),
-                       zen_pixel_shape (the pixel-shape asset), zen_assets (asset lookup/save)
+                       zen_pixel_shape (the pixel-shape asset), zen_assets (asset lookup/save),
+                       zen_strings (the scene's text string pool)
 addons/zen/fonts/      bundled fonts (LICENSES.md) - ZenText's project-default font
 addons/zen/authoring/  the scene editor's UI-free ops: zen_scene_ops (scene CRUD, snapshots),
                        zen_elem_ops (element CRUD on the node tree), zen_key_ops (keys and
-                       eases, rebaking only the touched segments), zen_doc_ops (clock markers)
+                       eases, rebaking only the touched segments), zen_doc_ops (clock markers),
+                       zen_string_ops (string pool: usage, holes, clean-up, assign)
 addons/zen/importer/   zen_cfg_parse (grammar), zen_cfg_build (nodes), zen_cfg_import (entry)
 zen_gallery.tscn       the main scene (F5): browse, inspect and play animations
 tools/                 zen_gallery.gd, zen_options.gd (font picker), zen_shape_editor.gd/.tscn

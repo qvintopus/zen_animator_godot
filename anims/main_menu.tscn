@@ -1,11 +1,16 @@
 [gd_scene format=3]
 
-[ext_resource type="Script" path="res://addons/zen/runtime/zen_canvas.gd" id="1_jitd1"]
-[ext_resource type="Script" path="res://addons/zen/runtime/zen_shape.gd" id="2_e2ouy"]
-[ext_resource type="Script" path="res://addons/zen/runtime/zen_text.gd" id="3_7c3yj"]
-[ext_resource type="Script" path="res://addons/zen/runtime/zen_signal_bus.gd" id="4_6ls04"]
+[ext_resource type="Script" path="res://addons/zen/runtime/zen_canvas.gd" id="1_e2ouy"]
+[ext_resource type="Script" path="res://addons/zen/runtime/zen_strings.gd" id="2_7c3yj"]
+[ext_resource type="Script" path="res://addons/zen/runtime/zen_shape.gd" id="3_6ls04"]
+[ext_resource type="Script" path="res://addons/zen/runtime/zen_text.gd" id="4_dwjjn"]
+[ext_resource type="Script" path="res://addons/zen/runtime/zen_signal_bus.gd" id="5_07rg1"]
 
-[sub_resource type="Animation" id="Animation_dwjjn"]
+[sub_resource type="Resource" id="Resource_q7ygy"]
+script = ExtResource("2_7c3yj")
+entries = PackedStringArray("MAIN MENU", "all the buttons")
+
+[sub_resource type="Animation" id="Animation_wu5s1"]
 length = 3.3455
 step = 0.0166667
 markers = [{
@@ -261,12 +266,12 @@ tracks/20/keys = {
 "values": ["linear", "cubicIn", "cubicIn", "quadIn", "quadIn"]
 }
 
-[sub_resource type="AnimationLibrary" id="AnimationLibrary_07rg1"]
+[sub_resource type="AnimationLibrary" id="AnimationLibrary_5wsb3"]
 _data = {
-&"zen": SubResource("Animation_dwjjn")
+&"zen": SubResource("Animation_wu5s1")
 }
 
-[sub_resource type="Animation" id="Animation_q7ygy"]
+[sub_resource type="Animation" id="Animation_5h6fy"]
 length = 3.031496
 step = 0.0166667
 tracks/0/type = "bezier"
@@ -416,19 +421,20 @@ metadata/zen_capture = {
 "title:crumble": [2.3809308954080004, 0.0]
 }
 
-[sub_resource type="AnimationLibrary" id="AnimationLibrary_wu5s1"]
+[sub_resource type="AnimationLibrary" id="AnimationLibrary_271uh"]
 _data = {
-&"TV-out": SubResource("Animation_q7ygy")
+&"TV-out": SubResource("Animation_5h6fy")
 }
 
-[node name="MAIN_MENU" type="Node2D" unique_id=413697341]
-script = ExtResource("1_jitd1")
+[node name="MAIN_MENU" type="Node2D" unique_id=1713563298]
+script = ExtResource("1_e2ouy")
 loop_smooth = true
+strings = SubResource("Resource_q7ygy")
 clear_color = Color(0.1, 0.12, 0.16, 1)
 loop_play = true
 
-[node name="line_diag_bottleft" type="Node2D" parent="." unique_id=1820880550]
-script = ExtResource("2_e2ouy")
+[node name="line_diag_bottleft" type="Node2D" parent="." unique_id=1566863535]
+script = ExtResource("3_6ls04")
 shape_kind = 5
 size_frac = Vector2(1.887022, 0)
 scale_base = 0.748031
@@ -439,9 +445,9 @@ pos_frac = Vector2(0.499449, 0.5)
 rot_base = -45.10817
 corner_mode = true
 
-[node name="line_diag_topleft" type="Node2D" parent="." unique_id=1982767786]
+[node name="line_diag_topleft" type="Node2D" parent="." unique_id=2103271480]
 z_index = 1
-script = ExtResource("2_e2ouy")
+script = ExtResource("3_6ls04")
 shape_kind = 5
 size_frac = Vector2(1.890582, 0)
 scale_base = 0.748031
@@ -451,36 +457,37 @@ elem_name = "line_diag_topleft"
 rot_base = 44.999992
 corner_mode = true
 
-[node name="title" type="Node2D" parent="." unique_id=534666606]
+[node name="title" type="Node2D" parent="." unique_id=481906421]
 z_index = 2
-script = ExtResource("3_7c3yj")
-text = "MAIN MENU"
+script = ExtResource("4_dwjjn")
+strings = SubResource("Resource_q7ygy")
 size_frac = Vector2(0.170103, 0.1)
 color_base = Color(0.9607843, 0.9607843, 0.9607843, 0)
 elem_name = "title"
 pos_frac = Vector2(0, 0.159794)
 
-[node name="subtitle" type="Node2D" parent="." unique_id=498843228]
+[node name="subtitle" type="Node2D" parent="." unique_id=403378266]
 z_index = 3
-script = ExtResource("3_7c3yj")
-text = "all the buttons"
+script = ExtResource("4_dwjjn")
+strings = SubResource("Resource_q7ygy")
+string_base = 1
 size_frac = Vector2(0.108247, 0.1)
 color_base = Color(0.9607843, 0.9607843, 0.9607843, 0)
 elem_name = "subtitle"
 pos_frac = Vector2(0, 0.283505)
 
-[node name="line_sub_title" type="Node2D" parent="." unique_id=631770646]
+[node name="line_sub_title" type="Node2D" parent="." unique_id=495345872]
 z_index = 4
-script = ExtResource("2_e2ouy")
+script = ExtResource("3_6ls04")
 size_frac = Vector2(1.716495, 0.015464)
 color_base = Color(1, 1, 1, 0.8901961)
 outline_color_base = Color(0.9607843, 0.9607843, 0.9607843, 1)
 elem_name = "line_sub_title"
 pos_frac = Vector2(0.5, 0.360825)
 
-[node name="the_ball" type="Node2D" parent="." unique_id=1113329593]
+[node name="the_ball" type="Node2D" parent="." unique_id=1425869231]
 z_index = 5
-script = ExtResource("2_e2ouy")
+script = ExtResource("3_6ls04")
 shape_kind = 1
 size_frac = Vector2(16, 16)
 color_base = Color(0.9019608, 0.8980392, 0.36862746, 1)
@@ -491,8 +498,8 @@ elem_name = "the_ball"
 unit_abs = true
 pos_frac = Vector2(0.5, 0.748032)
 
-[node name="Signals" type="Node" parent="." unique_id=1787688915]
-script = ExtResource("4_6ls04")
+[node name="Signals" type="Node" parent="." unique_id=809680675]
+script = ExtResource("5_07rg1")
 signals_data = [{
 "length": 3.031496,
 "name": "TV-out",
@@ -556,7 +563,7 @@ signals_data = [{
 "uses_seq": false
 }]
 
-[node name="AnimationPlayer" type="AnimationPlayer" parent="." unique_id=729473065]
+[node name="AnimationPlayer" type="AnimationPlayer" parent="." unique_id=722322984]
 callback_mode_method = 1
-libraries/ = SubResource("AnimationLibrary_07rg1")
-libraries/sig = SubResource("AnimationLibrary_wu5s1")
+libraries/ = SubResource("AnimationLibrary_5wsb3")
+libraries/sig = SubResource("AnimationLibrary_271uh")

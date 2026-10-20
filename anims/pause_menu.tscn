@@ -1,10 +1,15 @@
 [gd_scene format=3]
 
-[ext_resource type="Script" path="res://addons/zen/runtime/zen_canvas.gd" id="1_isakd"]
-[ext_resource type="Script" path="res://addons/zen/runtime/zen_text.gd" id="2_eun84"]
-[ext_resource type="Script" path="res://addons/zen/runtime/zen_signal_bus.gd" id="3_ifp6d"]
+[ext_resource type="Script" path="res://addons/zen/runtime/zen_canvas.gd" id="1_eun84"]
+[ext_resource type="Script" path="res://addons/zen/runtime/zen_strings.gd" id="2_ifp6d"]
+[ext_resource type="Script" path="res://addons/zen/runtime/zen_text.gd" id="3_4skjw"]
+[ext_resource type="Script" path="res://addons/zen/runtime/zen_signal_bus.gd" id="4_m5ssp"]
 
-[sub_resource type="Animation" id="Animation_4skjw"]
+[sub_resource type="Resource" id="Resource_xa354"]
+script = ExtResource("2_ifp6d")
+entries = PackedStringArray("PAUSE MENU", "still, all the buttons")
+
+[sub_resource type="Animation" id="Animation_iqy5t"]
 length = 2.1
 step = 0.0166667
 markers = [{
@@ -123,12 +128,12 @@ tracks/8/keys = {
 "values": ["linear", "linear", "sineInOut"]
 }
 
-[sub_resource type="AnimationLibrary" id="AnimationLibrary_m5ssp"]
+[sub_resource type="AnimationLibrary" id="AnimationLibrary_gf6bb"]
 _data = {
-&"zen": SubResource("Animation_4skjw")
+&"zen": SubResource("Animation_iqy5t")
 }
 
-[sub_resource type="Animation" id="Animation_xa354"]
+[sub_resource type="Animation" id="Animation_mi2rf"]
 length = 0.866142
 step = 0.0166667
 tracks/0/type = "bezier"
@@ -278,34 +283,36 @@ metadata/zen_capture = {
 "title:pos_y": [0.74158644969, 0.0]
 }
 
-[sub_resource type="AnimationLibrary" id="AnimationLibrary_iqy5t"]
+[sub_resource type="AnimationLibrary" id="AnimationLibrary_6qp6i"]
 _data = {
-&"exit": SubResource("Animation_xa354")
+&"exit": SubResource("Animation_mi2rf")
 }
 
-[node name="PAUSE_MENU" type="Node2D" unique_id=1399898141]
-script = ExtResource("1_isakd")
+[node name="PAUSE_MENU" type="Node2D" unique_id=1063467302]
+script = ExtResource("1_eun84")
+strings = SubResource("Resource_xa354")
 clear_color = Color(0.1, 0.12, 0.16, 1)
 loop_play = true
 
-[node name="title" type="Node2D" parent="." unique_id=1531211808]
-script = ExtResource("2_eun84")
-text = "PAUSE MENU"
+[node name="title" type="Node2D" parent="." unique_id=1535170424]
+script = ExtResource("3_4skjw")
+strings = SubResource("Resource_xa354")
 color_base = Color(0.9607843, 0.9607843, 0.9607843, 0)
 elem_name = "title"
 pos_frac = Vector2(0, 0.181102)
 
-[node name="subtitle" type="Node2D" parent="." unique_id=1542187567]
+[node name="subtitle" type="Node2D" parent="." unique_id=1490041732]
 z_index = 1
-script = ExtResource("2_eun84")
-text = "still, all the buttons"
+script = ExtResource("3_4skjw")
+strings = SubResource("Resource_xa354")
+string_base = 1
 size_frac = Vector2(0.06, 0.1)
 color_base = Color(0.9607843, 0.9607843, 0.9607843, 0)
 elem_name = "subtitle"
 pos_frac = Vector2(0, 0.287402)
 
-[node name="Signals" type="Node" parent="." unique_id=84098190]
-script = ExtResource("3_ifp6d")
+[node name="Signals" type="Node" parent="." unique_id=2041617590]
+script = ExtResource("4_m5ssp")
 signals_data = [{
 "length": 0.866142,
 "name": "exit",
@@ -353,7 +360,7 @@ signals_data = [{
 "uses_seq": false
 }]
 
-[node name="AnimationPlayer" type="AnimationPlayer" parent="." unique_id=386521144]
+[node name="AnimationPlayer" type="AnimationPlayer" parent="." unique_id=591096857]
 callback_mode_method = 1
-libraries/ = SubResource("AnimationLibrary_m5ssp")
-libraries/sig = SubResource("AnimationLibrary_iqy5t")
+libraries/ = SubResource("AnimationLibrary_gf6bb")
+libraries/sig = SubResource("AnimationLibrary_6qp6i")

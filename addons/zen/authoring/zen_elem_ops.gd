@@ -97,7 +97,10 @@ static func add(canvas: ZenCanvas, kind: String, nm := "", e := {}) -> ZenElemen
     e["name"] = nm
     var nodes: Array = []
     match kind:
-        "text": nodes = [ZenCfgBuild.build_text(e)]
+        "text":
+            var free: Array = []
+            free.assign(ZenStringOps.holes(canvas))
+            nodes = [ZenCfgBuild.build_text(e, ZenStringOps.pool(canvas), free)]
         "shape": nodes = [ZenCfgBuild.build_shape(e)]
         "global": nodes = [ZenCfgBuild.build_global(e, true), ZenCfgBuild.build_global(e, false)]
         _: return null

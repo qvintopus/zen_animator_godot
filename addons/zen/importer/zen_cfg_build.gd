@@ -33,6 +33,9 @@ static func build(doc: Dictionary) -> Dictionary:
     # element; the preview grey keeps an exported clip from being pure black.
     canvas.clear_color = Color(0.1, 0.12, 0.16, 1.0)
 
+    var pool := build_strings(doc)
+    var free := free_slots(doc, pool)
+
     var skipped: Array = []
     for e in doc["elems"]:
         var kind := String(e["kind"])
@@ -46,11 +49,13 @@ static func build(doc: Dictionary) -> Dictionary:
             canvas.add_child(bg)
             bg.owner = canvas
             bg.z_index = -1                     # behind every element
-        var node: Node2D = build_text(e) if kind == "text" else (
+        var node: Node2D = build_text(e, pool, free) if kind == "text" else (
             build_global(e, false) if kind == "global" else build_shape(e))
         canvas.add_child(node)
         node.owner = canvas
 
+    # A scene with no text needs no pool; adopt_strings() makes one on demand.
+    if not pool.entries.is_empty(): ZenStringOps.repoint(canvas, pool)
     assign_z(canvas)
 
     var bus := _build_bus(doc)
@@ -95,12 +100,45 @@ static func _build_bus(doc: Dictionary) -> ZenSignalBus:
     return bus
 
 
-static func build_text(e: Dictionary) -> ZenText:
+## The document's string pool, at the .cfg's own indices: `string <i>` names
+## its slot, and a gap stays a hole so every `string` key keeps pointing at the
+## entry it was authored against (anim.c:873-876).
+static func build_strings(doc: Dictionary) -> ZenStrings:
+    var pool := ZenStrings.new()
+    var src: Dictionary = doc.get("strings", {})
+    var idx := src.keys()
+    idx.sort()
+    for i in idx:
+        pool.put(int(i), String(src[i]))
+    return pool
+
+
+## Empty slots no `string` key points at - holes a text element's own words
+## may fill, as AnimDocAddString prefers a hole over growing.
+static func free_slots(doc: Dictionary, pool: ZenStrings) -> Array:
+    var used := {}
+    for e in doc["elems"]:
+        for k in (e["tracks"] as Dictionary).get("string", []):
+            used[int(float(k["v"]) + 0.5)] = true
+    var out: Array = []
+    for i in pool.entries.size():
+        if pool.entries[i].is_empty() and not used.has(i): out.append(i)
+    return out
+
+
+## A text element's own words become a pool entry - reused when the pool
+## already holds them (AnimDocStringIdxAt pools them the same way) - and the
+## element references the canvas's pool from then on. `pool` is the CANVAS's
+## instance, never a private one; `free` lists holes it may fill (and loses
+## the one it fills).
+static func build_text(e: Dictionary, pool: ZenStrings, free: Array = []) -> ZenText:
     var n := ZenText.new()
     n.set_script(load("res://addons/zen/runtime/zen_text.gd"))
     n.name = node_name(String(e["name"]))
     n.elem_name = String(e["name"])
-    n.text = String(e["text"])
+    n.strings = pool
+    n.string_base = pool.add(String(e["text"]), free)
+    free.erase(n.string_base)
     n.unit_abs = bool(e["unit_abs"])
     n.pos_frac = e["pos"]
     n.size_frac = e["size"]

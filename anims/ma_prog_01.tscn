@@ -1,13 +1,18 @@
 [gd_scene format=3]
 
-[ext_resource type="Script" path="res://addons/zen/runtime/zen_canvas.gd" id="1_t58j5"]
-[ext_resource type="Script" path="res://addons/zen/runtime/zen_text.gd" id="2_7ib76"]
-[ext_resource type="Script" path="res://addons/zen/runtime/zen_shape.gd" id="3_v5427"]
-[ext_resource type="Resource" path="res://assets/shapes/ai_icon_128.tres" id="4_iji3n"]
-[ext_resource type="Resource" path="res://assets/shapes/coder_icon_128.tres" id="5_vlxkq"]
-[ext_resource type="Script" path="res://addons/zen/runtime/zen_signal_bus.gd" id="6_jfu2m"]
+[ext_resource type="Script" path="res://addons/zen/runtime/zen_canvas.gd" id="1_7ib76"]
+[ext_resource type="Script" path="res://addons/zen/runtime/zen_strings.gd" id="2_v5427"]
+[ext_resource type="Script" path="res://addons/zen/runtime/zen_text.gd" id="3_iji3n"]
+[ext_resource type="Script" path="res://addons/zen/runtime/zen_shape.gd" id="4_vlxkq"]
+[ext_resource type="Resource" path="res://assets/shapes/ai_icon_128.tres" id="5_jfu2m"]
+[ext_resource type="Resource" path="res://assets/shapes/coder_icon_128.tres" id="6_ofdcu"]
+[ext_resource type="Script" path="res://addons/zen/runtime/zen_signal_bus.gd" id="7_5c20g"]
 
-[sub_resource type="Animation" id="Animation_ofdcu"]
+[sub_resource type="Resource" id="Resource_n8gkq"]
+script = ExtResource("2_v5427")
+entries = PackedStringArray("What Is Programming?", "What Is AI-assisted coding?", "in how many ways you can do each?", "Just like a tree grows its branches", "so can coding be in any direction", "> from low-level to high-level\n> with electronics or with websites\n> data warehouses or proxy services\n> consultation or solution implementation", "       Just like a cup of water\ncan be filled to different amounts", "so does AI-assistance is\nused at various amounts", "AI can assist with:\n> searching a knowledge base\n> learning to solve a problem\n> finding a problem    > solving the problem\n> never letting you see a problem\n> forgetting codebase", "coding", "coding w/ ai")
+
+[sub_resource type="Animation" id="Animation_y6s6d"]
 length = 12.0
 step = 0.0166667
 markers = [{
@@ -1318,93 +1323,90 @@ tracks/111/keys = {
 "values": ["linear", "linear", "cubicInOut", "cubicInOut"]
 }
 
-[sub_resource type="AnimationLibrary" id="AnimationLibrary_5c20g"]
+[sub_resource type="AnimationLibrary" id="AnimationLibrary_ejqhq"]
 _data = {
-&"zen": SubResource("Animation_ofdcu")
+&"zen": SubResource("Animation_y6s6d")
 }
 
-[sub_resource type="Animation" id="Animation_n8gkq"]
+[sub_resource type="Animation" id="Animation_a1g1b"]
 step = 0.0166667
 
-[sub_resource type="AnimationLibrary" id="AnimationLibrary_y6s6d"]
+[sub_resource type="AnimationLibrary" id="AnimationLibrary_cle2m"]
 _data = {
-&"enter": SubResource("Animation_n8gkq")
+&"enter": SubResource("Animation_a1g1b")
 }
 
-[node name="ma_prog_01" type="Node2D" unique_id=2110410306]
-script = ExtResource("1_t58j5")
+[node name="ma_prog_01" type="Node2D" unique_id=2116687117]
+script = ExtResource("1_7ib76")
+strings = SubResource("Resource_n8gkq")
 clear_color = Color(0.1, 0.12, 0.16, 1)
 
-[node name="t1" type="Node2D" parent="." unique_id=1543535787]
-script = ExtResource("2_7ib76")
-text = "       Just like a cup of water
-can be filled to different amounts"
+[node name="t1" type="Node2D" parent="." unique_id=1245508705]
+script = ExtResource("3_iji3n")
+strings = SubResource("Resource_n8gkq")
+string_base = 6
 size_frac = Vector2(0.12, 0.12)
 color_base = Color(0.9607843, 0.9607843, 0.9607843, 1)
 elem_name = "t1"
 pos_frac = Vector2(0.5, 0.1)
 
-[node name="t2" type="Node2D" parent="." unique_id=951052247]
+[node name="t2" type="Node2D" parent="." unique_id=1577529972]
 z_index = 1
-script = ExtResource("2_7ib76")
-text = "so does AI-assistance is
-used at various amounts"
+script = ExtResource("3_iji3n")
+strings = SubResource("Resource_n8gkq")
+string_base = 7
 size_frac = Vector2(0.12, 0.1)
 color_base = Color(0.9607843, 0.9607843, 0.9607843, 1)
 elem_name = "t2"
 pos_frac = Vector2(0.5, 0.26378)
 
-[node name="t3" type="Node2D" parent="." unique_id=376495430]
+[node name="t3" type="Node2D" parent="." unique_id=1529874041]
 z_index = 2
-script = ExtResource("2_7ib76")
-text = "AI can assist with:
-> searching a knowledge base
-> learning to solve a problem
-> finding a problem    > solving the problem
-> never letting you see a problem
-> forgetting codebase"
+script = ExtResource("3_iji3n")
+strings = SubResource("Resource_n8gkq")
+string_base = 8
 size_frac = Vector2(0.08, 0.1)
 color_base = Color(0.9607843, 0.9607843, 0.9607843, 1)
 elem_name = "t3"
 pos_frac = Vector2(0.5, 0.582677)
 
-[node name="flash_box" type="Node2D" parent="." unique_id=1058038252]
+[node name="flash_box" type="Node2D" parent="." unique_id=187739555]
 z_index = 3
-script = ExtResource("3_v5427")
+script = ExtResource("4_vlxkq")
 size_frac = Vector2(0.519685, 0.46063)
 color_base = Color(0.9607843, 0.9607843, 0.9607843, 1)
 outline_color_base = Color(0.9607843, 0.9607843, 0.9607843, 1)
 elem_name = "flash_box"
 pos_frac = Vector2(-0.427593, 0.176191)
 
-[node name="icon_ai" type="Node2D" parent="." unique_id=1594172379]
+[node name="icon_ai" type="Node2D" parent="." unique_id=1866558067]
 z_index = 4
-script = ExtResource("3_v5427")
+script = ExtResource("4_vlxkq")
 shape_kind = 6
 size_frac = Vector2(128, 128)
 scale_base = 10.0
 color_base = Color(0.9607843, 0.9607843, 0.9607843, 1)
 outline_color_base = Color(0.9607843, 0.9607843, 0.9607843, 1)
-shape = ExtResource("4_iji3n")
+shape = ExtResource("5_jfu2m")
 shape_name = "ai_icon_128"
 elem_name = "icon_ai"
 unit_abs = true
 
-[node name="icon_coder" type="Node2D" parent="." unique_id=1353861798]
+[node name="icon_coder" type="Node2D" parent="." unique_id=864806907]
 z_index = 5
-script = ExtResource("3_v5427")
+script = ExtResource("4_vlxkq")
 shape_kind = 6
 size_frac = Vector2(128, 128)
 scale_base = 10.0
 color_base = Color(0.9607843, 0.9607843, 0.9607843, 1)
 outline_color_base = Color(0.9607843, 0.9607843, 0.9607843, 1)
-shape = ExtResource("5_vlxkq")
+shape = ExtResource("6_ofdcu")
 shape_name = "coder_icon_128"
 elem_name = "icon_coder"
 unit_abs = true
 
-[node name="Signals" type="Node" parent="." unique_id=976642160]
-script = ExtResource("6_jfu2m")
+[node name="Signals" type="Node" parent="." unique_id=1079659945]
+script = ExtResource("7_5c20g")
 signals_data = [{
 "length": 1.0,
 "name": "enter",
@@ -1420,7 +1422,7 @@ signals_data = [{
 "uses_seq": false
 }]
 
-[node name="AnimationPlayer" type="AnimationPlayer" parent="." unique_id=1363691406]
+[node name="AnimationPlayer" type="AnimationPlayer" parent="." unique_id=2137372087]
 callback_mode_method = 1
-libraries/ = SubResource("AnimationLibrary_5c20g")
-libraries/sig = SubResource("AnimationLibrary_y6s6d")
+libraries/ = SubResource("AnimationLibrary_ejqhq")
+libraries/sig = SubResource("AnimationLibrary_cle2m")

@@ -1,13 +1,18 @@
 [gd_scene format=3]
 
-[ext_resource type="Script" path="res://addons/zen/runtime/zen_canvas.gd" id="1_l6pkl"]
-[ext_resource type="Script" path="res://addons/zen/runtime/zen_text.gd" id="2_qxp1y"]
-[ext_resource type="Script" path="res://addons/zen/runtime/zen_shape.gd" id="3_fdvgv"]
-[ext_resource type="Resource" path="res://assets/shapes/fangs_upper.tres" id="4_h30ny"]
-[ext_resource type="Resource" path="res://assets/shapes/fangs_lower.tres" id="5_fmhny"]
-[ext_resource type="Script" path="res://addons/zen/runtime/zen_global.gd" id="6_88trk"]
+[ext_resource type="Script" path="res://addons/zen/runtime/zen_canvas.gd" id="1_qxp1y"]
+[ext_resource type="Script" path="res://addons/zen/runtime/zen_strings.gd" id="2_fdvgv"]
+[ext_resource type="Script" path="res://addons/zen/runtime/zen_text.gd" id="3_h30ny"]
+[ext_resource type="Script" path="res://addons/zen/runtime/zen_shape.gd" id="4_fmhny"]
+[ext_resource type="Resource" path="res://assets/shapes/fangs_upper.tres" id="5_88trk"]
+[ext_resource type="Resource" path="res://assets/shapes/fangs_lower.tres" id="6_beyeg"]
+[ext_resource type="Script" path="res://addons/zen/runtime/zen_global.gd" id="7_chpdm"]
 
-[sub_resource type="Animation" id="Animation_beyeg"]
+[sub_resource type="Resource" id="Resource_2c7bd"]
+script = ExtResource("2_fdvgv")
+entries = PackedStringArray("NeZvers", "....../.;\';..\';!@##$\n@#\":>$\"?@\">$:>\n@#:%@$>\"@#:>\n$\"#@:>%\"@:#>$")
+
+[sub_resource type="Animation" id="Animation_c8ukv"]
 length = 12.0
 step = 0.0166667
 markers = [{
@@ -694,18 +699,19 @@ tracks/58/keys = {
 "values": ["linear", "linear", "linear", "linear"]
 }
 
-[sub_resource type="AnimationLibrary" id="AnimationLibrary_chpdm"]
+[sub_resource type="AnimationLibrary" id="AnimationLibrary_aaiod"]
 _data = {
-&"zen": SubResource("Animation_beyeg")
+&"zen": SubResource("Animation_c8ukv")
 }
 
-[node name="fangs_test" type="Node2D" unique_id=1294183819]
-script = ExtResource("1_l6pkl")
+[node name="fangs_test" type="Node2D" unique_id=251877749]
+script = ExtResource("1_qxp1y")
+strings = SubResource("Resource_2c7bd")
 clear_color = Color(0.1, 0.12, 0.16, 1)
 
-[node name="title" type="Node2D" parent="." unique_id=1761602968]
-script = ExtResource("2_qxp1y")
-text = "NeZvers"
+[node name="title" type="Node2D" parent="." unique_id=536382890]
+script = ExtResource("3_h30ny")
+strings = SubResource("Resource_2c7bd")
 size_frac = Vector2(0.3, 0.12)
 color_base = Color(0.9607843, 0.9607843, 0.9607843, 1)
 crumble_spin = 156.0
@@ -715,13 +721,11 @@ crumble_dist = 0.566667
 elem_name = "title"
 pos_frac = Vector2(0.4625, 0.371528)
 
-[node name="txt_scribble" type="Node2D" parent="." unique_id=24373207]
+[node name="txt_scribble" type="Node2D" parent="." unique_id=902053476]
 z_index = 1
-script = ExtResource("2_qxp1y")
-text = "....../.;';..';!@##$
-@#\":>$\"?@\">$:>
-@#:%@$>\"@#:>
-$\"#@:>%\"@:#>$"
+script = ExtResource("3_h30ny")
+strings = SubResource("Resource_2c7bd")
+string_base = 1
 size_frac = Vector2(0.0475, 0.1)
 color_base = Color(0.9607843, 0.9607843, 0.9607843, 1)
 crumble_spin = -72.0
@@ -730,33 +734,33 @@ crumble_dist = 0.533333
 elem_name = "txt_scribble"
 pos_frac = Vector2(0.5, 0.4555)
 
-[node name="fangs_upper" type="Node2D" parent="." unique_id=86598172]
+[node name="fangs_upper" type="Node2D" parent="." unique_id=615942272]
 z_index = 2
-script = ExtResource("3_fdvgv")
+script = ExtResource("4_fmhny")
 shape_kind = 6
 scale_base = 2.5
 color_base = Color(0.9607843, 0.9607843, 0.9607843, 1)
 outline_color_base = Color(0.9607843, 0.9607843, 0.9607843, 1)
-shape = ExtResource("4_h30ny")
+shape = ExtResource("5_88trk")
 shape_name = "fangs_upper"
 elem_name = "fangs_upper"
 pos_frac = Vector2(0.472994, 0.255556)
 
-[node name="fangs_lower" type="Node2D" parent="." unique_id=1468986669]
+[node name="fangs_lower" type="Node2D" parent="." unique_id=1787850901]
 z_index = 3
-script = ExtResource("3_fdvgv")
+script = ExtResource("4_fmhny")
 shape_kind = 6
 scale_base = 2.5
 color_base = Color(0.9607843, 0.9607843, 0.9607843, 1)
 outline_color_base = Color(0.9607843, 0.9607843, 0.9607843, 1)
-shape = ExtResource("5_fmhny")
+shape = ExtResource("6_beyeg")
 shape_name = "fangs_lower"
 elem_name = "fangs_lower"
 pos_frac = Vector2(0.477495, 0.686111)
 
-[node name="ball" type="Node2D" parent="." unique_id=669519376]
+[node name="ball" type="Node2D" parent="." unique_id=1893062533]
 z_index = 4
-script = ExtResource("3_fdvgv")
+script = ExtResource("4_fmhny")
 shape_kind = 1
 size_frac = Vector2(40, 36)
 scale_base = 0.6
@@ -766,19 +770,19 @@ elem_name = "ball"
 unit_abs = true
 pos_frac = Vector2(0.5, 0.461)
 
-[node name="global_bg" type="Node2D" parent="." unique_id=2056576187]
+[node name="global_bg" type="Node2D" parent="." unique_id=364675259]
 z_index = -1
-script = ExtResource("6_88trk")
+script = ExtResource("7_chpdm")
 color_base = Color(0, 0, 0, 0)
 is_background = true
 elem_name = "global"
 
-[node name="global" type="Node2D" parent="." unique_id=1250407546]
+[node name="global" type="Node2D" parent="." unique_id=1577469822]
 z_index = 5
-script = ExtResource("6_88trk")
+script = ExtResource("7_chpdm")
 color_base = Color(0, 0, 0, 0)
 elem_name = "global"
 
-[node name="AnimationPlayer" type="AnimationPlayer" parent="." unique_id=176701916]
+[node name="AnimationPlayer" type="AnimationPlayer" parent="." unique_id=67226589]
 callback_mode_method = 1
-libraries/ = SubResource("AnimationLibrary_chpdm")
+libraries/ = SubResource("AnimationLibrary_aaiod")

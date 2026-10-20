@@ -21,16 +21,19 @@ func _init() -> void:
           % [name, c.duration, c.intro_end, c.outro_start, c.loop_smooth, c.loop_blend])
     var els := c.elements()
     print("%d element(s), play range [%.3f, %.3f)" % [els.size(), c.play_start(), c.play_end()])
+    if c.strings != null:
+        for i in c.strings.entries.size():
+            print("  string #%d %s" % [i, JSON.stringify(c.strings.at(i))])
     for e in els:
         var tx := e as ZenText
         if tx != null:
             print("  %-20s TEXT     abs=%-5s tracks=%s" % [
                 tx.elem_name, tx.unit_abs, ", ".join(_tracks_of(c, tx))])
-            print("    text=%s" % JSON.stringify(tx.text))
+            print("    string_base=%d text=%s" % [tx.string_base, JSON.stringify(tx.text_at(0.0))])
             for frac in [0.0, 0.25, 0.5, 0.75, 1.0]:
                 var tt: float = c.play_start() + (c.play_end() - c.play_start()) * frac
                 var sz := tx._size_px(tt)
-                var box := ZenTextMetrics.measure(tx.text, sz, tx.effective_font())
+                var box := ZenTextMetrics.measure(tx.text_at(tt), sz, tx.effective_font())
                 var ctr := tx.center_px(tt)
                 print("    t=%6.3f  centre=(%7.1f,%7.1f)  box=(%6.1f,%5.1f)px  size=%5.1fpx  alpha=%.3f crumble=%.3f"
                     % [tt, ctr.x, ctr.y, box.x, box.y, sz,

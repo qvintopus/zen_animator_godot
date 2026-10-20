@@ -21,7 +21,32 @@ extends ZenElement
 ## function of (scene, t) so the exporter can ask for frames out of order.
 ##
 
-@export_multiline var text := "TEXT"
+## THE WORDS ARE ALWAYS A POOL REFERENCE. `strings` is the canvas's shared
+## ZenStrings (one instance, referenced by the canvas and every text node);
+## `string_base` is the entry shown where no `string` track drives it, and the
+## stepped `string` track keys entries by index. There is no private text, so
+## a one-off label and a label that switches words are the same case.
+@export var strings: ZenStrings:
+    set(v):
+        if strings != null and strings.changed.is_connected(_resolve):
+            strings.changed.disconnect(_resolve)
+        strings = v
+        if strings != null: strings.changed.connect(_resolve)
+        _resolve()
+@export var string_base := 0:
+    set(v):
+        string_base = v
+        _resolve()
+
+## The CURRENT LABEL: the words on screen at the last pose, for game code to
+## read (or follow via text_changed). An OUTPUT, like the mirrored
+## Node2D.position - rewritten from the pool on every pose, never stored in the
+## scene, and read-only in Godot's Inspector.
+@export_custom(PROPERTY_HINT_MULTILINE_TEXT, "", PROPERTY_USAGE_EDITOR | PROPERTY_USAGE_READ_ONLY)
+var text := ""
+
+## The label changed words (a `string` key was crossed, or its entry edited).
+signal text_changed(text: String)
 @export var size_frac := Vector2(0.1, 0.1)
 @export var color_base := Color(1, 1, 1, 1)
 ## Rest pose of the scatter, used where no crumble track drives it.
@@ -87,6 +112,7 @@ func base_scalar(prop_name: String) -> float:
         "crumble_spread": return crumble_spread
         "crumble_dist": return crumble_dist
         "crumble_spin": return crumble_spin
+        "string": return float(string_base)
     return super.base_scalar(prop_name)
 
 
@@ -102,6 +128,7 @@ func set_base_scalar(prop_name: String, v: float) -> bool:
         "crumble_spread": crumble_spread = v
         "crumble_dist": crumble_dist = v
         "crumble_spin": crumble_spin = v
+        "string": string_base = int(v + 0.5)
         _: return super.set_base_scalar(prop_name, v)
     queue_redraw()
     return true
@@ -116,6 +143,32 @@ func set_base_color(prop_name: String, c: Color) -> bool:
 
 func _pose(t: float) -> void:
     _t = t
+    _resolve()
+
+
+## The pool index on screen at `t`. Stepped: the left key's value is held
+## across the segment, so this is an exact index, never a blend of two.
+func string_index_at(t: float) -> int:
+    var i := int(prop("string", t, float(string_base)) + 0.5)
+    # A stale index (beyond the pool) falls back to the base entry rather than
+    # blanking the element, as AnimElemTextAt does (anim.c:975-993).
+    if strings != null and not strings.has_index(i): return string_base
+    return i
+
+
+## The words at `t`, straight from the pool.
+func text_at(t: float) -> String:
+    if strings == null: return ""
+    return strings.at(string_index_at(t))
+
+
+## Rewrite the label from the pool at the last pose time.
+func _resolve() -> void:
+    var s := text_at(_t)
+    if s == text: return
+    text = s
+    text_changed.emit(s)
+    queue_redraw()
 
 
 ## Font size in pixels: a fraction of canvas HEIGHT unless unit_abs.

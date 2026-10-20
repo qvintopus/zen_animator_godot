@@ -104,7 +104,7 @@ static func new_canvas(nm: String) -> ZenCanvas:
     var doc := {
         "name": nm, "duration": NEW_DURATION, "intro_end": 0.0,
         "outro_start": NEW_DURATION, "loop_blend": NEW_BLEND, "loop_smooth": true,
-        "elems": [title], "signals": [], "pauses": [], "strings": {},
+        "elems": [title], "signals": [], "pauses": [],
     }
     var canvas: ZenCanvas = ZenCfgBuild.build(doc)["canvas"]
     canvas.sync_from_animation()
@@ -125,8 +125,10 @@ static func open(path: String) -> ZenCanvas:
 
 
 ## Give `canvas` deep copies of everything it shares by reference: the
-## Animations (built-in sub-resources) and the bus's signal data.
+## Animations (built-in sub-resources), the string pool (one copy, still
+## shared by every text) and the bus's signal data.
 static func detach(canvas: ZenCanvas) -> void:
+    ZenStringOps.detach(canvas)
     var ap := ZenAnimBuilder.find_player(canvas)
     if ap != null:
         for lib_name in ap.get_animation_library_list():
@@ -156,8 +158,11 @@ static func snapshot(canvas: ZenCanvas) -> PackedScene:
     var bus := canvas.bus()
     var sigs: Array = bus.signals_data if bus != null else []
     if bus != null: bus.signals_data = sigs.duplicate(true)
+    var pool := ZenStringOps.pool(canvas)
+    ZenStringOps.detach(canvas)
     var ps := PackedScene.new()
     ps.pack(canvas)
+    ZenStringOps.repoint(canvas, pool)
     if ap != null:
         for lib_name in libs:
             ap.remove_animation_library(lib_name)

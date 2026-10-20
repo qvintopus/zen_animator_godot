@@ -448,8 +448,8 @@ Not yet run by eye - added 2026-10-20 with the editor. Work on a copy: open a sc
 
 - **Open.** Ctrl+ENTER on `main_menu` opens it; N opens a new scene whose HELLO title fades
   in. The first time, the Elements and Timeline panels are shown.
-- **Panels.** The top-bar buttons and 1-4 summon Elements / Inspector / Document /
-  Timeline. An unpinned panel floats over the canvas and closes on ESC, on a click on
+- **Panels.** The top-bar buttons and 1-5 summon Elements / Inspector / Document /
+  Timeline / Strings. An unpinned panel floats over the canvas and closes on ESC, on a click on
   empty canvas, or when another unpinned panel opens on its side. **pin** keeps it open
   and the canvas shrinks to make room. Pins survive a restart. During playback (SPACE)
   the unpinned panels slide away and come back on pause; pinned ones (a pinned
@@ -470,6 +470,14 @@ Not yet run by eye - added 2026-10-20 with the editor. Work on a copy: open a sc
 - **Elements = node tree.** +shape adds `shape` at the centre, frontmost. Drag a row in
   the Elements list to reorder; draw order follows. Double-click (or F2) renames, and its
   keys keep playing. Delete removes it and its keys.
+- **String pool.** Open `ma_prog_01` and press 5: eleven entries, each with its usage
+  count. Select `t1`: the Inspector's words picker shows #0 at 0s and #3 after
+  scrubbing past 2.45s, and the `string` lane steps at 2.45 / 4.62 / 6.60. Type in the
+  words box: the canvas updates as you type, and an entry used twice shows "used by 2"
+  in gold. **new** gives `t1` its own entry. In `ma_prog_02_coding` the panel shows 7
+  dimmed holes (#2-#8). **delete** stays disabled for an entry that is in use, and
+  **clean up holes (7)** renumbers the pool to five entries while every text keeps
+  playing the same words. One undo step brings the holes back.
 - **Undo.** Ctrl+Z / Ctrl+Shift+Z step through every edit above; a whole drag is one step.
 - **Save.** Ctrl+S, back to the gallery: the copy is listed and plays exactly as edited.
   Open the copy's `.tscn` in the Godot editor: the Animation panel shows the bezier tracks

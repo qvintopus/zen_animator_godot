@@ -42,7 +42,7 @@ const ACTIONS := {
     # Gallery scene CRUD.
     "zen_new": [KEY_N],
     "zen_rename": [KEY_F2],
-    # Scene editor. 1-4 summon panels (the shape editor's inks share them).
+    # Scene editor. 1-5 summon panels (the shape editor's inks share 1-3).
     "zen_edit_autokey": [KEY_K],
     "zen_edit_home": [KEY_HOME],
     "zen_edit_frame_prev": [KEY_LEFT],
@@ -51,6 +51,7 @@ const ACTIONS := {
     "zen_edit_panel_2": [KEY_2],
     "zen_edit_panel_3": [KEY_3],
     "zen_edit_panel_4": [KEY_4],
+    "zen_edit_panel_5": [KEY_5],
 }
 
 func _init() -> void:
