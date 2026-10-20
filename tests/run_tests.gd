@@ -567,6 +567,13 @@ func test_text_layout() -> void:
     c.add_child(tx)
     check(tx.center_px(0.0).is_equal_approx(Vector2(160, 90)),
           "pos_frac (0.5,0.5) centres on the canvas midpoint")
+
+    # One-way mirror: pose() writes the resolved centre into Node2D.position so
+    # game code can read where the element is.
+    tx.pos_frac = Vector2(0.25, 0.5)
+    tx.pose(0.0)
+    check(tx.position.is_equal_approx(Vector2(80, 90)),
+          "pose() mirrors the resolved centre into Node2D.position")
     c.free()
 
 

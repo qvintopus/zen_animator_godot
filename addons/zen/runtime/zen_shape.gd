@@ -119,7 +119,7 @@ func _draw() -> void:
     var fill := prop_color("color", t, color_base, fill_a)
     var line := prop_color("outline_color", t, outline_color_base, out_a)
 
-    var c := center_px(t)
+    var c := Vector2.ZERO       # the node sits at the centre (see mirrors_position)
     var hw := uw * w_f * 0.5
     var hh := uh * h_f * 0.5
 
@@ -184,7 +184,7 @@ func _draw_custom(t: float, c: Vector2, hw: float, hh: float, rot: float,
 
 ## Outline points for the non-line kinds, already rotated about the centre.
 func _rim(hw: float, hh: float, rot: float) -> PackedVector2Array:
-    var c := center_px(_t)
+    var c := Vector2.ZERO
     var pts := PackedVector2Array()
     var cr := cos(rot)
     var sr := sin(rot)

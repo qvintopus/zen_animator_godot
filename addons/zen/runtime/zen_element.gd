@@ -248,6 +248,14 @@ func center_px(t: float) -> Vector2:
         design().y * prop("pos_y", t, pos_frac.y))
 
 
+## Does this kind sit at its centre? The resolved centre is mirrored into the
+## real Node2D.position by pose() so game code and the editor gizmo can read
+## where the element is. ONE-WAY: the tracks stay the source of truth and
+## position is overwritten on every pose. _draw() paints about the node origin.
+func mirrors_position() -> bool:
+    return true
+
+
 ## Pose at `t`, then request a redraw. Subclasses override _pose.
 ##
 ## Captures the loop-blend weight NOW, while blend_begin's window is open, so
@@ -257,6 +265,7 @@ func pose(t: float) -> void:
     _pose_blend_t = _blend_start
     _capture_signal()
     _pose(t)
+    if mirrors_position(): position = center_px(t)
     queue_redraw()
 
 

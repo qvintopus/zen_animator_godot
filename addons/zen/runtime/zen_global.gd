@@ -49,6 +49,11 @@ func _pose(t: float) -> void:
     _t = t
 
 
+## Full-canvas rects drawn from the canvas origin, not at a centre.
+func mirrors_position() -> bool:
+    return false
+
+
 func _draw() -> void:
     var t := _t
     var r := Rect2(Vector2.ZERO, design())

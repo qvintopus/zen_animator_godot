@@ -123,7 +123,7 @@ func _draw() -> void:
     var crumble := prop("crumble", t, 0.0)
 
     var box := ZenTextMetrics.measure(text, size_px, fnt)
-    var c := center_px(t)
+    var c := Vector2.ZERO       # the node sits at the centre (see mirrors_position)
     var left := c.x - box.x * 0.5
     var top := c.y - box.y * 0.5
 
