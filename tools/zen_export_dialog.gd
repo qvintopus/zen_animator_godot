@@ -40,6 +40,11 @@ var _name_edit: LineEdit
 var _path_preview: Label
 var _folder_btn: Button
 var _scale_buttons: Array[Button] = []
+var _scale_row: HFlowContainer
+var _scale_group := ButtonGroup.new()
+## The canvas the scale buttons were built for: they are rebuilt only when the
+## chain's first link changes size, since their labels depend on it.
+var _scale_design := Vector2.ZERO
 var _res_label: Label
 var _fps_spin: SpinBox
 var _fps_note: Label
@@ -103,6 +108,7 @@ func open(entries: Array, chain: Array) -> void:
     _s.pause_hold = float(d.get("pause_hold", 0.0))
     _s.join_pause = bool(d.get("join_pause", true))
     _s.scale = ZenSettings.export_scale()
+    _scale_design = Vector2.ZERO    # force a rebuild (and a target re-resolve)
 
     _name_edit.text = _default_name()
     _sync_controls_from_settings()
@@ -228,16 +234,12 @@ func _build_options_section(parent: VBoxContainer) -> void:
     parent.add_child(_path_preview)
 
     # Scale
-    var srow := _labeled_row(parent, "scale")
-    var grp := ButtonGroup.new()
-    for i in range(1, ZenExport.MAX_SCALE + 1):
-        var b := Button.new()
-        b.text = "x%d" % i
-        b.toggle_mode = true
-        b.button_group = grp
-        b.pressed.connect(_on_scale_pressed.bind(i))
-        srow.add_child(b)
-        _scale_buttons.append(b)
+    # Built per canvas by _rebuild_scale_buttons(): the named sizes it reaches
+    # depend on the first link's design_size.
+    var srow := _labeled_row(parent, "size")
+    _scale_row = HFlowContainer.new()
+    _scale_row.size_flags_horizontal = SIZE_EXPAND_FILL
+    srow.add_child(_scale_row)
     _res_label = Label.new()
     _res_label.add_theme_color_override("font_color", ZenUI.TEXT)
     parent.add_child(_res_label)
@@ -367,6 +369,31 @@ func _default_name() -> String:
     return ZenExport.sanitize("%s_chain" % _chain[0])
 
 
+## One button per whole-number scale of `design`. A scale whose short side is
+## a standard height is labelled by that name ("1080p"); the rest by factor.
+## Re-resolves the remembered target against the new canvas, so a "1080p" pick
+## stays 1080p when the chain now starts with a 540x540 scene.
+func _rebuild_scale_buttons(design: Vector2) -> void:
+    _scale_design = design
+    for b in _scale_buttons: b.queue_free()
+    _scale_buttons.clear()
+    var k := ZenExport.scale_for_target(design, ZenSettings.export_target())
+    if k > 0: _s.scale = k
+    for o in ZenExport.scale_options(design):
+        var b := Button.new()
+        var nm := String(o["name"])
+        b.text = nm if nm != "" else "x%d" % int(o["scale"])
+        b.tooltip_text = "%d x %d  (x%d)" % [int(o["w"]), int(o["h"]), int(o["scale"])]
+        if nm != "": b.add_theme_color_override("font_color", ZenUI.TITLE)
+        b.toggle_mode = true
+        b.button_group = _scale_group
+        b.button_pressed = int(o["scale"]) == _s.scale
+        b.disabled = _running
+        b.pressed.connect(_on_scale_pressed.bind(int(o["scale"]), int(o["short"]) if nm != "" else 0))
+        _scale_row.add_child(b)
+        _scale_buttons.append(b)
+
+
 func _sync_controls_from_settings() -> void:
     var idx := FORMATS.find(_s.fmt)
     _format.select(maxi(idx, 0))
@@ -432,6 +459,8 @@ func _refresh() -> void:
 
     _path_preview.text = _resolved_path_preview()
 
+    if not first.is_empty() and Vector2(first["design"]) != _scale_design:
+        _rebuild_scale_buttons(first["design"])
     var scale := _s.scale
     if not first.is_empty():
         var d: Vector2 = first["design"]
@@ -607,9 +636,12 @@ func _on_format_selected(idx: int) -> void:
     _refresh()
 
 
-func _on_scale_pressed(i: int) -> void:
+## `target` is the named short side this button stood for, or 0 for a plain
+## multiple - remembered so the next canvas resolves the same name.
+func _on_scale_pressed(i: int, target: int) -> void:
     _s.scale = i
     ZenSettings.set_export_scale(i)
+    ZenSettings.set_export_target(target)
     _refresh()
 
 

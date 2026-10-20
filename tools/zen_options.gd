@@ -7,6 +7,9 @@ extends Control
 ## the Export dialog instead (E / Ctrl+E), since a document's real export
 ## resolution depends on its own design_size, not a setting here.
 ##
+##   - NEW SCENE CANVAS: the ZenCanvas.SIZE_PRESETS entry a new scene starts
+##     with. An existing scene's size is changed in the scene editor instead.
+##
 ##   - FONT: applied process-wide via ZenText's static override, so every
 ##     element with no per-element `font` picks it up with no .tscn edit.
 ##     "Default" is the original editor's raylib pixel font; next come the
@@ -37,6 +40,7 @@ var _sel := 0          ## index into _fonts: the applied font
 func _ready() -> void:
     _fonts = sorted_fonts(OS.get_system_fonts())
     _sel = maxi(_fonts.find(ZenSettings.font_name()), 0)
+    _build_canvas_row()
     _search.text_changed.connect(func(_t): _rebuild())
     _search.text_submitted.connect(_on_search_submitted)
     _rebuild()
@@ -44,6 +48,31 @@ func _ready() -> void:
     _hint.text = "  UP/DOWN  font      type  search      ESC  clear search / back"
     # Typing filters straight away; the arrows still move the selection.
     _search.grab_focus()
+
+
+## One toggle per canvas preset, under the title. Mouse-only (no focus) so
+## the arrows keep stepping the font list.
+func _build_canvas_row() -> void:
+    var row := HBoxContainer.new()
+    row.add_theme_constant_override("separation", 12)
+    row.add_child(ZenUI.label("new scene canvas", ZenUI.LABEL))
+    var flow := HFlowContainer.new()
+    flow.size_flags_horizontal = SIZE_EXPAND_FILL
+    row.add_child(flow)
+    var grp := ButtonGroup.new()
+    var cur := ZenSettings.canvas_size()
+    for p in ZenCanvas.SIZE_PRESETS:
+        var b := Button.new()
+        b.text = String(p["label"])
+        b.toggle_mode = true
+        b.button_group = grp
+        b.focus_mode = FOCUS_NONE
+        b.button_pressed = Vector2(p["size"]) == cur
+        b.pressed.connect(ZenSettings.set_canvas_size.bind(Vector2(p["size"])))
+        flow.add_child(b)
+    var rows := $Margin/Rows
+    rows.add_child(row)
+    rows.move_child(row, $Margin/Rows/Sep.get_index() + 1)
 
 
 ## Default first, then the other bundled fonts, then the system families A-Z,

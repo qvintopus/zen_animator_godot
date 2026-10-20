@@ -8,8 +8,11 @@ extends RefCounted
 ## call apply_startup() for themselves.
 ##
 ## Two groups, matching who owns what (see docs/plans/export-dialog.md):
-##   - FONT + export scale: creation-time defaults, edited on the Options
-##     screen, read by every entry point.
+##   - FONT + new-scene canvas size: creation-time defaults, edited on the
+##     Options screen, read by every entry point.
+##   - EXPORT SCALE + TARGET: the Export dialog's last pick. The target (a
+##     short side in px, e.g. 1080) wins whenever the canvas reaches it at a
+##     whole-number scale, so "1080p" survives moving between canvas sizes.
 ##   - PLAYBACK: the gallery's intro (I) and loop (L) toggles.
 ##   - EXPORT DEFAULTS: everything else export-related, edited on the Export
 ##     dialog and remembered as one Dictionary so a new field never needs a
@@ -20,6 +23,8 @@ extends RefCounted
 
 const CFG_PATH := "user://zen_settings.cfg"
 const SECTION := "zen"
+## Mirrors ZenExport.MAX_SCALE (tools/ - the runtime cannot name it).
+const MAX_SCALE := 12
 
 const EXPORT_DEFAULTS := {
     "fmt": "gif", "fps": 30, "show_intro": false, "transparent": false,
@@ -30,6 +35,8 @@ const EXPORT_DEFAULTS := {
 static var _loaded := false
 static var _font_name := ""      # "" => bundled default; else a system font family
 static var _export_scale := 4
+static var _export_target := 0   # short side in px; 0 => no named target, use the scale
+static var _canvas_size := Vector2(320, 180)
 static var _export: Dictionary = EXPORT_DEFAULTS.duplicate()
 static var _play_intro := true
 static var _play_loop := true
@@ -43,6 +50,8 @@ static func _ensure_loaded() -> void:
     if cfg.load(CFG_PATH) == OK:
         _font_name = String(cfg.get_value(SECTION, "font_name", ""))
         _export_scale = int(cfg.get_value(SECTION, "export_scale", 4))
+        _export_target = int(cfg.get_value(SECTION, "export_target", 0))
+        _canvas_size = cfg.get_value(SECTION, "canvas_size", Vector2(320, 180))
         _play_intro = bool(cfg.get_value(SECTION, "play_intro", true))
         _play_loop = bool(cfg.get_value(SECTION, "play_loop", true))
         # merge(), not assign: an older .cfg (or a field added after this one
@@ -60,7 +69,19 @@ static func font_name() -> String:
 
 static func export_scale() -> int:
     _ensure_loaded()
-    return clampi(_export_scale, 1, 8)
+    return clampi(_export_scale, 1, MAX_SCALE)
+
+
+static func export_target() -> int:
+    _ensure_loaded()
+    return _export_target
+
+
+## The canvas a NEW scene starts with. Always one of ZenCanvas.SIZE_PRESETS:
+## a stale or hand-edited value falls back to the default.
+static func canvas_size() -> Vector2:
+    _ensure_loaded()
+    return _canvas_size if ZenCanvas.preset_index(_canvas_size) >= 0 else ZenCanvas.DEFAULT_SIZE
 
 
 ## A copy, never the live Dictionary - callers may freely mutate it before
@@ -101,7 +122,21 @@ static func set_font_name(name: String) -> void:
 
 static func set_export_scale(scale: int) -> void:
     _ensure_loaded()
-    _export_scale = clampi(scale, 1, 8)
+    _export_scale = clampi(scale, 1, MAX_SCALE)
+    _save()
+
+
+## Remember the Export dialog's pick: the scale, plus the named target it
+## stood for (0 when it was a plain multiple).
+static func set_export_target(target: int) -> void:
+    _ensure_loaded()
+    _export_target = maxi(target, 0)
+    _save()
+
+
+static func set_canvas_size(size: Vector2) -> void:
+    _ensure_loaded()
+    _canvas_size = size
     _save()
 
 
@@ -129,6 +164,8 @@ static func _save() -> void:
     var cfg := ConfigFile.new()
     cfg.set_value(SECTION, "font_name", _font_name)
     cfg.set_value(SECTION, "export_scale", _export_scale)
+    cfg.set_value(SECTION, "export_target", _export_target)
+    cfg.set_value(SECTION, "canvas_size", _canvas_size)
     cfg.set_value(SECTION, "export", _export)
     cfg.set_value(SECTION, "play_intro", _play_intro)
     cfg.set_value(SECTION, "play_loop", _play_loop)

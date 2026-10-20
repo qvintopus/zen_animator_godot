@@ -462,8 +462,15 @@ func _build_doc(p: VBoxContainer) -> void:
     g.add_child(cp)
     _doc_rows["clear_color"] = cp
     g.add_child(ZenUI.label("canvas", ZenUI.TEXT))
-    _doc_rows["design"] = ZenUI.label("", ZenUI.DIM)
-    g.add_child(_doc_rows["design"])
+    var cs := OptionButton.new()
+    cs.tooltip_text = "Pixel grid the scene is drawn on. Fractional geometry keeps its place;\n" \
+        + "absolute-unit elements and pixel shapes keep their pixel size."
+    for preset in ZenCanvas.SIZE_PRESETS: cs.add_item(String(preset["label"]))
+    cs.add_item("custom")            # only shown selected, for a size not offered
+    cs.set_item_disabled(cs.item_count - 1, true)
+    cs.item_selected.connect(_on_canvas_size_selected)
+    g.add_child(cs)
+    _doc_rows["design"] = cs
     g.add_child(ZenUI.label("pauses", ZenUI.TEXT))
     _doc_rows["pauses"] = ZenUI.label("", ZenUI.DIM)
     g.add_child(_doc_rows["pauses"])
@@ -1239,9 +1246,30 @@ func _refresh_doc() -> void:
     (_doc_rows["loop_smooth"] as CheckBox).set_pressed_no_signal(_canvas.loop_smooth)
     (_doc_rows["loop_play"] as CheckBox).set_pressed_no_signal(_canvas.loop_play)
     (_doc_rows["clear_color"] as ColorPickerButton).color = _canvas.clear_color
-    (_doc_rows["design"] as Label).text = "%d x %d" % [int(_canvas.design_size.x), int(_canvas.design_size.y)]
+    var cs := _doc_rows["design"] as OptionButton
+    var pi := ZenCanvas.preset_index(_canvas.design_size)
+    cs.set_item_text(cs.item_count - 1, "%d x %d  custom" % [int(_canvas.design_size.x), int(_canvas.design_size.y)])
+    cs.select(pi if pi >= 0 else cs.item_count - 1)
     (_doc_rows["pauses"] as Label).text = "%d" % _canvas.pauses.size()
     _syncing = false
+
+
+## Resize the canvas to a preset. Geometry is stored as fractions of the
+## canvas, so nothing is rewritten: at the same aspect the composition is
+## unchanged, but a new aspect stretches shapes, and absolute-unit elements and
+## pixel shapes keep their pixel size - which the status line says.
+func _on_canvas_size_selected(idx: int) -> void:
+    if _syncing or idx >= ZenCanvas.SIZE_PRESETS.size(): return
+    var size: Vector2 = ZenCanvas.SIZE_PRESETS[idx]["size"]
+    var old := _canvas.design_size
+    if size == old: return
+    _command("canvas %d x %d" % [int(size.x), int(size.y)], func(): _canvas.design_size = size)
+    if not is_equal_approx(size.x / size.y, old.x / old.y):
+        _set_status("canvas %d x %d - new aspect: shapes stretch, absolute-unit sizes stay in pixels"
+            % [int(size.x), int(size.y)])
+    else:
+        _set_status("canvas %d x %d - absolute-unit sizes and pixel shapes stay in pixels"
+            % [int(size.x), int(size.y)])
 
 
 # ---------------------------------------------------------------- timeline

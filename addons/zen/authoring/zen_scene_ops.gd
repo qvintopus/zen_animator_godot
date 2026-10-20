@@ -93,6 +93,7 @@ static func new_canvas(nm: String) -> ZenCanvas:
         "elems": [title], "signals": [], "pauses": [],
     }
     var canvas := ZenElemFactory.build(doc)
+    canvas.design_size = ZenSettings.canvas_size()
     canvas.sync_from_animation()
     return canvas
 

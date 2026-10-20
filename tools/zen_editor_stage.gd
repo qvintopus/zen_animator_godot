@@ -62,8 +62,13 @@ func set_canvas(c: ZenCanvas) -> void:
     queue_redraw()
 
 
+## The backdrop follows the canvas's colour AND size: picking a canvas preset
+## in the editor resizes the scene in place, with no set_canvas() call.
 func refresh_backdrop() -> void:
-    if canvas != null: _bg.color = canvas.clear_color
+    if canvas != null:
+        _bg.color = canvas.clear_color
+        _sub.size = Vector2i(canvas.design_size)
+        _bg.size = canvas.design_size
     queue_redraw()
 
 

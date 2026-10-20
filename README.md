@@ -167,7 +167,8 @@ engine (`ZenExport.plan_chain()` + `Job`), useful for CI or a one-off from a ter
 | `--chain=a,b,c` | - | overrides `--anim=`; every link must share one `design_size` |
 | `--fmt=` | `webm` | `webm` \| `mp4` \| `gif` \| `avi` \| `png` |
 | `--fps=` | `30` | capped at 60 for gif, 120 for video |
-| `--scale=` | `4` | 1..8, nearest-neighbour upscale (320x180 x4 = 1280x720) |
+| `--scale=` | `4` | 1..12, nearest-neighbour upscale (320x180 x4 = 1280x720) |
+| `--res=` | - | `360p` \| `720p` \| `1080p` \| `1440p` \| `4k` (or a bare short side); picks the scale, overrides `--scale=`, fails if the canvas cannot reach it at a whole-number scale |
 | `--quality=` | `70` | 0..100, mapped to codec CRF 34..18 (webm/mp4 only) |
 | `--quality_gif=` | `16` | 1..16 palette depth (gif only) |
 | `--cutout=` | `128` | 1..255 alpha threshold (gif + `--transparent` only) |
@@ -366,13 +367,21 @@ track), **stepped** props (`string`, `shape_id`) are never blended because they 
 index and a value between two entries resolves to the wrong one, and the blend can never
 be longer than the cycle it belongs to.
 
-**Geometry is a fraction of a fixed 320x180 canvas.** That is Zen's
+**Geometry is a fraction of the scene's canvas**, 320x180 by default. That is Zen's
 `ScreenStateTargetSize()` = 1920/6 x 1080/6 (`screen_state.c:23`), and `unit abs` sizes
 are pixels *in that space* - MAIN_MENU's 16px ball is 5% of the width and lands at 64px
 in a 1280-wide render. The exporter renders at native size and upscales the finished
 frame nearest-neighbour (default 4x = 1280x720, matching the reference renders); drawing
 into a bigger viewport would *reposition* everything rather than enlarge it, and gives up
 the crisp pixel look.
+
+The canvas size is picked from `ZenCanvas.SIZE_PRESETS` - 16:9 (320x180 .. 960x540), 1:1
+and 9:16 - per scene in the scene editor's document panel, and for new scenes on the
+Options screen. Every preset's short side divides 1080, so the Export dialog (and
+`--res=`) can name the standard sizes it reaches: its size buttons read `720p`, `1080p`,
+... by the canvas's *short* side, and a picked name is remembered across canvas sizes.
+Resizing keeps fractional geometry in place at the same aspect; a new aspect stretches
+shapes, and `unit abs` elements and pixel shapes keep their pixel size.
 
 **Export asks for frames, it does not capture them.** `ZenCanvas.pose(t)` is a pure
 function of `t`, so frame `i` comes from `t = start + i/fps` - never an accumulated delta,

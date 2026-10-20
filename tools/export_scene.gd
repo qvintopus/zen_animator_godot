@@ -7,6 +7,9 @@ extends Node
 ##   Godot --path . --rendering-driver opengl3 tools/export_scene.tscn -- \
 ##         --anim=mouse_ripple --fps=60 --fmt=webm --scale=2
 ##
+## `--res=1080p` (or 720p/1440p/4k/a bare short side) picks the scale for you
+## and fails unless the canvas reaches that size at a whole-number scale.
+##
 ## A thin caller over ZenExport.plan_chain()/Job - the same engine the Export
 ## dialog drives, so this is a scripted/batch door onto it, not a second
 ## implementation. `--chain=a,b,c` overrides `--anim=` for multi-link exports.
@@ -55,8 +58,19 @@ func _ready() -> void:
         get_tree().quit(1)
         return
 
-    var name := String(a.get("name", names[0] if names.size() == 1 else "%s_chain" % names[0]))
     var first_canvas: ZenCanvas = links[0]["canvas"]
+    if a.has("res"):
+        var target := ZenExport.parse_target(String(a["res"]))
+        var k := ZenExport.scale_for_target(first_canvas.design_size, target)
+        if k == 0:
+            push_error("--res=%s: a %dx%d canvas has no whole-number scale (1..%d) to it" % [
+                String(a["res"]), int(first_canvas.design_size.x),
+                int(first_canvas.design_size.y), ZenExport.MAX_SCALE])
+            get_tree().quit(1)
+            return
+        s.scale = k
+
+    var name := String(a.get("name", names[0] if names.size() == 1 else "%s_chain" % names[0]))
     print("exporting %s -> %s  %dx%d @%dfps" % [
         ",".join(names), s.fmt, int(first_canvas.design_size.x) * s.scale,
         int(first_canvas.design_size.y) * s.scale, s.fps])

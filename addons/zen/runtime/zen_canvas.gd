@@ -21,6 +21,31 @@ extends Node2D
 ## exactly as confusing as it sounds.
 @export var design_size := Vector2(320, 180)
 
+## The canvas sizes offered for picking - there is no free pixel entry. Every
+## short side (180/270/360/540) divides 1080, so each preset reaches 1080p at a
+## whole-number export scale (ZenExport.scale_options). A scene whose size is
+## not listed (hand-edited .tscn) still works; it just shows as "custom".
+const SIZE_PRESETS := [
+	{"label": "320 x 180  16:9", "size": Vector2(320, 180)},
+	{"label": "480 x 270  16:9", "size": Vector2(480, 270)},
+	{"label": "640 x 360  16:9", "size": Vector2(640, 360)},
+	{"label": "960 x 540  16:9", "size": Vector2(960, 540)},
+	{"label": "180 x 180  1:1", "size": Vector2(180, 180)},
+	{"label": "360 x 360  1:1", "size": Vector2(360, 360)},
+	{"label": "540 x 540  1:1", "size": Vector2(540, 540)},
+	{"label": "180 x 320  9:16", "size": Vector2(180, 320)},
+	{"label": "270 x 480  9:16", "size": Vector2(270, 480)},
+	{"label": "360 x 640  9:16", "size": Vector2(360, 640)},
+]
+const DEFAULT_SIZE := Vector2(320, 180)
+
+
+## Index of `size` in SIZE_PRESETS, or -1 for a size that is not offered.
+static func preset_index(size: Vector2) -> int:
+	for i in SIZE_PRESETS.size():
+		if Vector2(SIZE_PRESETS[i]["size"]) == size: return i
+	return -1
+
 ## Document clock. NOT exported: the
 ## scene's AnimationPlayer ("zen" length and markers) is the one stored copy,
 ## and sync_from_animation() reads these back out of it.

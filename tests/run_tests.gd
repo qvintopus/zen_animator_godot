@@ -42,6 +42,7 @@ func _run() -> void:
     test_text_layout()
     test_crumble_hash()
     test_canvas_size()
+    test_resolution_presets()
     test_blend_weight()
     test_trim_clamp()
     test_loop_seam_closes()
@@ -429,6 +430,56 @@ func test_crumble_hash() -> void:
 ## absolute-unit element by 4x while leaving fractional ones correct - which is
 ## invisible in a numeric test of fractions and only shows up on screen. It cost
 ## a render to find once; this pins it.
+## Canvas presets and named export sizes: every preset reaches 1080p at a
+## whole-number scale, the names follow the SHORT side, a new scene takes the
+## saved default, and a resized scene saves, reloads, and keeps its layout.
+func test_resolution_presets() -> void:
+    check(ZenSettings.MAX_SCALE == ZenExport.MAX_SCALE, "settings mirror the exporter's MAX_SCALE")
+    var named := func(d: Vector2) -> Dictionary:
+        var out := {}
+        for o in ZenExport.scale_options(d):
+            if String(o["name"]) != "": out[String(o["name"])] = int(o["scale"])
+        return out
+    var n320: Dictionary = named.call(Vector2(320, 180))
+    check(n320 == {"360p": 2, "720p": 4, "1080p": 6, "1440p": 8, "4K": 12},
+          "320x180 names its scales (%s)" % n320)
+    check(int(named.call(Vector2(180, 320)).get("1080p", 0)) == 6, "a vertical canvas names by its short side")
+    var n480: Dictionary = named.call(Vector2(480, 270))
+    check(int(n480.get("1080p", 0)) == 4 and not n480.has("720p"), "480x270 reaches 1080p but not 720p")
+    for p in ZenCanvas.SIZE_PRESETS:
+        check(ZenExport.scale_for_target(p["size"], 1080) > 0, "%s reaches 1080p" % p["label"])
+    check(ZenCanvas.preset_index(ZenCanvas.DEFAULT_SIZE) == 0, "the default size is the first preset")
+    check(ZenCanvas.preset_index(Vector2(321, 180)) == -1, "an unlisted size is no preset")
+    check(ZenExport.scale_for_target(Vector2(480, 270), 720) == 0, "no whole scale -> 0")
+    check(ZenExport.parse_target("1080p") == 1080 and ZenExport.parse_target("1440") == 1440
+          and ZenExport.parse_target("4k") == 2160 and ZenExport.parse_target("big") == 0,
+          "--res values parse")
+
+    var orig_size := ZenSettings.canvas_size()
+    var orig_target := ZenSettings.export_target()
+    ZenSettings.set_canvas_size(Vector2(123, 45))
+    check(ZenSettings.canvas_size() == ZenCanvas.DEFAULT_SIZE, "a non-preset saved size falls back")
+    ZenSettings.set_canvas_size(Vector2(640, 360))
+    var nm := "zz_test_res"
+    var c := ZenSceneOps.new_canvas(nm)
+    check(c.design_size == Vector2(640, 360), "a new scene takes the saved canvas size")
+    var title := ZenElemOps.find(c, "title")
+    var frac := title.center_px(0.0) / c.design_size
+    var path := ZenSceneOps.save(c, nm)
+    var o := ZenSceneOps.open(path)
+    check(o.design_size == Vector2(640, 360), "the canvas size survives save/open")
+    o.design_size = Vector2(960, 540)
+    var ot := ZenElemOps.find(o, "title")
+    check((ot.center_px(0.0) / o.design_size).is_equal_approx(frac),
+          "same aspect: fractional geometry keeps its place")
+    DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
+    for x in [c, o]: x.free()
+    ZenSettings.set_export_target(1080)
+    check(ZenSettings.export_target() == 1080, "the export target round-trips")
+    ZenSettings.set_canvas_size(orig_size)
+    ZenSettings.set_export_target(orig_target)
+
+
 func test_canvas_size() -> void:
     var c := ZenCanvas.new()
     check(c.design_size == Vector2(320, 180),
@@ -2018,7 +2069,7 @@ func test_zen_settings() -> void:
     var orig_scale := ZenSettings.export_scale()
 
     ZenSettings.set_export_scale(999)
-    check(ZenSettings.export_scale() == 8, "export scale clamps to MAX_SCALE")
+    check(ZenSettings.export_scale() == ZenExport.MAX_SCALE, "export scale clamps to MAX_SCALE")
     ZenSettings.set_export_scale(-5)
     check(ZenSettings.export_scale() == 1, "export scale clamps to 1")
 
@@ -3052,6 +3103,17 @@ func test_scene_editor() -> void:
           "an unset intro marker is grabbable at 0")
     check(tv.marker_at(Vector2(tv.t_to_x(0.0) + 3.0, 4.0))[0] == "",
           "the ruler's top half stays the playhead's")
+
+    # Canvas preset: one undoable step that resizes the stage with it.
+    var before_size := ed._canvas.design_size
+    var vi := ZenCanvas.preset_index(Vector2(360, 640))
+    ed._on_canvas_size_selected(vi)
+    check(ed._canvas.design_size == Vector2(360, 640), "picking a preset resizes the canvas")
+    check(ed._stage._sub.size == Vector2i(360, 640), "...and the stage's viewport")
+    check((ed._doc_rows["design"] as OptionButton).selected == vi, "the picker shows the preset")
+    ed._do_undo()
+    check(ed._canvas.design_size == before_size, "undo restores the canvas size")
+    check(ed._stage._sub.size == Vector2i(before_size), "...and the stage")
 
     var nm := "zz_test_editor"
     ed._name = nm

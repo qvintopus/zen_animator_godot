@@ -154,8 +154,44 @@ static func sanitize(name: String) -> String:
     return out
 
 
-## 320x180 is small, so allow a deeper upscale than the C's 4x cap.
-const MAX_SCALE := 8
+## 320x180 is small, so allow a deeper upscale than the C's 4x cap - deep
+## enough that the default canvas reaches 2160p (x12).
+const MAX_SCALE := 12
+
+## Output sizes worth a name, keyed by the SHORT side so square and vertical
+## canvases get them too (180x320 x6 is "1080p" at 1080x1920).
+const NAMED_HEIGHTS := {360: "360p", 720: "720p", 1080: "1080p", 1440: "1440p", 2160: "4K"}
+
+
+## Every whole-number scale of `design`, as [{scale, w, h, short, name}];
+## `name` is "" unless the short side is one of NAMED_HEIGHTS. The export is a
+## nearest-neighbour upscale, so these are the only sizes there are.
+static func scale_options(design: Vector2) -> Array:
+    var out := []
+    var w := int(design.x)
+    var h := int(design.y)
+    for k in range(1, MAX_SCALE + 1):
+        var short := mini(w, h) * k
+        out.append({"scale": k, "w": w * k, "h": h * k, "short": short,
+                    "name": String(NAMED_HEIGHTS.get(short, ""))})
+    return out
+
+
+## The scale that gives `design` a short side of exactly `target` px, or 0.
+static func scale_for_target(design: Vector2, target: int) -> int:
+    var short := mini(int(design.x), int(design.y))
+    if short <= 0 or target <= 0 or target % short != 0: return 0
+    var k := target / short
+    return k if k <= MAX_SCALE else 0
+
+
+## "1080p", "1080", "4k" or "2160p" -> 1080/1080/2160/2160; 0 if not a size.
+static func parse_target(text: String) -> int:
+    var t := text.strip_edges().to_lower()
+    for h in NAMED_HEIGHTS:
+        if t == String(NAMED_HEIGHTS[h]).to_lower(): return h
+    if t.ends_with("p"): t = t.substr(0, t.length() - 1)
+    return int(t) if t.is_valid_int() and int(t) > 0 else 0
 
 
 static func max_fps(fmt: String) -> int:
