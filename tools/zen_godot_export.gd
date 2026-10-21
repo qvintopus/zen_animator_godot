@@ -34,6 +34,11 @@ const RUNTIME_DIR := "res://addons/zen/runtime"
 const FONTS_DIR := "res://addons/zen/fonts"
 const ANIMS_DIR := "res://anims"
 
+## The "this project" destination: a stub Godot project inside exports/ (so
+## git ignores it) to F6-test an export in and copy its subfolder from. The
+## main editor skips it - a folder holding a project.godot is another project.
+const EXPORTS_PROJECT := "res://exports/godot"
+
 ## Runtime files that stay home: user settings and the asset library are this
 ## app's, and the ZenSignals autoload needs a project.godot entry a plain copy
 ## cannot make (the plugin registers it).
@@ -50,6 +55,7 @@ class Settings extends RefCounted:
     var subdir := "zen"         # under the target's res://
     var mode := Mode.STANDALONE
     var install_plugin := false # PLUGIN mode: copy addons/zen into the target
+    var to_exports := false     # ignore target_dir: write into EXPORTS_PROJECT
 
 
 ## The subfolder as written into paths: no leading/trailing slash, "zen" when
@@ -63,17 +69,18 @@ static func clean_subdir(sub: String) -> String:
 
 ## "" when the settings can be exported with, else what is wrong.
 static func validate(s: Settings) -> String:
-    if s.target_dir == "":
+    var root := target_root(s)
+    if root == "":
         return "pick a target Godot project"
-    if not FileAccess.file_exists(s.target_dir.path_join("project.godot")):
-        return "not a Godot project (no project.godot): %s" % s.target_dir
+    if not s.to_exports and not FileAccess.file_exists(root.path_join("project.godot")):
+        return "not a Godot project (no project.godot): %s" % root
     var sub := clean_subdir(s.subdir)
     if sub.split("/").has(".."):
         return "the subfolder must stay inside the project"
     if sub == "addons/zen" or sub.begins_with("addons/zen/"):
         return "the subfolder must not be the plugin's own folder"
     if s.mode == Mode.PLUGIN and not s.install_plugin \
-            and not DirAccess.dir_exists_absolute(s.target_dir.path_join("addons/zen/runtime")):
+            and not DirAccess.dir_exists_absolute(root.path_join("addons/zen/runtime")):
         return "the target has no Zen plugin - tick \"install/update plugin\""
     return ""
 
@@ -90,9 +97,26 @@ static func extends_line(s: Settings) -> String:
     return "extends \"%sruntime/zen_canvas.gd\"" % runtime_root(s)
 
 
+## Absolute OS path of the target project's res:// root.
+static func target_root(s: Settings) -> String:
+    if s.to_exports: return ProjectSettings.globalize_path(EXPORTS_PROJECT)
+    return s.target_dir
+
+
 ## Absolute OS path of a target res:// path.
 static func _abs(s: Settings, res_path: String) -> String:
-    return s.target_dir.path_join(res_path.trim_prefix("res://"))
+    return target_root(s).path_join(res_path.trim_prefix("res://"))
+
+
+## The exports stub needs a project.godot to open and run in. Written once:
+## after that it is the user's (the editor adds its own settings to it).
+static func ensure_exports_project(s: Settings, files: Array) -> String:
+    if not s.to_exports: return ""
+    var path := target_root(s).path_join("project.godot")
+    if FileAccess.file_exists(path): return ""
+    return _write(path, "config_version=5\n\n[application]\n\nconfig/name=\"Zen exports\"\n"
+        + "config/features=PackedStringArray(\"4.7\", \"GL Compatibility\")\n\n"
+        + "[rendering]\n\nrenderer/rendering_method=\"gl_compatibility\"\n", files)
 
 
 # ---------------------------------------------------------------------------
@@ -261,7 +285,7 @@ static func vendor_runtime(s: Settings, files: Array) -> String:
 
 ## Copy the plugin itself into the target's addons/zen, verbatim.
 static func install_plugin(s: Settings, files: Array) -> String:
-    var dest := s.target_dir.path_join("addons/zen")
+    var dest := target_root(s).path_join("addons/zen")
     for f in _list(RUNTIME_DIR, "gd"):
         var err := _copy(ProjectSettings.globalize_path(RUNTIME_DIR.path_join(f)),
             dest.path_join("runtime").path_join(f), files)
@@ -383,6 +407,8 @@ static func export_anim(anim: String, s: Settings, files: Array = [], ship_runti
 static func export_chain(anims: Array, s: Settings) -> Dictionary:
     var files: Array = []
     var scenes: Array = []
+    var err := ensure_exports_project(s, files)
+    if err != "": return {"ok": false, "error": err, "files": files, "scenes": scenes}
     for i in anims.size():
         var r := export_anim(String(anims[i]), s, files, i == 0)
         if not bool(r["ok"]): return {"ok": false, "error": r["error"], "files": files, "scenes": scenes}

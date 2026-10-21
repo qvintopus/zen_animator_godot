@@ -2158,6 +2158,7 @@ func test_export_dialog_preview() -> void:
     # Godot scene: its own block replaces the video rows, and an invalid
     # target disables Export with the reason shown.
     dlg._s.fmt = "godot"
+    dlg._gs.to_exports = false
     dlg._gs.target_dir = ""
     dlg._refresh()
     check(dlg._godot_box.visible and not dlg._frames_label.visible and not dlg._size_label.visible,
@@ -2168,6 +2169,12 @@ func test_export_dialog_preview() -> void:
     dlg._refresh()
     check(not dlg._export_btn.disabled and dlg._godot_hint.text.contains("res://zen/a.tscn"),
           "a valid target lists the scenes it will write")
+    dlg._gs.target_dir = ""
+    dlg._gs.to_exports = true
+    dlg._refresh()
+    check(not dlg._export_btn.disabled and not dlg._godot_target_row.visible
+          and dlg._folder_path().ends_with("exports/godot/zen"),
+          "exports destination needs no target and hides the project row")
     dlg._s.fmt = "gif"
     dlg._refresh()
     check(not dlg._godot_box.visible and dlg._frames_label.visible and not dlg._export_btn.disabled,
@@ -3333,6 +3340,11 @@ func test_godot_export_validate() -> void:
           "godot export: standalone extends line")
     s.mode = ZenGodotExport.Mode.PLUGIN
     check(ZenGodotExport.extends_line(s) == "extends ZenCanvas", "godot export: plugin extends line")
+    var e := ZenGodotExport.Settings.new()
+    e.to_exports = true
+    check(ZenGodotExport.validate(e) == "", "godot export: the exports stub needs no target")
+    check(ZenGodotExport.target_root(e) == ProjectSettings.globalize_path("res://exports/godot"),
+          "godot export: the exports stub lives in exports/godot")
 
 
 ## A real export into a throwaway project: the files land, and nothing in them

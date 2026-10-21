@@ -191,8 +191,9 @@ Output lands in `exports/`.
 
 The **Godot scene** format writes animations into *another* Godot project, where each
 plays on F6 and can be the base of an inherited scene that game code drives. Pick the
-target project (a folder with `project.godot`), a subfolder (default `zen/`) and the
-runtime:
+target project (a folder with `project.godot`) - or **this project's exports/godot**, a
+stub project the export creates, to F6-test in and copy the subfolder from - a subfolder
+(default `zen/`) and the runtime:
 
 - **standalone** - a private copy of the runtime goes to `res://zen/zen_runtime/` with
   every `class_name` stripped and cross-references rewritten to preload consts
@@ -246,6 +247,8 @@ inherited scene to start it stopped, then call `play()`.
     --fmt=godot --chain=main_menu,pause_menu --target=/abs/path/to/game \
     --subdir=zen --mode=standalone        # or --mode=plugin [--install_plugin]
 ```
+
+Leave out `--target` to write into `exports/godot` instead.
 
 ## Custom easings
 

@@ -76,6 +76,8 @@ var _close_btn: Button
 ## it is the format.
 var _gs := ZenGodotExport.Settings.new()
 var _godot_box: VBoxContainer
+var _godot_dest: OptionButton
+var _godot_target_row: Control
 var _godot_target: LineEdit
 var _godot_subdir: LineEdit
 var _godot_mode: OptionButton
@@ -121,6 +123,7 @@ func open(entries: Array, chain: Array) -> void:
     _s.join_pause = bool(d.get("join_pause", true))
     _s.scale = ZenSettings.export_scale()
     _gs.target_dir = String(d.get("godot_target", ""))
+    _gs.to_exports = bool(d.get("godot_to_exports", true))
     _gs.subdir = String(d.get("godot_subdir", "zen"))
     _gs.mode = int(d.get("godot_mode", ZenGodotExport.Mode.STANDALONE))
     _gs.install_plugin = bool(d.get("godot_install", false))
@@ -366,7 +369,15 @@ func _build_godot_section(parent: VBoxContainer) -> void:
     _godot_box.add_theme_constant_override("separation", 6)
     parent.add_child(_godot_box)
 
+    var drow := _labeled_row(_godot_box, "export to")
+    _godot_dest = OptionButton.new()
+    _godot_dest.add_item("another Godot project", 0)
+    _godot_dest.add_item("this project's %s" % ZenGodotExport.EXPORTS_PROJECT.trim_prefix("res://"), 1)
+    _godot_dest.item_selected.connect(func(i): _gs.to_exports = _godot_dest.get_item_id(i) == 1; _refresh())
+    drow.add_child(_godot_dest)
+
     var trow := _labeled_row(_godot_box, "project")
+    _godot_target_row = trow
     _godot_target = LineEdit.new()
     _godot_target.placeholder_text = "folder with project.godot"
     _godot_target.size_flags_horizontal = SIZE_EXPAND_FILL
@@ -484,6 +495,7 @@ func _sync_controls_from_settings() -> void:
     _transparent_check.button_pressed = _s.transparent
     _cutout_slider.value = _s.cutout
     _video_quality.value = _s.quality
+    _godot_dest.select(_godot_dest.get_item_index(1 if _gs.to_exports else 0))
     _godot_target.text = _gs.target_dir
     _godot_subdir.text = _gs.subdir
     _godot_mode.select(maxi(_godot_mode.get_item_index(_gs.mode), 0))
@@ -638,6 +650,7 @@ func _refresh() -> void:
 
 
 func _refresh_godot() -> void:
+    _godot_target_row.visible = not _gs.to_exports
     _godot_install.visible = _gs.mode == ZenGodotExport.Mode.PLUGIN
     var bad := ZenGodotExport.validate(_gs)
     if bad != "":
@@ -656,7 +669,7 @@ func _refresh_godot() -> void:
 ## What the Folder button opens: the export folder, or the target subfolder.
 func _folder_path() -> String:
     if _s.fmt == "godot":
-        return _gs.target_dir.path_join(ZenGodotExport.clean_subdir(_gs.subdir))
+        return ZenGodotExport.target_root(_gs).path_join(ZenGodotExport.clean_subdir(_gs.subdir))
     return ProjectSettings.globalize_path(_s.out_dir)
 
 
@@ -914,7 +927,7 @@ func _save_defaults() -> void:
         "transparent": _s.transparent, "quality_gif": _s.quality_gif,
         "quality_video": _s.quality, "cutout": _s.cutout,
         "pause_hold": _s.pause_hold, "join_pause": _s.join_pause,
-        "godot_target": _gs.target_dir, "godot_subdir": _gs.subdir,
+        "godot_target": _gs.target_dir, "godot_to_exports": _gs.to_exports, "godot_subdir": _gs.subdir,
         "godot_mode": _gs.mode, "godot_install": _gs.install_plugin,
     })
 

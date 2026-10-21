@@ -14,6 +14,9 @@ extends Node
 ##         --chain=main_menu,pause_menu --target=/abs/game --subdir=zen \
 ##         --mode=standalone|plugin [--install_plugin]
 ##
+## Without `--target` it writes into this project's exports/godot, a stub
+## project to F6-test in and copy the subfolder from.
+##
 ## `--res=1080p` (or 720p/1440p/4k/a bare short side) picks the scale for you
 ## and fails unless the canvas reaches that size at a whole-number scale.
 ##
@@ -102,13 +105,15 @@ func _ready() -> void:
 func _export_godot(a: Dictionary, names: PackedStringArray) -> void:
     var gs := ZenGodotExport.Settings.new()
     gs.target_dir = String(a.get("target", ""))
+    gs.to_exports = gs.target_dir == ""
     gs.subdir = String(a.get("subdir", "zen"))
     gs.mode = ZenGodotExport.Mode.PLUGIN if String(a.get("mode", "standalone")) == "plugin" \
         else ZenGodotExport.Mode.STANDALONE
     gs.install_plugin = _flag(a, "install_plugin")
     var r := ZenGodotExport.export_chain(Array(names), gs)
     if bool(r["ok"]):
-        print("OK  %d files -> %s" % [(r["files"] as Array).size(), ", ".join(PackedStringArray(r["scenes"]))])
+        print("OK  %d files -> %s in %s" % [(r["files"] as Array).size(),
+            ", ".join(PackedStringArray(r["scenes"])), ZenGodotExport.target_root(gs)])
         print("inherit with: " + ZenGodotExport.extends_line(gs))
         get_tree().quit(0)
     else:
