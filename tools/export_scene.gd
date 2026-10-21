@@ -7,6 +7,13 @@ extends Node
 ##   Godot --path . --rendering-driver opengl3 tools/export_scene.tscn -- \
 ##         --anim=mouse_ripple --fps=60 --fmt=webm --scale=2
 ##
+## `--fmt=godot` writes scenes into another Godot project instead - nothing
+## renders, so it also runs `--headless` (see ZenGodotExport):
+##
+##   Godot --headless --path . tools/export_scene.tscn -- --fmt=godot \
+##         --chain=main_menu,pause_menu --target=/abs/game --subdir=zen \
+##         --mode=standalone|plugin [--install_plugin]
+##
 ## `--res=1080p` (or 720p/1440p/4k/a bare short side) picks the scale for you
 ## and fails unless the canvas reaches that size at a whole-number scale.
 ##
@@ -24,6 +31,9 @@ func _ready() -> void:
 
     var a := _args()
     var names := _chain_names(a)
+    if String(a.get("fmt", "")) == "godot":
+        _export_godot(a, names)
+        return
 
     var s := ZenExport.Settings.new()
     s.fmt = String(a.get("fmt", "webm"))
@@ -86,6 +96,23 @@ func _ready() -> void:
         get_tree().quit(0)
     else:
         push_error("export failed: " + String(r.get("error", "unknown")))
+        get_tree().quit(1)
+
+
+func _export_godot(a: Dictionary, names: PackedStringArray) -> void:
+    var gs := ZenGodotExport.Settings.new()
+    gs.target_dir = String(a.get("target", ""))
+    gs.subdir = String(a.get("subdir", "zen"))
+    gs.mode = ZenGodotExport.Mode.PLUGIN if String(a.get("mode", "standalone")) == "plugin" \
+        else ZenGodotExport.Mode.STANDALONE
+    gs.install_plugin = _flag(a, "install_plugin")
+    var r := ZenGodotExport.export_chain(Array(names), gs)
+    if bool(r["ok"]):
+        print("OK  %d files -> %s" % [(r["files"] as Array).size(), ", ".join(PackedStringArray(r["scenes"]))])
+        print("inherit with: " + ZenGodotExport.extends_line(gs))
+        get_tree().quit(0)
+    else:
+        push_error("export failed: " + String(r["error"]))
         get_tree().quit(1)
 
 

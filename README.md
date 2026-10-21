@@ -187,6 +187,66 @@ its authored tail exactly as keyed.
 
 Output lands in `exports/`.
 
+## Export to Godot
+
+The **Godot scene** format writes animations into *another* Godot project, where each
+plays on F6 and can be the base of an inherited scene that game code drives. Pick the
+target project (a folder with `project.godot`), a subfolder (default `zen/`) and the
+runtime:
+
+- **standalone** - a private copy of the runtime goes to `res://zen/zen_runtime/` with
+  every `class_name` stripped and cross-references rewritten to preload consts
+  (`ZenCanvas` -> `ZRCanvas`). Needs no plugin, and never collides with an installed one
+  or with a copy another version exported into another subfolder. Its `VERSION` file names
+  the source commit; re-exporting replaces the copy.
+- **Zen plugin** - the scene points at `res://addons/zen/`. Tick **install/update plugin**
+  to copy `addons/zen` (runtime, fonts, `plugin.cfg`) into the target; enabling the plugin
+  there registers the `ZenSignals` autoload.
+
+```
+res://zen/
+  <anim>.tscn          the animation's own scene, dependency paths rewritten
+  shapes/*.tres        the pixel shapes it draws
+  fonts/*              fonts it uses from outside the addon
+  zen_runtime/         standalone only
+```
+
+Nothing is converted: it is the same scene (signals, loop blend, crumble and pixel shapes
+intact) with its paths moved, so the export is a few text files and takes no time. The
+shipped scene has `fit_window` (scale into the window, black letterbox - only while it is
+the running scene), `click_to_continue` (a held pause marker continues on click or
+`ui_accept`) and `draw_background` on; an Options font override is pinned onto the texts.
+
+**Driving it from a game.** *Scene > New Inherited Scene* from the exported `.tscn`, then
+attach a script to its root (the dialog shows the line):
+
+```gdscript
+extends "res://zen/zen_runtime/runtime/zen_canvas.gd"   # plugin mode: extends ZenCanvas
+
+func _ready() -> void:
+    super()                        # required: the canvas starts its clock in _ready
+    finished.connect(queue_free)   # a one-shot ran out, or a terminal signal ended it
+    paused.connect(func(i): print("held at pause ", i))
+
+func open_menu() -> void:
+    $title.string_base = 1         # elements are child nodes, by name
+    restart()
+
+func close_menu() -> void:
+    fire("exit")                   # an authored signal; false if the scene has none
+```
+
+`play(from_start := true)`, `stop()`, `restart()`, `resume()` (past a pause marker),
+`fire(name, params := {})`, `signal_names()`; signals `finished` and `paused(index)`,
+plus `bus().signal_fired` / `bus().terminal_finished`. Set `live_playback = false` in the
+inherited scene to start it stopped, then call `play()`.
+
+```sh
+./Godot_v4.7.2-stable_linux.x86_64 --headless --path . tools/export_scene.tscn -- \
+    --fmt=godot --chain=main_menu,pause_menu --target=/abs/path/to/game \
+    --subdir=zen --mode=standalone        # or --mode=plugin [--install_plugin]
+```
+
 ## Custom easings
 
 The custom easings live in `assets/easings.tres` (`ZenEasingSet`, name -> `ZenCurve`);

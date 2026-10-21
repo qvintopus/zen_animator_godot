@@ -77,6 +77,10 @@ static func set_font_override(f: Font) -> void:
     _font_override = f
 
 
+static func font_override() -> Font:
+    return _font_override
+
+
 ## The project default font, loaded once and cached. A static func rather than
 ## a member so it resolves correctly even for a node that is instantiated but
 ## never enters the tree (dump_scene.gd, the gallery) - _ready() is not

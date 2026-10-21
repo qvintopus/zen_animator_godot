@@ -30,6 +30,7 @@ const EXPORT_DEFAULTS := {
     "fmt": "gif", "fps": 30, "show_intro": false, "transparent": false,
     "quality_gif": 16, "quality_video": 70, "cutout": 128,
     "pause_hold": 0.0, "join_pause": true,
+    "godot_target": "", "godot_subdir": "zen", "godot_mode": 0, "godot_install": false,
 }
 
 static var _loaded := false

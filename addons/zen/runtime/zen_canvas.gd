@@ -121,6 +121,7 @@ func _ready() -> void:
 	if live_playback:
 		setup_animation_player(true)
 		set_process(true)
+		_game_ready()
 	else:
 		# A saved player must stay idle: ticking, it would re-pose the canvas to
 		# its own clock and break the exporter's frame-by-frame purity.
@@ -343,6 +344,7 @@ func setup_animation_player(autostart := true) -> AnimationPlayer:
 		_intro_done = false
 		held_pause = -1
 		_spent.clear()
+		_finished_sent = false
 		# Godot's native section-loop only engages with LOOP_LINEAR (measured:
 		# with LOOP_NONE a section plays once and holds at its end, regardless
 		# of play_section vs play_section_with_markers). LOOP_NONE is what one
@@ -409,6 +411,7 @@ func _anim_time_for(raw: float) -> float:
 func _process(_delta: float) -> void:
 	if Engine.is_editor_hint(): return
 	if _ap == null: return
+	_check_finished()
 	# The handover below is NOT gated on is_playing(): measured on 4.7.2, a
 	# LOOP_NONE section playing to its own end already reports is_playing() ==
 	# false on the very frame current_animation_position reaches that end -
@@ -550,6 +553,7 @@ func rewind_timeline() -> void:
 	_intro_done = false
 	held_pause = -1
 	_spent.clear()
+	_finished_sent = false
 	if skips_intro():
 		_seek_safe(play_start())
 		_intro_done = true
@@ -602,3 +606,134 @@ func _seek_safe(t: float) -> void:
 		_ap.set_section(0.0, play_end())
 		_intro_done = false
 	_ap.seek(clampf(t, 0.0, play_end()), true)
+
+
+# ---------------------------------------------------------------------------
+#  Game API: what a scene exported to another Godot project is driven by.
+#
+#  An exported scene is meant to be inherited and scripted, so this is the
+#  small surface game code needs - start, stop, continue, fire - over the same
+#  clock the gallery and editor use. The three flags are off by default and
+#  only the Godot-scene export turns them on, so nothing else changes.
+# ---------------------------------------------------------------------------
+
+## Emitted once when live playback runs out: a one-shot (or loop toggled off)
+## reaching its end, or a terminal signal having stopped the timeline.
+signal finished
+
+## Scale and centre the canvas into the window, but only while this scene IS
+## the running scene (F6). Nested inside a game scene it keeps its design size
+## and the game places it.
+@export var fit_window := false
+
+## A held pause marker continues on a left click or `ui_accept`, the way the
+## gallery and scene editor do.
+@export var click_to_continue := false
+
+## Paint clear_color behind the elements. Every in-app host draws its own
+## background rect, and a transparent export must not get one, hence opt-in.
+@export var draw_background := false
+
+var _finished_sent := false
+var _game_wired := false
+
+
+## Play from the start (or from where it is held, with `from_start` false).
+func play(from_start := true) -> void:
+	_game_ready()
+	if from_start:
+		var bus_ := bus()
+		if bus_ != null: bus_.release_hold()
+		if setup_animation_player(true) == null: return
+		# A scene saved with live_playback off parks its player inactive.
+		_ap.active = true
+		_seek_safe(play_start() if skips_intro() else 0.0)
+	else:
+		# release_pause() is also the resume-in-section path: a bare play()
+		# would reset the section to the whole animation.
+		release_pause()
+	set_process(true)
+
+
+## Stop where it is, holding the pose. play(false) carries on.
+func stop() -> void:
+	stop_timeline()
+
+
+## Play again from the start.
+func restart() -> void:
+	play(true)
+
+
+## Continue past a held pause marker. Returns false when nothing is held.
+func resume() -> bool:
+	if held_pause < 0: return false
+	release_pause()
+	return true
+
+
+## Fire an authored signal by name. Returns false for a name the scene does
+## not declare.
+func fire(signal_name: String, params: Dictionary = {}) -> bool:
+	var bus_ := bus()
+	return bus_ != null and bus_.fire(signal_name, params)
+
+
+## Every authored signal name, for a game that wires them up by data.
+func signal_names() -> Array:
+	var bus_ := bus()
+	return bus_.names() if bus_ != null else []
+
+
+## Wire the game-facing hooks once: from _ready for a live scene, or from the
+## first play() of one that started stopped.
+func _game_ready() -> void:
+	if _game_wired or Engine.is_editor_hint() or not is_inside_tree(): return
+	_game_wired = true
+	var bus_ := bus()
+	if bus_ != null and not bus_.terminal_finished.is_connected(_on_terminal):
+		bus_.terminal_finished.connect(_on_terminal)
+	set_process_unhandled_input(click_to_continue)
+	if fit_window and get_tree().current_scene == self:
+		# Running on its own: letterbox in black, as a video of it would be.
+		RenderingServer.set_default_clear_color(Color.BLACK)
+		get_viewport().size_changed.connect(_fit)
+		_fit()
+	if draw_background: queue_redraw()
+
+
+func _check_finished() -> void:
+	if is_finished(): _send_finished()
+
+
+## A terminal signal ends the instance whatever the clock was doing - even
+## mid-intro, where is_finished() still reads a pending handover.
+func _on_terminal(_signal_name: String) -> void:
+	_send_finished()
+
+
+func _send_finished() -> void:
+	if _finished_sent: return
+	_finished_sent = true
+	finished.emit()
+
+
+func _fit() -> void:
+	var vp := get_viewport().get_visible_rect().size
+	var k := minf(vp.x / design_size.x, vp.y / design_size.y)
+	scale = Vector2(k, k)
+	position = ((vp - design_size * k) * 0.5).round()
+
+
+func _unhandled_input(ev: InputEvent) -> void:
+	if held_pause < 0: return
+	var mb := ev as InputEventMouseButton
+	var click := mb != null and mb.pressed and mb.button_index == MOUSE_BUTTON_LEFT
+	if click or ev.is_action_pressed("ui_accept"):
+		resume()
+		get_viewport().set_input_as_handled()
+
+
+func _draw() -> void:
+	if draw_background and clear_color.a > 0.0:
+		draw_rect(Rect2(Vector2.ZERO, design_size), clear_color)

@@ -72,7 +72,7 @@ static func ffmpeg_available() -> bool:
 
 
 static func needs_ffmpeg(fmt: String) -> bool:
-    return fmt != "png"
+    return fmt != "png" and fmt != "godot"
 
 
 static func human_size(bytes: float) -> String:

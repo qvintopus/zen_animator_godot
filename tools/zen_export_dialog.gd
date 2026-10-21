@@ -72,14 +72,26 @@ var _status_label: Label
 var _export_btn: Button
 var _close_btn: Button
 
+## Godot-scene export: its own block, and every video-only row to hide while
+## it is the format.
+var _gs := ZenGodotExport.Settings.new()
+var _godot_box: VBoxContainer
+var _godot_target: LineEdit
+var _godot_subdir: LineEdit
+var _godot_mode: OptionButton
+var _godot_install: CheckBox
+var _godot_hint: Label
+var _godot_dir_dialog: FileDialog
+var _video_only: Array[Control] = []
+
 var _add_popup: PopupPanel
 var _add_search: LineEdit
 var _add_list: ItemList
 
-const FORMATS := ["gif", "mp4", "webm", "avi", "png"]
+const FORMATS := ["gif", "mp4", "webm", "avi", "png", "godot"]
 const FORMAT_LABELS := {
     "gif": "GIF", "mp4": "MP4 (H.264)", "webm": "WebM (VP9)",
-    "avi": "AVI (uncompressed)", "png": "PNG frames",
+    "avi": "AVI (uncompressed)", "png": "PNG frames", "godot": "Godot scene",
 }
 
 
@@ -108,6 +120,10 @@ func open(entries: Array, chain: Array) -> void:
     _s.pause_hold = float(d.get("pause_hold", 0.0))
     _s.join_pause = bool(d.get("join_pause", true))
     _s.scale = ZenSettings.export_scale()
+    _gs.target_dir = String(d.get("godot_target", ""))
+    _gs.subdir = String(d.get("godot_subdir", "zen"))
+    _gs.mode = int(d.get("godot_mode", ZenGodotExport.Mode.STANDALONE))
+    _gs.install_plugin = bool(d.get("godot_install", false))
     _scale_design = Vector2.ZERO    # force a rebuild (and a target re-resolve)
 
     _name_edit.text = _default_name()
@@ -222,8 +238,11 @@ func _build_options_section(parent: VBoxContainer) -> void:
     _ffmpeg_hint.visible = false
     parent.add_child(_ffmpeg_hint)
 
+    _build_godot_section(parent)
+
     # Name + folder
     var nrow := _labeled_row(parent, "name")
+    _video_only.append(nrow)
     _name_edit = LineEdit.new()
     _name_edit.size_flags_horizontal = SIZE_EXPAND_FILL
     _name_edit.focus_exited.connect(_on_name_focus_exited)
@@ -232,20 +251,24 @@ func _build_options_section(parent: VBoxContainer) -> void:
     _path_preview = Label.new()
     _path_preview.add_theme_color_override("font_color", Color(0.5, 0.55, 0.6, 1))
     parent.add_child(_path_preview)
+    _video_only.append(_path_preview)
 
     # Scale
     # Built per canvas by _rebuild_scale_buttons(): the named sizes it reaches
     # depend on the first link's design_size.
     var srow := _labeled_row(parent, "size")
+    _video_only.append(srow)
     _scale_row = HFlowContainer.new()
     _scale_row.size_flags_horizontal = SIZE_EXPAND_FILL
     srow.add_child(_scale_row)
     _res_label = Label.new()
     _res_label.add_theme_color_override("font_color", ZenUI.TEXT)
     parent.add_child(_res_label)
+    _video_only.append(_res_label)
 
     # FPS
     var fpsrow := _labeled_row(parent, "fps")
+    _video_only.append(fpsrow)
     _fps_spin = SpinBox.new()
     _fps_spin.min_value = 1
     _fps_spin.max_value = ZenExport.MAX_FPS_VIDEO
@@ -262,9 +285,11 @@ func _build_options_section(parent: VBoxContainer) -> void:
     _intro_check.toggled.connect(_on_intro_toggled)
     introrow.add_child(_intro_check)
     parent.add_child(introrow)
+    _video_only.append(introrow)
 
     # Pause hold
     var holdrow := _labeled_row(parent, "pause hold")
+    _video_only.append(holdrow)
     _hold_slider = HSlider.new()
     _hold_slider.min_value = 0.0
     _hold_slider.max_value = 12.0
@@ -286,6 +311,7 @@ func _build_options_section(parent: VBoxContainer) -> void:
     _frames_label = Label.new()
     _frames_label.add_theme_color_override("font_color", ZenUI.TEXT)
     parent.add_child(_frames_label)
+    _video_only.append(_frames_label)
 
     # Per-format rows
     _gif_row = HBoxContainer.new()
@@ -332,6 +358,57 @@ func _build_options_section(parent: VBoxContainer) -> void:
     _size_label.add_theme_color_override("font_color", ZenUI.TEXT)
     _size_label.tooltip_text = "Video size is a rough guess: compression depends on how much the animation actually moves."
     parent.add_child(_size_label)
+
+
+## Target project, subfolder, mode and the plugin checkbox - see ZenGodotExport.
+func _build_godot_section(parent: VBoxContainer) -> void:
+    _godot_box = VBoxContainer.new()
+    _godot_box.add_theme_constant_override("separation", 6)
+    parent.add_child(_godot_box)
+
+    var trow := _labeled_row(_godot_box, "project")
+    _godot_target = LineEdit.new()
+    _godot_target.placeholder_text = "folder with project.godot"
+    _godot_target.size_flags_horizontal = SIZE_EXPAND_FILL
+    _godot_target.text_changed.connect(func(t): _gs.target_dir = t.strip_edges(); _refresh())
+    trow.add_child(_godot_target)
+    var pick := Button.new()
+    pick.text = "..."
+    pick.pressed.connect(func(): _godot_dir_dialog.popup_centered_ratio(0.6))
+    trow.add_child(pick)
+
+    _godot_dir_dialog = FileDialog.new()
+    _godot_dir_dialog.file_mode = FileDialog.FILE_MODE_OPEN_DIR
+    _godot_dir_dialog.access = FileDialog.ACCESS_FILESYSTEM
+    _godot_dir_dialog.use_native_dialog = true
+    _godot_dir_dialog.dir_selected.connect(func(dir):
+        _gs.target_dir = dir
+        _godot_target.text = dir
+        _refresh())
+    add_child(_godot_dir_dialog)
+
+    var srow := _labeled_row(_godot_box, "subfolder")
+    _godot_subdir = LineEdit.new()
+    _godot_subdir.size_flags_horizontal = SIZE_EXPAND_FILL
+    _godot_subdir.text_changed.connect(func(t): _gs.subdir = t; _refresh())
+    srow.add_child(_godot_subdir)
+
+    var mrow := _labeled_row(_godot_box, "runtime")
+    _godot_mode = OptionButton.new()
+    _godot_mode.add_item("standalone (private copy)", ZenGodotExport.Mode.STANDALONE)
+    _godot_mode.add_item("Zen plugin (addons/zen)", ZenGodotExport.Mode.PLUGIN)
+    _godot_mode.item_selected.connect(func(i): _gs.mode = _godot_mode.get_item_id(i); _refresh())
+    mrow.add_child(_godot_mode)
+
+    _godot_install = CheckBox.new()
+    _godot_install.text = "install/update plugin in the target"
+    _godot_install.toggled.connect(func(on): _gs.install_plugin = on; _refresh())
+    _godot_box.add_child(_godot_install)
+
+    _godot_hint = Label.new()
+    _godot_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+    _godot_hint.add_theme_color_override("font_color", Color(0.5, 0.55, 0.6, 1))
+    _godot_box.add_child(_godot_hint)
 
 
 func _labeled_row(parent: VBoxContainer, text: String) -> HBoxContainer:
@@ -407,6 +484,10 @@ func _sync_controls_from_settings() -> void:
     _transparent_check.button_pressed = _s.transparent
     _cutout_slider.value = _s.cutout
     _video_quality.value = _s.quality
+    _godot_target.text = _gs.target_dir
+    _godot_subdir.text = _gs.subdir
+    _godot_mode.select(maxi(_godot_mode.get_item_index(_gs.mode), 0))
+    _godot_install.button_pressed = _gs.install_plugin
 
 
 ## First chain link's own entry - every size/frame-count number is anchored
@@ -520,9 +601,25 @@ func _refresh() -> void:
     else:
         _size_label.text = ""
 
+    var godot := fmt == "godot"
+    _godot_box.visible = godot
+    if godot:
+        for c in _video_only: c.visible = false
+        _join_row.visible = false
+        _gif_row.visible = false
+        _transparent_check.visible = false
+        _cutout_row.visible = false
+        _video_row.visible = false
+        _avi_label.visible = false
+        _size_label.visible = false
+        _refresh_godot()
+    else:
+        for c in _video_only: c.visible = true
+        _size_label.visible = true
+        _export_btn.disabled = false
+
     _export_btn.text = "Cancel" if _running else "Export"
-    var exports_dir := ProjectSettings.globalize_path(_s.out_dir)
-    _folder_btn.disabled = not DirAccess.dir_exists_absolute(exports_dir)
+    _folder_btn.disabled = not DirAccess.dir_exists_absolute(_folder_path())
 
     # Freeze every setting control once a job is running - the frame plan and
     # encoder args are committed at job start, so editing them mid-run would
@@ -538,6 +635,29 @@ func _refresh() -> void:
     _intro_check.disabled = _running or _intro_check.disabled
     for b in _scale_buttons: b.disabled = _running
     _add_btn.disabled = _running or _chain.size() >= ZenExport.MAX_CHAIN
+
+
+func _refresh_godot() -> void:
+    _godot_install.visible = _gs.mode == ZenGodotExport.Mode.PLUGIN
+    var bad := ZenGodotExport.validate(_gs)
+    if bad != "":
+        _godot_hint.text = bad
+        _godot_hint.add_theme_color_override("font_color", Color(0.8, 0.5, 0.4, 1))
+    else:
+        var sub := ZenGodotExport.clean_subdir(_gs.subdir)
+        var scenes := PackedStringArray()
+        for nm in _chain: scenes.append("res://%s/%s.tscn" % [sub, ZenExport.sanitize(nm)])
+        _godot_hint.text = "writes %s\nthen in an inherited scene: %s" % [
+            ", ".join(scenes), ZenGodotExport.extends_line(_gs)]
+        _godot_hint.add_theme_color_override("font_color", Color(0.5, 0.55, 0.6, 1))
+    _export_btn.disabled = bad != "" or _chain.is_empty()
+
+
+## What the Folder button opens: the export folder, or the target subfolder.
+func _folder_path() -> String:
+    if _s.fmt == "godot":
+        return _gs.target_dir.path_join(ZenGodotExport.clean_subdir(_gs.subdir))
+    return ProjectSettings.globalize_path(_s.out_dir)
 
 
 func _resolved_path_preview() -> String:
@@ -691,7 +811,7 @@ func _on_name_focus_exited() -> void:
 
 
 func _on_folder_pressed() -> void:
-    OS.shell_open(ProjectSettings.globalize_path(_s.out_dir))
+    OS.shell_open(_folder_path())
 
 
 func _on_close_pressed() -> void:
@@ -709,6 +829,9 @@ func _on_export_pressed() -> void:
         return
     if _chain.is_empty():
         _status_label.text = "nothing to export (empty chain)"
+        return
+    if _s.fmt == "godot":
+        _export_godot()
         return
 
     var links: Array = []
@@ -763,17 +886,37 @@ func _on_job_finished(result: Dictionary) -> void:
     if bool(result.get("ok", false)):
         _exported_ok = true
         _status_label.text = "%d frames -> %s" % [int(result["frames"]), String(result["path"])]
-        ZenSettings.set_export_defaults({
-            "fmt": _s.fmt, "fps": _s.fps, "show_intro": _s.show_intro,
-            "transparent": _s.transparent, "quality_gif": _s.quality_gif,
-            "quality_video": _s.quality, "cutout": _s.cutout,
-            "pause_hold": _s.pause_hold, "join_pause": _s.join_pause,
-        })
+        _save_defaults()
     elif bool(result.get("cancelled", false)):
         _status_label.text = "export cancelled"
     else:
         _status_label.text = "export failed: %s" % String(result.get("error", "unknown"))
     _refresh()
+
+
+## Synchronous: it only writes text files, nothing renders.
+func _export_godot() -> void:
+    var r := ZenGodotExport.export_chain(_chain, _gs)
+    if bool(r["ok"]):
+        _exported_ok = true
+        _status_label.text = "wrote %d files -> %s" % [(r["files"] as Array).size(), _folder_path()]
+        _save_defaults()
+    else:
+        _status_label.text = "export failed: %s" % String(r["error"])
+    _refresh()
+
+
+## One write for every remembered option: set_export_defaults() replaces the
+## whole set, so a partial dictionary would reset the other format's picks.
+func _save_defaults() -> void:
+    ZenSettings.set_export_defaults({
+        "fmt": _s.fmt, "fps": _s.fps, "show_intro": _s.show_intro,
+        "transparent": _s.transparent, "quality_gif": _s.quality_gif,
+        "quality_video": _s.quality, "cutout": _s.cutout,
+        "pause_hold": _s.pause_hold, "join_pause": _s.join_pause,
+        "godot_target": _gs.target_dir, "godot_subdir": _gs.subdir,
+        "godot_mode": _gs.mode, "godot_install": _gs.install_plugin,
+    })
 
 
 func _cleanup_links() -> void:

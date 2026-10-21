@@ -118,6 +118,11 @@ func _run() -> void:
     test_string_pool_shared()
     await test_scene_editor()
     await test_scene_editor_strings()
+    await test_canvas_game_api()
+    test_godot_export_rewrite()
+    test_godot_export_vendor_source()
+    test_godot_export_validate()
+    test_godot_export_files()
     print("\n%d checks, %d failures" % [checks, fails])
     quit(1 if fails > 0 else 0)
 
@@ -2149,6 +2154,24 @@ func test_export_dialog_preview() -> void:
 
     check(dlg._default_name() == "a_chain",
           "default export name for a multi-link chain is <first>_chain")
+
+    # Godot scene: its own block replaces the video rows, and an invalid
+    # target disables Export with the reason shown.
+    dlg._s.fmt = "godot"
+    dlg._gs.target_dir = ""
+    dlg._refresh()
+    check(dlg._godot_box.visible and not dlg._frames_label.visible and not dlg._size_label.visible,
+          "godot format shows its block and hides the video rows")
+    check(dlg._export_btn.disabled and dlg._godot_hint.text != "",
+          "no target project: Export disabled, reason shown")
+    dlg._gs.target_dir = ProjectSettings.globalize_path("res://")
+    dlg._refresh()
+    check(not dlg._export_btn.disabled and dlg._godot_hint.text.contains("res://zen/a.tscn"),
+          "a valid target lists the scenes it will write")
+    dlg._s.fmt = "gif"
+    dlg._refresh()
+    check(not dlg._godot_box.visible and dlg._frames_label.visible and not dlg._export_btn.disabled,
+          "back to a video format restores its rows and Export")
     dlg._name_edit.text = ""
     check(dlg._resolved_path_preview() == "res://exports/a_chain.gif",
           "empty name field previews the resolved default-name path")
@@ -3180,3 +3203,188 @@ func test_scene_editor_playback() -> void:
     ed.queue_free()
     await process_frame
     ZenSettings.set_editor_state(user_state)
+
+
+# ---------------------------------------------------------------------------
+#  Godot-scene export (ZenGodotExport) and the canvas game API it ships.
+# ---------------------------------------------------------------------------
+
+## What an inherited scene drives: finished on a one-shot's end and on a
+## terminal signal (once each), fire/resume reporting whether they did
+## anything, stop/restart.
+func test_canvas_game_api() -> void:
+    var c: ZenCanvas = (load("res://anims/main_menu.tscn") as PackedScene).instantiate()
+    c.play_loop = false                     # one-shot, so it runs out
+    var got := [0]
+    c.finished.connect(func(): got[0] += 1)
+    root.add_child(c)
+    await process_frame
+    check(c.animation_player().is_playing(), "game api: plays on ready")
+    check(not c.fire("no such signal"), "game api: fire() of an unknown name is false")
+    check(not c.resume(), "game api: resume() with nothing held is false")
+    check(c.signal_names().has("TV-out"), "game api: signal_names() lists the authored signals")
+    c.animation_player().seek(c.play_end() - 0.01, true)
+    for i in 6: await process_frame
+    check(got[0] == 1, "game api: finished once at the one-shot's end (got %d)" % got[0])
+    for i in 3: await process_frame
+    check(got[0] == 1, "game api: and not again while it holds")
+
+    c.restart()
+    await process_frame
+    check(c.animation_player().is_playing() and c.pose_time < 0.5,
+          "game api: restart() plays from the top (t=%.3f)" % c.pose_time)
+    c.stop()
+    check(not c.animation_player().is_playing(), "game api: stop() holds")
+    c.play(false)
+    check(c.animation_player().is_playing(), "game api: play(false) carries on")
+
+    # A terminal signal ends the instance - finished fires even mid-clock.
+    c.restart()
+    await process_frame
+    check(c.fire("TV-out"), "game api: fire() of an authored signal is true")
+    c.bus().advance(60.0)
+    check(got[0] == 2, "game api: a terminal signal sends finished (got %d)" % got[0])
+    c.queue_free()
+
+    # Pause markers: resume() releases the hold.
+    var p: ZenCanvas = (load("res://anims/ma_prog_01.tscn") as PackedScene).instantiate()
+    root.add_child(p)
+    await process_frame
+    p.advance_pauses(0.0, float(p.pauses[0]["t"]))
+    check(p.held_pause == 0, "game api: a crossed marker holds")
+    check(p.resume() and p.held_pause < 0, "game api: resume() releases it")
+    p.queue_free()
+
+
+func test_godot_export_rewrite() -> void:
+    var src := """[gd_scene format=3 uid="uid://abc"]
+
+[ext_resource type="Script" uid="uid://s1" path="res://addons/zen/runtime/zen_canvas.gd" id="1_a"]
+[ext_resource type="Resource" path="res://assets/shapes/arrow_1.tres" id="2_b"]
+
+[node name="X" type="Node2D"]
+script = ExtResource("1_a")
+note = "res://assets/shapes/arrow_1.tres"
+"""
+    var deps := ZenGodotExport.ext_resources(src)
+    check(deps.size() == 2 and deps[0]["type"] == "Script" and deps[1]["path"] == "res://assets/shapes/arrow_1.tres",
+          "godot export: ext_resources() reads type and path")
+    var out := ZenGodotExport.rewrite_resource(src, {
+        "res://addons/zen/runtime/zen_canvas.gd": "res://zen/zen_runtime/runtime/zen_canvas.gd",
+        "res://assets/shapes/arrow_1.tres": "res://zen/shapes/arrow_1.tres"}, true)
+    check(not out.contains("uid="), "godot export: every uid= is dropped")
+    check(out.contains("path=\"res://zen/zen_runtime/runtime/zen_canvas.gd\""), "godot export: script re-pathed")
+    check(out.contains("path=\"res://zen/shapes/arrow_1.tres\" id=\"2_b\""), "godot export: shape re-pathed, id kept")
+    check(out.contains("note = \"res://assets/shapes/arrow_1.tres\""), "godot export: property text is not touched")
+    var tres := "[gd_resource type=\"Resource\" script_class=\"ZenPixelShape\" format=4]\n"
+    check(not ZenGodotExport.rewrite_resource(tres, {}, true).contains("script_class"),
+          "godot export: standalone drops script_class")
+    check(ZenGodotExport.rewrite_resource(tres, {}, false).contains("script_class"),
+          "godot export: plugin mode keeps it")
+
+
+## The standalone copy: no class_name, no global Zen class left, each ZR name
+## it uses preloaded right under `extends`, and no path into addons/zen.
+func test_godot_export_vendor_source() -> void:
+    var names := {}
+    var srcs := {}
+    for f in ZenGodotExport.vendored_files():
+        var src := FileAccess.get_file_as_string("res://addons/zen/runtime/" + f)
+        srcs[f] = src
+        names[ZenGodotExport.class_name_of(src)] = f
+    check(names.has("ZenCanvas") and names.has("ZenEasingSet") and not names.has("ZenSettings"),
+          "godot export: vendored set has the runtime minus the app-only files")
+    var root := "res://zen/zen_runtime/"
+    var globals := RegEx.create_from_string("\\b(" + "|".join(PackedStringArray(names.keys())) + ")\\b")
+    for f in srcs:
+        var out := ZenGodotExport.vendor_source(srcs[f], names, root)
+        check(ZenGodotExport.class_name_of(out) == "", "godot export: %s has no class_name" % f)
+        check(globals.search(out) == null, "godot export: %s names no global Zen class" % f)
+        check(not out.contains("res://addons/zen/"), "godot export: %s has no addon path" % f)
+        for m in RegEx.create_from_string("\\bZR(\\w+)").search_all(out):
+            var c := "const ZR%s = preload(" % m.get_string(1)
+            if not out.contains(c):
+                check(false, "godot export: %s uses ZR%s without preloading it" % [f, m.get_string(1)])
+                break
+    var es := ZenGodotExport.vendor_source(srcs["zen_easing_set.gd"], names, root)
+    check(es.contains("const ZREasingSet = preload(\"zen_easing_set.gd\")") and es.contains("ZREasing.register_custom"),
+          "godot export: ZenEasingSet and ZenEasing stay distinct names")
+    var tx := ZenGodotExport.vendor_source(srcs["zen_text.gd"], names, root)
+    check(tx.contains("\"res://zen/zen_runtime/fonts/raylib_default_10px.tres\""),
+          "godot export: the default font path follows the copy")
+    check(tx.find("extends ") < tx.find("const ZR"), "godot export: consts come after extends")
+
+
+func test_godot_export_validate() -> void:
+    check(ZenGodotExport.clean_subdir("") == "zen", "godot export: empty subfolder is zen")
+    check(ZenGodotExport.clean_subdir(" res://a/b/ ") == "a/b", "godot export: subfolder trimmed")
+    var s := ZenGodotExport.Settings.new()
+    check(ZenGodotExport.validate(s) != "", "godot export: no target is an error")
+    s.target_dir = ProjectSettings.globalize_path("res://tools")
+    check(ZenGodotExport.validate(s).contains("project.godot"), "godot export: a folder without project.godot is refused")
+    s.target_dir = ProjectSettings.globalize_path("res://")
+    check(ZenGodotExport.validate(s) == "", "godot export: a project folder is fine")
+    s.subdir = "../out"
+    check(ZenGodotExport.validate(s) != "", "godot export: .. in the subfolder is refused")
+    s.subdir = "addons/zen"
+    check(ZenGodotExport.validate(s) != "", "godot export: the plugin's own folder is refused")
+    s.subdir = "zen"
+    check(ZenGodotExport.extends_line(s) == "extends \"res://zen/zen_runtime/runtime/zen_canvas.gd\"",
+          "godot export: standalone extends line")
+    s.mode = ZenGodotExport.Mode.PLUGIN
+    check(ZenGodotExport.extends_line(s) == "extends ZenCanvas", "godot export: plugin extends line")
+
+
+## A real export into a throwaway project: the files land, and nothing in them
+## points back into this project. (Loading them needs the target project - see
+## the README's end-to-end check.)
+func test_godot_export_files() -> void:
+    var dir := ProjectSettings.globalize_path("user://godot_export_test")
+    _rm_tree(dir)
+    DirAccess.make_dir_recursive_absolute(dir)
+    var f := FileAccess.open(dir.path_join("project.godot"), FileAccess.WRITE)
+    f.store_string("config_version=5\n")
+    f.close()
+    var s := ZenGodotExport.Settings.new()
+    s.target_dir = dir
+    var r := ZenGodotExport.export_chain(["ma_prog_01", "pause_menu"], s)
+    check(bool(r["ok"]), "godot export: standalone chain exports (%s)" % r["error"])
+    var scene := FileAccess.get_file_as_string(dir.path_join("zen/ma_prog_01.tscn"))
+    check(scene.contains("res://zen/shapes/ai_icon_128.tres"), "godot export: shapes re-pathed into the subfolder")
+    check(FileAccess.file_exists(dir.path_join("zen/shapes/ai_icon_128.tres")), "godot export: and copied")
+    check(FileAccess.file_exists(dir.path_join("zen/zen_runtime/runtime/zen_canvas.gd")), "godot export: runtime copied")
+    check(FileAccess.file_exists(dir.path_join("zen/zen_runtime/fonts/raylib_default_10px.tres")), "godot export: fonts copied")
+    check(not FileAccess.file_exists(dir.path_join("zen/zen_runtime/runtime/zen_settings.gd")), "godot export: app-only files stay home")
+    check(scene.contains("fit_window = true") and scene.contains("click_to_continue = true"),
+          "godot export: the scene ships with the F6 flags on")
+    for p in r["files"]:
+        var path := String(p)
+        if path.get_extension() in ["ttf", "otf"]: continue
+        var t := FileAccess.get_file_as_string(path)
+        # A script may still MENTION res://assets (a doc comment, the unused
+        # easings path); only a resource's own dependency would break.
+        var leaks := t.contains("res://addons/zen/") or t.contains("uid://") \
+            or (path.get_extension() != "gd" and t.contains("res://assets/"))
+        if leaks:
+            check(false, "godot export: %s still points into this project" % path)
+    var count := (r["files"] as Array).size()
+    var r2 := ZenGodotExport.export_chain(["ma_prog_01", "pause_menu"], s)
+    check((r2["files"] as Array).size() == count, "godot export: re-export rewrites the same files")
+
+    s.mode = ZenGodotExport.Mode.PLUGIN
+    s.subdir = "plug"
+    check(ZenGodotExport.validate(s) != "", "godot export: plugin mode needs the plugin or the checkbox")
+    s.install_plugin = true
+    r = ZenGodotExport.export_chain(["pause_menu"], s)
+    check(bool(r["ok"]) and FileAccess.file_exists(dir.path_join("addons/zen/plugin.cfg")),
+          "godot export: install_plugin copies the addon")
+    check(FileAccess.get_file_as_string(dir.path_join("plug/pause_menu.tscn")).contains("res://addons/zen/runtime/zen_canvas.gd"),
+          "godot export: plugin-mode scene points at the addon")
+    _rm_tree(dir)
+
+
+func _rm_tree(dir: String) -> void:
+    if not DirAccess.dir_exists_absolute(dir): return
+    for sub in DirAccess.get_directories_at(dir): _rm_tree(dir.path_join(sub))
+    for file in DirAccess.get_files_at(dir): DirAccess.remove_absolute(dir.path_join(file))
+    DirAccess.remove_absolute(dir)
