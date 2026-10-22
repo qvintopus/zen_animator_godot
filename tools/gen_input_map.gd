@@ -52,6 +52,9 @@ const ACTIONS := {
     "zen_edit_panel_3": [KEY_3],
     "zen_edit_panel_4": [KEY_4],
     "zen_edit_panel_5": [KEY_5],
+    "zen_edit_panel_6": [KEY_6],
+    "zen_edit_key_prev": [KEY_UP],
+    "zen_edit_key_next": [KEY_DOWN],
 }
 
 func _init() -> void:
@@ -69,6 +72,7 @@ func _init() -> void:
     # Checked before zen_edit_save, which a non-exact match also satisfies.
     _set_action("zen_edit_save_as", [KEY_S], true, true)
     _set_action("zen_duplicate", [KEY_D], true)
+    _set_action("zen_edit_select_all", [KEY_A], true)
     # Checked before zen_play (ENTER) for the same reason.
     _set_action("zen_edit_scene", [KEY_ENTER, KEY_KP_ENTER], true)
     _set_action("zen_edit_undo", [KEY_Z], true)

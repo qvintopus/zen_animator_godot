@@ -15,7 +15,10 @@ extends Control
 ##
 ##   ruler drag            scrub            (the playhead IS the player's)
 ##   marker drag           move intro / outro / pause markers
-##   key click / Shift     select / toggle
+##   key click / Shift     select / toggle (the hovered key is the one hit)
+##   key Alt+click         select every key at that time (a column)
+##   key double-click      activate: select, playhead to it, open the Keys panel
+##   lane label click      select every key of the lane (Shift adds)
 ##   key drag              move the selected keys (Ctrl: 0.1s grid)
 ##   empty-lane drag       box select;  a plain click there scrubs
 ##   right-click           context menu (key, lane or ruler)
@@ -30,6 +33,9 @@ signal keys_drag_ended
 signal marker_dragged(kind: String, idx: int, t: float)
 signal marker_drag_ended
 signal box_selected(keys: Array, additive: bool)
+signal lane_selected(lane: int, additive: bool)
+signal column_selected(t: float, additive: bool)
+signal key_activated(lane: int, idx: int)
 signal context_key(lane: int, idx: int, at: Vector2)
 signal context_lane(lane: int, t: float, at: Vector2)
 signal context_ruler(t: float, at: Vector2)
@@ -38,6 +44,8 @@ const LABEL_W := 132.0
 const RULER_H := 24.0
 const LANE_H := 22.0
 const KEY_R := 5.0
+## How far from a key, in x, a click still picks it (the nearest one wins).
+const HIT_X := 8.0
 const SNAP := 0.1
 
 ## [{label, keys: [{t, ease}], samples: PackedFloat32Array (0..1), lane_color}]
@@ -59,6 +67,7 @@ var _drag := ""                         # "" | scrub | keys | marker | box
 var _drag_from := Vector2.ZERO
 var _marker := ["", -1]
 var _box_add := false
+var _hover := [-1, -1]                  # [lane, idx] under the mouse
 
 
 func _ready() -> void:
@@ -66,6 +75,9 @@ func _ready() -> void:
     focus_mode = FOCUS_CLICK
     custom_minimum_size = Vector2(200, RULER_H + LANE_H * 2)
     resized.connect(func(): if _auto_fit: _fit_now())
+    mouse_exited.connect(func():
+        _hover = [-1, -1]
+        queue_redraw())
 
 
 func set_model(p_lanes: Array, p_length: float, p_intro: float, p_outro: float,
@@ -164,7 +176,11 @@ func _draw() -> void:
             var c := Vector2(t_to_x(float(k["t"])), y + LANE_H * 0.5)
             if c.x < LABEL_W - KEY_R or c.x > w + KEY_R: continue
             var sel := selection.has("%d:%d" % [i, j])
-            _diamond(c, KEY_R + (1.0 if sel else 0.0), ease_color(String(k["ease"])), sel)
+            var hov: bool = _hover[0] == i and _hover[1] == j
+            if absf(float(k["t"]) - playhead) < 1e-4:
+                draw_arc(c, KEY_R + 4.0, 0.0, TAU, 16, Color(ZenUI.TITLE, 0.6), 1.0)
+            _diamond(c, KEY_R + (1.0 if sel else 0.0) + (1.5 if hov else 0.0),
+                     ease_color(String(k["ease"])), sel or hov)
 
     # Markers on top of the lanes, in the ruler.
     # Always drawn, at 0 when unset, so it can be dragged out from the start.
@@ -190,11 +206,16 @@ func _draw() -> void:
 
     # The label column last, so lanes scrolled under it stay hidden.
     draw_rect(Rect2(0, 0, LABEL_W, h), Color(0.07, 0.075, 0.09))
+    var sel_lanes := {}
+    for id in selection: sel_lanes[int(String(id).get_slice(":", 0))] = true
     for i in lanes.size():
         var y := _lane_y(i)
         if y + LANE_H < RULER_H or y > h: continue
+        if sel_lanes.has(i):
+            draw_rect(Rect2(0, y, 3, LANE_H), ZenUI.TITLE)
         draw_string(font, Vector2(6, y + 15), String(lanes[i]["label"]),
-                    HORIZONTAL_ALIGNMENT_LEFT, LABEL_W - 10, 12, ZenUI.TEXT)
+                    HORIZONTAL_ALIGNMENT_LEFT, LABEL_W - 10, 12,
+                    ZenUI.TITLE if sel_lanes.has(i) else ZenUI.TEXT)
     draw_line(Vector2(LABEL_W, 0), Vector2(LABEL_W, h), ZenUI.DIM)
     draw_string(font, Vector2(6, 15), "%.2f / %.2fs" % [playhead, length],
                 HORIZONTAL_ALIGNMENT_LEFT, LABEL_W - 10, 12, ZenUI.TITLE)
@@ -220,15 +241,21 @@ func _marker_tri(x: float, c: Color, pointing_right: bool) -> void:
 
 # ---------------------------------------------------------------- hit tests
 
-## [lane, idx] of the key under `p`, or [-1, -1].
+## [lane, idx] of the key nearest `p` in x on the lane under it (within
+## HIT_X), or [-1, -1].
 func key_at(p: Vector2) -> Array:
-    for i in lanes.size():
-        var y := _lane_y(i) + LANE_H * 0.5
-        if absf(p.y - y) > KEY_R + 2.0: continue
-        var keys: Array = lanes[i]["keys"]
-        for j in range(keys.size() - 1, -1, -1):
-            if absf(p.x - t_to_x(float(keys[j]["t"]))) <= KEY_R + 2.0: return [i, j]
-    return [-1, -1]
+    if p.x < LABEL_W - KEY_R: return [-1, -1]
+    var i := lane_at(p.y)
+    if i < 0: return [-1, -1]
+    var keys: Array = lanes[i]["keys"]
+    var best := -1
+    var best_d := HIT_X
+    for j in keys.size():
+        var d := absf(p.x - t_to_x(float(keys[j]["t"])))
+        if d <= best_d:
+            best = j
+            best_d = d
+    return [i, best] if best >= 0 else [-1, -1]
 
 
 func lane_at(y: float) -> int:
@@ -263,6 +290,11 @@ func _gui_input(ev: InputEvent) -> void:
         accept_event()
         return
     var mm := ev as InputEventMouseMotion
+    if mm != null and _drag == "":
+        var hk := key_at(mm.position)
+        if hk != _hover:
+            _hover = hk
+            queue_redraw()
     if mm != null and _drag != "":
         var snap := mm.ctrl_pressed
         match _drag:
@@ -312,7 +344,10 @@ func _on_button(mb: InputEventMouseButton) -> void:
         return
     grab_focus()
     _drag_from = mb.position
-    if mb.position.x < LABEL_W: return
+    if mb.position.x < LABEL_W:
+        if lane_at(mb.position.y) >= 0:
+            lane_selected.emit(lane_at(mb.position.y), mb.shift_pressed or mb.ctrl_pressed)
+        return
     var m := marker_at(mb.position)
     if m[0] != "":
         _drag = "marker"
@@ -325,6 +360,12 @@ func _on_button(mb: InputEventMouseButton) -> void:
     var k := key_at(mb.position)
     if k[0] >= 0:
         var additive := mb.shift_pressed or mb.ctrl_pressed
+        if mb.double_click:
+            key_activated.emit(k[0], k[1])
+            return
+        if mb.alt_pressed:
+            column_selected.emit(float(lanes[k[0]]["keys"][k[1]]["t"]), additive)
+            return
         key_pressed.emit(k[0], k[1], additive)
         if not additive or selection.has("%d:%d" % [k[0], k[1]]):
             _drag = "keys"

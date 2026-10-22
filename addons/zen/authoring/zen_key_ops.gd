@@ -331,18 +331,53 @@ static func set_ease(canvas: ZenCanvas, el: ZenElement, prop: String, i: int,
 ## Move key `i` to `t`, clamped between its neighbours: a drag never reorders
 ## keys, so a segment's identity (and its ease) is never handed to another.
 static func move(canvas: ZenCanvas, el: ZenElement, prop: String, i: int, t: float) -> int:
-    var anim := anim_of(canvas)
-    if ZenProps.is_stepped(prop): return _stepped_move(canvas, el, prop, i, t)
-    var model := _read(anim, el, prop)
-    if i < 0 or i >= model.size(): return -1
-    var lo := float(model[i - 1]["t"]) + STEP if i > 0 else 0.0
-    var hi := float(model[i + 1]["t"]) - STEP if i + 1 < model.size() else anim.length
-    model[i]["t"] = clampf(t, lo, maxf(lo, hi))
-    for ch in model[i]["ch"]: ch["fit"] = []      # rebaked below
-    _mark(model, i)
-    _mark(model, i + 1)
-    _write(canvas, el, prop, model)
+    var n := keys(canvas, el, prop).size()
+    if i < 0 or i >= n: return -1
+    set_times(canvas, el, prop, [i], [t])
     return i
+
+
+## Move keys `idxs` to `times` in one read and one write, each clamped between
+## its neighbours as in move(). Keys moving right go rightmost first and keys
+## moving left leftmost first, so none is clamped against a selected neighbour
+## that is about to move out of its way.
+static func set_times(canvas: ZenCanvas, el: ZenElement, prop: String, idxs: Array,
+                      times: Array) -> void:
+    var anim := anim_of(canvas)
+    if anim == null or idxs.is_empty(): return
+    var cur: Array = []                   # current times, kept up to date
+    var model: Array = []
+    var tr := -1
+    if ZenProps.is_stepped(prop):
+        tr = _track(anim, channel_paths(el, prop)[0])
+        if tr < 0: return
+        for i in anim.track_get_key_count(tr): cur.append(anim.track_get_key_time(tr, i))
+    else:
+        model = _read(anim, el, prop)
+        for k in model: cur.append(float(k["t"]))
+    var moves: Array = []                 # [idx, t]
+    for j in idxs.size():
+        var i := int(idxs[j])
+        if i >= 0 and i < cur.size(): moves.append([i, float(times[j])])
+    moves.sort_custom(func(a, b):
+        var ra: bool = a[1] > cur[a[0]]
+        var rb: bool = b[1] > cur[b[0]]
+        if ra != rb: return ra            # right-movers first; they never meet left-movers
+        return a[0] > b[0] if ra else a[0] < b[0])
+    for m in moves:
+        var i: int = m[0]
+        var lo := float(cur[i - 1]) + STEP if i > 0 else 0.0
+        var hi := float(cur[i + 1]) - STEP if i + 1 < cur.size() else anim.length
+        cur[i] = clampf(m[1], lo, maxf(lo, hi))
+        if tr >= 0:
+            anim.track_set_key_time(tr, i, cur[i])
+            continue
+        model[i]["t"] = cur[i]
+        for ch in model[i]["ch"]: ch["fit"] = []  # rebaked below
+        _mark(model, i)
+        _mark(model, i + 1)
+    if tr >= 0: canvas.timeline_dirty()
+    else: _write(canvas, el, prop, model)
 
 
 static func remove(canvas: ZenCanvas, el: ZenElement, prop: String, i: int) -> int:
@@ -416,16 +451,3 @@ static func _stepped_insert(canvas: ZenCanvas, el: ZenElement, prop: String, t: 
     else: at = anim.track_insert_key(tr, t, v)
     canvas.timeline_dirty()
     return at
-
-
-static func _stepped_move(canvas: ZenCanvas, el: ZenElement, prop: String, i: int,
-                          t: float) -> int:
-    var anim := anim_of(canvas)
-    var tr := _track(anim, channel_paths(el, prop)[0])
-    var n := anim.track_get_key_count(tr)
-    if tr < 0 or i < 0 or i >= n: return -1
-    var lo := anim.track_get_key_time(tr, i - 1) + STEP if i > 0 else 0.0
-    var hi := anim.track_get_key_time(tr, i + 1) - STEP if i + 1 < n else anim.length
-    anim.track_set_key_time(tr, i, clampf(t, lo, maxf(lo, hi)))
-    canvas.timeline_dirty()
-    return i

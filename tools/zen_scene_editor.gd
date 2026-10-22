@@ -64,13 +64,16 @@ var _sel: Array[String] = []            ## selected elem_names, in pick order
 var _t := 0.0                           ## the playhead
 var _playing := false
 var _autokey := false
-var _key_sel: Dictionary = {}           ## "lane:idx" -> true
+## "node|prop|idx" -> true. Not lane-based: keying a new prop inserts a lane
+## and would shift every lane index below it.
+var _key_sel: Dictionary = {}
+var _keys_dismissed := false            ## Keys panel closed while keys stay picked
 var _lanes: Array = []                  ## [{elem, prop}] parallel to the timeline's lanes
 var _live_before: PackedScene = null
 var _live_label := ""
 var _live_timer: Timer
 var _drag_from: Dictionary = {}         ## elem_name -> pos_frac at drag start
-var _key_drag: Array = []               ## [[lane, idx, t0]]
+var _key_drag: Array = []               ## [[lane_id, idx, t0]]
 var _slide := 0.0                       ## 0 panels shown .. 1 slid away (playback)
 var _slide_tween: Tween
 var _syncing := false
@@ -90,6 +93,8 @@ var _p_insp: ZenEditorPanel
 var _p_doc: ZenEditorPanel
 var _p_tl: ZenEditorPanel
 var _p_str: ZenEditorPanel
+var _p_keys: ZenEditorPanel
+var _keys: ZenKeyPanel
 var _str_list: ItemList
 var _str_edit: TextEdit
 var _str_info: Label
@@ -300,7 +305,7 @@ func _build_ui() -> void:
     bar.add_child(_menu)
     _build_menus()
     for spec in [["elements", "1"], ["inspector", "2"], ["document", "3"], ["timeline", "4"],
-                 ["strings", "5"]]:
+                 ["strings", "5"], ["keys", "6"]]:
         var b := ZenEditorPanel._tool_button(spec[0], "Show / hide the %s panel (%s)" % spec)
         b.flat = false
         b.toggle_mode = true
@@ -355,6 +360,8 @@ func _build_ui() -> void:
     _build_timeline(_p_tl.body)
     _p_str = _add_panel("strings", "Strings", ZenEditorPanel.Edge.LEFT, 260)
     _build_strings(_p_str.body)
+    _p_keys = _add_panel("keys", "Keys", ZenEditorPanel.Edge.RIGHT, 330)
+    _build_keys(_p_keys.body)
 
     _status = ZenUI.label("", ZenUI.TEXT)
     _status.clip_text = true
@@ -395,7 +402,7 @@ func _build_menus() -> void:
     _menu.add_child(_popup("View", [
         ["Elements", _toggle_panel.bind("elements")], ["Inspector", _toggle_panel.bind("inspector")],
         ["Document", _toggle_panel.bind("document")], ["Timeline", _toggle_panel.bind("timeline")],
-        ["Strings", _toggle_panel.bind("strings")],
+        ["Strings", _toggle_panel.bind("strings")], ["Keys", _toggle_panel.bind("keys")],
         [], ["Fit timeline", func(): _tl.fit()], ["Unpin all panels", _unpin_all]]))
 
 
@@ -516,8 +523,8 @@ func _build_timeline(p: VBoxContainer) -> void:
         b.flat = false
         b.pressed.connect(spec[2])
         bar.add_child(b)
-    bar.add_child(ZenUI.label("  drag keys (Ctrl snaps)   right-click for ease / markers   Ctrl+wheel zoom",
-        ZenUI.DIM, 11))
+    bar.add_child(ZenUI.label("  drag keys (Ctrl snaps)   double-click: edit   Alt+click: column   "
+        + "label: whole lane   Up/Down: next key   Ctrl+wheel zoom", ZenUI.DIM, 11))
     _tl = ZenTimelineView.new()
     _tl.size_flags_vertical = SIZE_EXPAND_FILL
     _tl.scrubbed.connect(_scrub_to)
@@ -529,6 +536,9 @@ func _build_timeline(p: VBoxContainer) -> void:
     _tl.marker_drag_ended.connect(_commit_live)
     _tl.box_selected.connect(_on_box_selected)
     _tl.context_key.connect(_on_context_key)
+    _tl.lane_selected.connect(_on_lane_selected)
+    _tl.column_selected.connect(_on_column_selected)
+    _tl.key_activated.connect(_on_key_activated)
     _tl.context_lane.connect(_on_context_lane)
     _tl.context_ruler.connect(_on_context_ruler)
     p.add_child(_tl)
@@ -728,6 +738,7 @@ func _close_unpinned() -> bool:
 
 
 func _on_panel_state(p: ZenEditorPanel) -> void:
+    if p == _p_keys and not p.is_open and not _key_sel.is_empty(): _keys_dismissed = true
     var b: Button = _panel_btns.get(p.panel_id)
     if b != null: b.set_pressed_no_signal(p.is_open)
     var st := ZenSettings.editor_state()
@@ -1291,16 +1302,17 @@ func _refresh_timeline() -> void:
                     "lane_color": ZenUI.LABEL})
                 _lanes.append({"node": String(node.name), "prop": prop})
     # Drop selected keys that no longer exist.
-    for k in _key_sel.keys():
-        var parts := String(k).split(":")
-        var li := int(parts[0])
-        if li >= lanes.size() or int(parts[1]) >= (lanes[li]["keys"] as Array).size():
-            _key_sel.erase(k)
-    _tl.selection = _key_sel
+    for id in _key_sel.keys():
+        var p := ZenKeyPanel.split_id(id)
+        var li := _lane_index(p[0])
+        if li < 0 or p[1] >= (lanes[li]["keys"] as Array).size(): _key_sel.erase(id)
+    if _key_sel.is_empty(): _keys_dismissed = false
+    _tl.selection = _view_selection()
     _tl.playhead = _t
     _tl.set_model(lanes, ZenKeyOps.anim_of(_canvas).length, _canvas.intro_end,
                   _canvas.outro_start, _canvas.pauses)
     _sync_time()
+    _refresh_keys()
 
 
 func _samples(node: ZenElement, prop: String) -> PackedFloat32Array:
@@ -1342,6 +1354,7 @@ func _scrub_to(t: float) -> void:
     _tl.queue_redraw()
     _refresh_inspector_values()
     _sync_time()
+    _refresh_keys()
 
 
 func _sync_time() -> void:
@@ -1349,73 +1362,340 @@ func _sync_time() -> void:
         _time.text = "%.2f / %.2fs" % [_t, _canvas.duration]
 
 
-func _on_key_pressed(lane: int, idx: int, additive: bool) -> void:
-    var id := "%d:%d" % [lane, idx]
-    if additive:
-        if _key_sel.has(id): _key_sel.erase(id)
-        else: _key_sel[id] = true
-    elif not _key_sel.has(id):
-        _key_sel.clear()
-        _key_sel[id] = true
-    _tl.selection = _key_sel
+# ---------------------------------------------------------------- key selection
+#
+# A selected key is "node|prop|idx" (ZenKeyPanel.split_id splits it); a lane
+# id is "node|prop". The timeline view still speaks "lane:idx", translated by
+# _view_selection().
+
+func _lane_id(lane: int) -> String:
+    return "%s|%s" % [_lanes[lane]["node"], _lanes[lane]["prop"]]
+
+
+func _sel_id(lane: int, idx: int) -> String:
+    return "%s|%d" % [_lane_id(lane), idx]
+
+
+func _lane_index(lane_id: String) -> int:
+    for i in _lanes.size():
+        if _lane_id(i) == lane_id: return i
+    return -1
+
+
+func _id_node(lane_id: String) -> ZenElement:
+    return _canvas.get_node_or_null(NodePath(lane_id.rsplit("|", true, 1)[0])) as ZenElement
+
+
+static func _id_prop(lane_id: String) -> String:
+    return lane_id.rsplit("|", true, 1)[1]
+
+
+func _view_selection() -> Dictionary:
+    var out := {}
+    for id in _key_sel:
+        var p := ZenKeyPanel.split_id(id)
+        var li := _lane_index(p[0])
+        if li >= 0: out["%d:%d" % [li, p[1]]] = true
+    return out
+
+
+## Selected keys grouped by lane: lane_id -> [idx ascending].
+func _selected_keys() -> Dictionary:
+    var out := {}
+    for id in _key_sel:
+        var p := ZenKeyPanel.split_id(id)
+        if not out.has(p[0]): out[p[0]] = []
+        (out[p[0]] as Array).append(p[1])
+    for lane_id in out: (out[lane_id] as Array).sort()
+    return out
+
+
+## Pick `ids`. Additive adds them - or, for one id already picked, drops it.
+func _select_ids(ids: Array, additive: bool) -> void:
+    if not additive: _key_sel.clear()
+    if additive and ids.size() == 1 and _key_sel.has(ids[0]): _key_sel.erase(ids[0])
+    else:
+        for id in ids: _key_sel[id] = true
+    _after_key_sel()
+
+
+## The selection changed: show it, and summon the Keys panel for it unless
+## it was closed while these keys were picked.
+func _after_key_sel() -> void:
+    if _key_sel.is_empty(): _keys_dismissed = false
+    elif not _p_keys.is_open and not _keys_dismissed: _toggle_panel("keys")
+    _tl.selection = _view_selection()
     _tl.queue_redraw()
+    _refresh_keys()
+
+
+func _on_key_pressed(lane: int, idx: int, additive: bool) -> void:
+    var id := _sel_id(lane, idx)
+    if additive or not _key_sel.has(id): _select_ids([id], additive)
     var k: Dictionary = (_tl.lanes[lane]["keys"] as Array)[idx]
     _set_status("%s  key %d  t %.3f  ease %s" % [_lane_prop(lane), idx, float(k["t"]), String(k["ease"])])
 
 
 func _on_box_selected(keys: Array, additive: bool) -> void:
+    var ids: Array = []
+    for k in keys: ids.append(_sel_id(k[0], k[1]))
     if not additive: _key_sel.clear()
-    for k in keys: _key_sel["%d:%d" % [k[0], k[1]]] = true
-    _tl.selection = _key_sel
-    _tl.queue_redraw()
+    for id in ids: _key_sel[id] = true
+    _after_key_sel()
 
 
-## Selected keys grouped by lane: lane -> [idx ascending].
-func _selected_keys() -> Dictionary:
-    var out := {}
-    for k in _key_sel:
-        var parts := String(k).split(":")
-        var lane := int(parts[0])
-        if not out.has(lane): out[lane] = []
-        (out[lane] as Array).append(int(parts[1]))
-    for lane in out: (out[lane] as Array).sort()
+func _lane_ids(lane: int) -> Array:
+    var ids: Array = []
+    for j in (_tl.lanes[lane]["keys"] as Array).size(): ids.append(_sel_id(lane, j))
+    return ids
+
+
+func _on_lane_selected(lane: int, additive: bool) -> void:
+    if not additive: _key_sel.clear()
+    for id in _lane_ids(lane): _key_sel[id] = true
+    _after_key_sel()
+
+
+## Every visible key at `t`.
+func _column_ids(t: float) -> Array:
+    var ids: Array = []
+    for i in _tl.lanes.size():
+        var ks: Array = _tl.lanes[i]["keys"]
+        for j in ks.size():
+            if absf(float(ks[j]["t"]) - t) < 1e-4: ids.append(_sel_id(i, j))
+    return ids
+
+
+func _on_column_selected(t: float, additive: bool) -> void:
+    if not additive: _key_sel.clear()
+    for id in _column_ids(t): _key_sel[id] = true
+    _after_key_sel()
+
+
+func _on_key_activated(lane: int, idx: int) -> void:
+    _keys_dismissed = false
+    _select_ids([_sel_id(lane, idx)], false)
+    if not _p_keys.is_open: _toggle_panel("keys")
+    _scrub_to(float((_tl.lanes[lane]["keys"] as Array)[idx]["t"]))
+
+
+func _select_all_keys() -> void:
+    _key_sel.clear()
+    for i in _tl.lanes.size():
+        for id in _lane_ids(i): _key_sel[id] = true
+    _after_key_sel()
+
+
+func _clear_keys() -> void:
+    _key_sel.clear()
+    _after_key_sel()
+
+
+## Playhead to the previous / next key time of any visible lane, picking the
+## keys there - stepping through keys without aiming at a diamond.
+func _jump_key(dir: int) -> void:
+    var best := INF if dir > 0 else -INF
+    for ln in _tl.lanes:
+        for k in ln["keys"]:
+            var t := float(k["t"])
+            if dir > 0 and t > _t + 1e-4: best = minf(best, t)
+            elif dir < 0 and t < _t - 1e-4: best = maxf(best, t)
+    if is_inf(best): return
+    _scrub_to(best)
+    _key_sel.clear()
+    for id in _column_ids(best): _key_sel[id] = true
+    _after_key_sel()
+
+
+# ---------------------------------------------------------------- Keys panel
+
+func _build_keys(p: VBoxContainer) -> void:
+    _keys = ZenKeyPanel.new()
+    _keys.select_requested.connect(_select_ids)
+    _keys.seek_requested.connect(_scrub_to)
+    _keys.time_shift.connect(_shift_keys)
+    _keys.time_stretch.connect(_stretch_keys)
+    _keys.value_set.connect(_set_key_values)
+    _keys.ease_set.connect(_set_ease)
+    _keys.delete_requested.connect(_delete_keys)
+    _keys.duplicate_requested.connect(_copy_keys_to_playhead)
+    _keys.key_here_requested.connect(_key_lanes_here)
+    _keys.step_requested.connect(_step_keys)
+    p.add_child(_keys)
+
+
+func _refresh_keys() -> void:
+    if _keys == null or _canvas == null: return
+    var lanes: Array = []
+    var strings: Array = []
+    for i in _lanes.size():
+        var prop := _lane_prop(i)
+        var ln := {"id": _lane_id(i), "label": _tl.lanes[i]["label"], "prop": prop,
+                   "keys": _tl.lanes[i]["keys"], "range": RANGES.get(prop, [-1000.0, 1000.0, 0.01])}
+        if prop == "string":
+            if strings.is_empty(): strings = _string_choices()
+            ln["strings"] = strings
+        lanes.append(ln)
+    _keys.set_model(lanes, _key_sel, _t, _key_preview())
+
+
+## [[idx, label]] for every pool entry a key can switch to (holes skipped).
+func _string_choices() -> Array:
+    var pool := ZenStringOps.pool(_canvas)
+    var use := ZenStringOps.usage(_canvas)
+    var holes := ZenStringOps.holes(_canvas)
+    var out: Array = []
+    for i in pool.entries.size():
+        if not holes.has(i): out.append([i, _string_label(i, pool.at(i), int(use.get(i, 0)))])
     return out
+
+
+## One selected key: its real incoming segment, 0 at the previous key's value
+## and 1 at its own, sampled from what plays. Colours follow the channel that
+## changes most.
+func _key_preview() -> Dictionary:
+    if _key_sel.size() != 1: return {}
+    var p := ZenKeyPanel.split_id(_key_sel.keys()[0])
+    var node := _id_node(p[0])
+    var prop := _id_prop(p[0])
+    if node == null or p[1] == 0 or ZenProps.is_stepped(prop): return {}
+    var ks := ZenKeyOps.keys(_canvas, node, prop)
+    if p[1] >= ks.size(): return {}
+    var t0 := float(ks[p[1] - 1]["t"])
+    var t1 := float(ks[p[1]]["t"])
+    var ch := 0
+    if ZenProps.is_color(prop):
+        var a: Color = ks[p[1] - 1]["v"]
+        var b: Color = ks[p[1]]["v"]
+        var d := [absf(b.r - a.r), absf(b.g - a.g), absf(b.b - a.b)]
+        ch = d.find(d.max())
+    var at := func(t: float) -> float:
+        if ZenProps.is_color(prop): return node.plain_prop_color(prop, t, node.base_color(prop), 1.0)[ch]
+        return node.plain_prop(prop, t, node.base_scalar(prop))
+    var v0: float = at.call(t0)
+    var v1: float = at.call(t1)
+    if absf(v1 - v0) < 1e-6: return {}
+    var out := PackedFloat32Array()
+    for i in 41:
+        out.append((float(at.call(lerpf(t0, t1, float(i) / 40.0))) - v0) / (v1 - v0))
+    return {"samples": out}
+
+
+## Move every selected key to fn(its time), one set_times per prop.
+func _retime_keys(fn: Callable) -> void:
+    var by_lane := _selected_keys()
+    if by_lane.is_empty(): return
+    _live("move keys", func():
+        for lane_id in by_lane:
+            var node := _id_node(lane_id)
+            if node == null: continue
+            var prop := _id_prop(lane_id)
+            var ks := ZenKeyOps.keys(_canvas, node, prop)
+            var idxs: Array = by_lane[lane_id]
+            var times: Array = idxs.map(func(i): return fn.call(float(ks[i]["t"])))
+            ZenKeyOps.set_times(_canvas, node, prop, idxs, times))
+
+
+func _shift_keys(dt: float) -> void:
+    _retime_keys(func(t): return t + dt)
+
+
+func _stretch_keys(f: float) -> void:
+    var t0 := INF
+    for lane_id in _selected_keys():
+        var node := _id_node(lane_id)
+        if node == null: continue
+        var ks := ZenKeyOps.keys(_canvas, node, _id_prop(lane_id))
+        for i in _selected_keys()[lane_id]: t0 = minf(t0, float(ks[i]["t"]))
+    if is_inf(t0): return
+    _retime_keys(func(t): return t0 + (t - t0) * f)
+
+
+## One value for every selected key of `lane_id`. Stepped values (a pool
+## entry, a shape) are a pick, not a drag: one undo step each.
+func _set_key_values(lane_id: String, v: Variant) -> void:
+    var node := _id_node(lane_id)
+    var idxs: Array = _selected_keys().get(lane_id, [])
+    if node == null or idxs.is_empty(): return
+    var prop := _id_prop(lane_id)
+    var fn := func():
+        for i in idxs: ZenKeyOps.set_value(_canvas, node, prop, i, v)
+    if prop == "string": _command("%s key value" % prop, fn)
+    else: _live("%s %s key value" % [node.elem_name, prop], fn)
+
+
+## Key each selected prop at the playhead with what plays there, and pick the
+## new keys.
+func _key_lanes_here() -> void:
+    var by_lane := _selected_keys()
+    if by_lane.is_empty(): return
+    var picked: Array = []
+    _command("key at %.2fs" % _t, func():
+        for lane_id in by_lane:
+            var node := _id_node(lane_id)
+            if node == null: continue
+            var prop := _id_prop(lane_id)
+            if ZenKeyOps.key_at(_canvas, node, prop, _t) >= 0: continue
+            var v: Variant = node.plain_prop_color(prop, _t, node.base_color(prop), 1.0) \
+                if ZenProps.is_color(prop) else node.plain_prop(prop, _t, node.base_scalar(prop))
+            picked.append("%s|%d" % [lane_id, ZenKeyOps.insert(_canvas, node, prop, _t, v)]))
+    if not picked.is_empty(): _select_ids(picked, false)
+
+
+## Each selected key hands its place to its neighbour along its lane.
+func _step_keys(dir: int) -> void:
+    var by_lane := _selected_keys()
+    var ids: Array = []
+    var first := INF
+    for lane_id in by_lane:
+        var li := _lane_index(lane_id)
+        if li < 0: continue
+        var ks: Array = _tl.lanes[li]["keys"]
+        for i in by_lane[lane_id]:
+            var j := clampi(int(i) + dir, 0, ks.size() - 1)
+            var id := "%s|%d" % [lane_id, j]
+            if not ids.has(id): ids.append(id)
+            first = minf(first, float(ks[j]["t"]))
+    if ids.is_empty(): return
+    _select_ids(ids, false)
+    _scrub_to(first)
 
 
 func _on_keys_drag_start() -> void:
     _key_drag.clear()
-    for k in _key_sel:
-        var parts := String(k).split(":")
-        var lane := int(parts[0])
-        var idx := int(parts[1])
-        _key_drag.append([lane, idx, float((_tl.lanes[lane]["keys"] as Array)[idx]["t"])])
+    for id in _key_sel:
+        var p := ZenKeyPanel.split_id(id)
+        var li := _lane_index(p[0])
+        if li < 0: continue
+        _key_drag.append([p[0], p[1], float((_tl.lanes[li]["keys"] as Array)[p[1]]["t"])])
 
 
 func _on_keys_dragged(dt: float, snap: bool) -> void:
     if _key_drag.is_empty(): return
-    # Moving right, the rightmost key goes first (and left, the leftmost), so
-    # a key is never clamped against a selected neighbour that is about to
-    # move out of its way.
-    var order := _key_drag.duplicate()
-    order.sort_custom(func(a, b): return a[2] > b[2] if dt > 0.0 else a[2] < b[2])
+    var by_lane := {}                   # lane_id -> [[idx], [t]]
+    for d in _key_drag:
+        var t: float = d[2] + dt
+        if snap: t = roundf(t / ZenTimelineView.SNAP) * ZenTimelineView.SNAP
+        if not by_lane.has(d[0]): by_lane[d[0]] = [[], []]
+        by_lane[d[0]][0].append(d[1])
+        by_lane[d[0]][1].append(t)
     _live("move keys", func():
-        for d in order:
-            var node := _lane_node(d[0])
+        for lane_id in by_lane:
+            var node := _id_node(lane_id)
             if node == null: continue
-            var t: float = d[2] + dt
-            if snap: t = roundf(t / ZenTimelineView.SNAP) * ZenTimelineView.SNAP
-            ZenKeyOps.move(_canvas, node, _lane_prop(d[0]), d[1], t))
+            ZenKeyOps.set_times(_canvas, node, _id_prop(lane_id), by_lane[lane_id][0], by_lane[lane_id][1]))
 
 
 func _delete_keys() -> void:
     var by_lane := _selected_keys()
     if by_lane.is_empty(): return
     _command("delete %d key%s" % [_key_sel.size(), "" if _key_sel.size() == 1 else "s"], func():
-        for lane in by_lane:
-            var node := _lane_node(lane)
-            var idxs: Array = by_lane[lane]
+        for lane_id in by_lane:
+            var node := _id_node(lane_id)
+            if node == null: continue
+            var idxs: Array = by_lane[lane_id]
             for j in range(idxs.size() - 1, -1, -1):
-                ZenKeyOps.remove(_canvas, node, _lane_prop(lane), idxs[j]))
+                ZenKeyOps.remove(_canvas, node, _id_prop(lane_id), idxs[j]))
     _key_sel.clear()
     _refresh_timeline()
 
@@ -1448,12 +1728,8 @@ func _ctx_show(at: Vector2) -> void:
 
 
 func _on_context_key(lane: int, idx: int, at: Vector2) -> void:
-    var id := "%d:%d" % [lane, idx]
-    if not _key_sel.has(id):
-        _key_sel.clear()
-        _key_sel[id] = true
-        _tl.selection = _key_sel
-        _tl.queue_redraw()
+    var id := _sel_id(lane, idx)
+    if not _key_sel.has(id): _select_ids([id], false)
     _ctx_begin()
     _ctx_ease.clear()
     var names: Array = ZenEasing.all_names().duplicate()
@@ -1462,6 +1738,12 @@ func _on_context_key(lane: int, idx: int, at: Vector2) -> void:
     for c in _ctx_ease.id_pressed.get_connections(): _ctx_ease.id_pressed.disconnect(c["callable"])
     _ctx_ease.id_pressed.connect(func(i): _set_ease(String(names[i])))
     _ctx.add_submenu_node_item("ease (incoming)", _ctx_ease)
+    _ctx_add("edit in Keys panel", func():
+        _keys_dismissed = false
+        if not _p_keys.is_open: _toggle_panel("keys"))
+    _ctx_add("select all at this time", func():
+        _on_column_selected(float((_tl.lanes[lane]["keys"] as Array)[idx]["t"]), false))
+    _ctx_add("select lane", _on_lane_selected.bind(lane, false))
     _ctx_add("delete key", _delete_keys)
     _ctx_add("copy key to playhead", _copy_keys_to_playhead)
     _ctx_add("playhead to key", func():
@@ -1472,9 +1754,11 @@ func _on_context_key(lane: int, idx: int, at: Vector2) -> void:
 func _set_ease(ease: String) -> void:
     var by_lane := _selected_keys()
     _command("ease %s" % ease, func():
-        for lane in by_lane:
-            for j in by_lane[lane]:
-                ZenKeyOps.set_ease(_canvas, _lane_node(lane), _lane_prop(lane), j, ease))
+        for lane_id in by_lane:
+            var node := _id_node(lane_id)
+            if node == null: continue
+            for j in by_lane[lane_id]:
+                ZenKeyOps.set_ease(_canvas, node, _id_prop(lane_id), j, ease))
 
 
 ## The C editor's "clone key to playhead": each selected key's value, keyed
@@ -1482,11 +1766,12 @@ func _set_ease(ease: String) -> void:
 func _copy_keys_to_playhead() -> void:
     var by_lane := _selected_keys()
     _command("copy keys to %.2fs" % _t, func():
-        for lane in by_lane:
-            var node := _lane_node(lane)
-            var prop := _lane_prop(lane)
+        for lane_id in by_lane:
+            var node := _id_node(lane_id)
+            if node == null: continue
+            var prop := _id_prop(lane_id)
             var ks := ZenKeyOps.keys(_canvas, node, prop)
-            var idxs: Array = by_lane[lane]
+            var idxs: Array = by_lane[lane_id]
             var k: Dictionary = ks[idxs[0]]
             ZenKeyOps.insert(_canvas, node, prop, _t, k["v"], String(k["ease"])))
 
@@ -1733,7 +2018,13 @@ func _show_help() -> void:
         ["zen_edit_autokey", "auto-key on / off"],
         ["zen_edit_panel_1", "elements panel"], ["zen_edit_panel_2", "inspector"],
         ["zen_edit_panel_3", "document"], ["zen_edit_panel_4", "timeline"],
-        ["zen_edit_panel_5", "string pool"],
+        ["zen_edit_panel_5", "string pool"], ["zen_edit_panel_6", "keys panel"],
+        ["zen_edit_key_prev", "playhead to the previous key (picks the keys there)"],
+        ["zen_edit_key_next", "playhead to the next key (picks the keys there)"],
+        ["zen_edit_select_all", "select every key on the timeline"],
+        ["double-click a key", "edit it in the Keys panel"],
+        ["Alt+click a key", "select every key at that time"],
+        ["click a lane label", "select the lane's keys (Shift adds)"],
         ["click / Shift+click", "select / add an element on the canvas"],
         ["drag", "move the selection (Shift: lock to an axis)"],
         ["zen_delete", "delete the selected keys, else the selected elements"],
@@ -1742,7 +2033,7 @@ func _show_help() -> void:
         ["zen_edit_fit", "fit the timeline"],
         ["zen_edit_undo", "undo"], ["zen_edit_redo", "redo"],
         ["zen_edit_save", "save"], ["zen_edit_save_as", "save as"],
-        ["zen_back", "close a floating panel, then back to the gallery"]])
+        ["zen_back", "close a floating panel, then drop the key selection, then back"]])
 
 
 ## Editor keys are named InputMap actions (tools/gen_input_map.gd), taken only
@@ -1759,7 +2050,9 @@ func _unhandled_input(ev: InputEvent) -> void:
     if ev.is_action_pressed("zen_help"):
         if not echo: _show_help()
     elif ev.is_action_pressed("zen_back"):
-        if not echo and not _close_unpinned(): _request_leave()
+        if echo or _close_unpinned(): pass
+        elif not _key_sel.is_empty(): _clear_keys()
+        else: _request_leave()
     elif ev.is_action_pressed("zen_edit_redo", true): _do_redo()
     elif ev.is_action_pressed("zen_edit_undo", true): _do_undo()
     elif ev.is_action_pressed("zen_edit_save_as"):
@@ -1768,6 +2061,8 @@ func _unhandled_input(ev: InputEvent) -> void:
         if not echo: _save()
     elif ev.is_action_pressed("zen_duplicate"):
         if not echo: _duplicate_elements()
+    elif ev.is_action_pressed("zen_edit_select_all"):
+        if not echo: _select_all_keys()
     elif (ev as InputEventKey).ctrl_pressed: pass
     elif ev.is_action_pressed("zen_play"):
         if not echo: _toggle_play()
@@ -1783,8 +2078,10 @@ func _unhandled_input(ev: InputEvent) -> void:
     elif ev.is_action_pressed("zen_edit_frame_prev", true): _scrub_to(_t - FRAME)
     elif ev.is_action_pressed("zen_edit_frame_next", true): _scrub_to(_t + FRAME)
     elif ev.is_action_pressed("zen_edit_fit"): _tl.fit()
+    elif ev.is_action_pressed("zen_edit_key_prev", true): _jump_key(-1)
+    elif ev.is_action_pressed("zen_edit_key_next", true): _jump_key(1)
     else:
-        var ids := ["elements", "inspector", "document", "timeline", "strings"]
+        var ids := ["elements", "inspector", "document", "timeline", "strings", "keys"]
         for i in ids.size():
             if ev.is_action_pressed("zen_edit_panel_%d" % (i + 1)):
                 if not echo: _toggle_panel(ids[i])

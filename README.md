@@ -56,11 +56,19 @@ a second copy of the data:
   from the `zen` Animation. Scrubbing seeks that player, and every key edit lands in it.
 - **The Elements panel is the node tree.** Add, delete, reorder (drag, or up/down) and
   rename are node operations, and **Save** packs that same tree.
-- **Panels are summoned.** Elements, Inspector, Document, Timeline and Strings stay hidden
-  until opened from the top bar, the View menu or **1-5**. Unpinned, a panel floats and
+- **Panels are summoned.** Elements, Inspector, Document, Timeline, Strings and Keys stay
+  hidden until opened from the top bar, the View menu or **1-6**. Unpinned, a panel floats and
   auto-hides (ESC, a click on empty canvas, another panel on its side). Pinned, it stays
   and the canvas makes room. While playing, the unpinned ones slide away and a pinned
   one stays (a pinned Timeline shows the playhead running).
+
+**Keys** are picked on the timeline (click, Shift-click, box, **Alt+click** for every key at
+that time, a lane label for the whole lane, **Up/Down** to step the playhead key to key,
+**Ctrl+A** for all) or from the Keys panel's list, which shows every key of the visible lanes
+as time / value / ease. Picking summons the **Keys** panel (**6**): time, value per prop and
+the incoming ease (a grid of curve thumbnails) for one key or many - a field shows the
+shared value or *mixed*, and an edit writes every picked key as one undo step. Time moves
+the pick as a block; stretch scales its gaps. Double-click a key to jump the playhead to it.
 
 SPACE plays from the playhead, or from 0 once the end is reached; a click on the canvas
 (or SPACE) continues playback held at a pause marker, in the editor and the gallery.
@@ -314,6 +322,7 @@ tools/                 zen_gallery.gd, zen_options.gd (font picker), zen_shape_e
                        zen_scene_editor.gd/.tscn + zen_editor_panel.gd (summoned, pinnable
                        panels) + zen_editor_stage.gd (canvas view, picking) +
                        zen_timeline_view.gd (the AnimationPlayer as a timeline),
+                       zen_key_panel.gd + zen_ease_graph.gd (the Keys panel),
                        zen_export.gd (the
                        engine: plan_chain + Job), zen_export_dialog.gd/.tscn (the Export
                        screen, E / Ctrl+E), export_scene.tscn (CLI door onto the same

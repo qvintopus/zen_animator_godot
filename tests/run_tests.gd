@@ -110,6 +110,8 @@ func _run() -> void:
     test_key_ops_rebake()
     test_key_ops_raw_segments()
     test_key_ops_color_and_stepped()
+    test_key_set_times()
+    test_key_set_times_keeps_raw()
     test_elem_ops()
     test_doc_ops()
     test_scene_ops_roundtrip()
@@ -2733,6 +2735,66 @@ func test_key_ops_color_and_stepped() -> void:
     c.free()
 
 
+## Several keys of one prop move in one write: in order, each keeping its
+## ease, clamped only against neighbours that are not moving with it.
+func test_key_set_times() -> void:
+    var keys := [_k(0.0, 0.0), _k(0.5, 1.0, "elasticOut"), _k(1.0, 0.0, "bounceOut"), _k(1.8, 0.5, "sineInOut")]
+    var c := _authoring_canvas({"pos_x": keys.duplicate(true)})
+    var el: ZenElement = c.get_node("box")
+    # Keys 1 and 2 right by 0.4: key 2 passes key 1's old time, which a
+    # left-to-right order would have clamped.
+    ZenKeyOps.set_times(c, el, "pos_x", [1, 2], [0.9, 1.4])
+    keys[1]["t"] = 0.9
+    keys[2]["t"] = 1.4
+    _samples_like_bake(c, "pos_x", keys, "set_times rebakes the moved segments")
+    var got := ZenKeyOps.keys(c, el, "pos_x")
+    check(got.map(func(k): return k["ease"]) == ["linear", "elasticOut", "bounceOut", "sineInOut"],
+          "set_times keeps each key's ease")
+    # Left by 1.0: key 1 clamps at key 0, key 2 then clamps at key 1.
+    ZenKeyOps.set_times(c, el, "pos_x", [1, 2], [-0.1, 0.4])
+    got = ZenKeyOps.keys(c, el, "pos_x")
+    check(float(got[1]["t"]) > 0.0 and float(got[2]["t"]) > float(got[1]["t"]) and
+          float(got[2]["t"]) <= 0.4 + 1e-4, "set_times clamps against unmoved neighbours, keeps order")
+    # Stretch x2 around key 0 of a fresh layout.
+    ZenKeyOps.set_times(c, el, "pos_x", [1, 2, 3], [0.3, 0.6, 0.9])
+    ZenKeyOps.set_times(c, el, "pos_x", [1, 2, 3], [0.6, 1.2, 1.8])
+    got = ZenKeyOps.keys(c, el, "pos_x")
+    check_near(float(got[1]["t"]), 0.6, "stretch key 1", 1e-4)
+    check_near(float(got[3]["t"]), 1.8, "stretch key 3 (moved right-most first)", 1e-4)
+
+    ZenKeyOps.insert(c, el, "color", 0.0, Color(1, 0, 0), "linear")
+    ZenKeyOps.insert(c, el, "color", 1.0, Color(0, 1, 0), "linear")
+    ZenKeyOps.set_times(c, el, "color", [1], [0.5])
+    check_near(el.prop_color("color", 0.5, Color.WHITE, 1.0).g, 1.0, "set_times moves every colour channel", 0.002)
+    ZenKeyOps.insert(c, el, "shape_id", 0.0, 0.0)
+    ZenKeyOps.insert(c, el, "shape_id", 1.0, 2.0)
+    ZenKeyOps.set_times(c, el, "shape_id", [1], [0.4])
+    check_near(el.prop("shape_id", 0.45, -1.0), 2.0, "set_times moves a stepped key")
+    c.free()
+
+
+## A hand-shaped raw segment nowhere near the moved keys survives set_times.
+func test_key_set_times_keeps_raw() -> void:
+    var c := _authoring_canvas({})
+    var el: ZenElement = c.get_node("box")
+    var anim := _zen_anim(c)
+    var tr := anim.add_track(Animation.TYPE_BEZIER)
+    anim.track_set_path(tr, NodePath("box:w"))
+    anim.bezier_track_insert_key(tr, 0.0, 0.1, Vector2(-0.1, 0), Vector2(0.2, 0.3))
+    anim.bezier_track_insert_key(tr, 1.0, 0.2, Vector2(-0.3, -0.1), Vector2(0.25, 0.05))
+    anim.bezier_track_insert_key(tr, 2.0, 0.4, Vector2(-0.2, 0.1), Vector2(0.1, 0))
+    anim.bezier_track_insert_key(tr, 3.0, 0.1, Vector2(-0.2, 0.1), Vector2(0.1, 0))
+    c.timeline_dirty()
+    var before := el.track_or_base("w", 0.5, 0.0)
+    ZenKeyOps.set_times(c, el, "w", [3], [2.6])
+    var t2 := _track_of(anim, "box:w")
+    check(anim.bezier_track_get_key_out_handle(t2, 0) == Vector2(0.2, 0.3) and
+          anim.bezier_track_get_key_in_handle(t2, 1) == Vector2(-0.3, -0.1),
+          "set_times leaves an untouched raw segment's handles alone")
+    check_near(el.track_or_base("w", 0.5, 0.0), before, "so it samples exactly as before")
+    c.free()
+
+
 func test_elem_ops() -> void:
     var c := _authoring_canvas({"pos_x": [_k(0.0, 0.1), _k(1.0, 0.9)]})
     # A signal referencing box, so rename/remove have something to rewrite.
@@ -3090,6 +3152,47 @@ func test_scene_editor() -> void:
     ed._on_keys_dragged(0.5, false)
     ed._commit_live()
     check_near(float(ZenKeyOps.keys(ed._canvas, el, "pos_x")[1]["t"]), 1.5, "dragging a key moves it in time")
+
+    # The Keys panel: summoned by a pick, and its fields edit the picked keys.
+    var kid := "%s|pos_x|1" % el.name
+    check(ed._key_sel.has(kid), "a key pick is node|prop|idx")
+    check(ed._p_keys.is_open, "picking a key summons the Keys panel")
+    check(ed._keys._badge.text.begins_with("1 key"), "the panel says what is picked")
+    check(ed._keys._value_rows.size() == 1 and ed._keys._time != null, "one value row per picked lane")
+    check_near(ed._keys._time.value, 1.5, "the time field shows the key's time")
+    ed._shift_keys(-0.25)
+    ed._commit_live()
+    check_near(float(ZenKeyOps.keys(ed._canvas, el, "pos_x")[1]["t"]), 1.25, "the time field moves the key")
+    ed._set_key_values("%s|pos_x" % el.name, 0.42)
+    ed._commit_live()
+    check_near(float(ZenKeyOps.keys(ed._canvas, el, "pos_x")[1]["v"]), 0.42, "the value field sets the key")
+    check(ed._key_preview().has("samples"), "one key previews its real incoming segment")
+    # Keying another prop adds a lane; the pick stays on the same key.
+    ZenKeyOps.insert(ed._canvas, el, "alpha", 0.5, 0.5)
+    ZenKeyOps.insert(ed._canvas, el, "w", 0.5, 0.2)
+    ed._refresh_timeline()
+    var vs := ed._view_selection()
+    check(ed._key_sel.has(kid) and vs.size() == 1 and
+          ed._lanes[int(String(vs.keys()[0]).get_slice(":", 0))]["prop"] == "pos_x",
+          "a new lane does not retarget the key selection")
+    ed._scrub_to(0.0)
+    ed._jump_key(1)
+    check_near(ed._t, 0.5, "Down jumps the playhead to the next key time")
+    check(ed._key_sel.size() == 2, "...and picks the keys there (%d)" % ed._key_sel.size())
+    ed._select_all_keys()
+    # pos_x and pos_y (the auto-keyed drag keyed both) have two keys each.
+    check(ed._key_sel.size() == 6, "select all picks every visible key (%d)" % ed._key_sel.size())
+    ed._stretch_keys(2.0)
+    ed._commit_live()
+    check_near(float(ZenKeyOps.keys(ed._canvas, el, "pos_x")[1]["t"]), 2.5, "stretch doubles gaps about the first key", 0.02)
+    ZenKeyOps.remove_track(ed._canvas, el, "alpha")
+    ZenKeyOps.remove_track(ed._canvas, el, "w")
+    ed._refresh_timeline()
+    ed._clear_keys()
+    check(ed._key_sel.is_empty(), "the key selection clears")
+    ed._on_key_pressed(0, 1, false)
+    ZenKeyOps.move(ed._canvas, el, "pos_x", 1, 1.5)
+    ed._refresh_timeline()
     ed._set_ease("bounceOut")
     check(String(ZenKeyOps.keys(ed._canvas, el, "pos_x")[1]["ease"]) == "bounceOut", "the ease menu sets the key's ease")
     ed._delete_keys()
