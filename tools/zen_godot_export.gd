@@ -322,6 +322,12 @@ static func scene_text(anim: String) -> Dictionary:
     if ps == null: return {"error": "no such animation: %s" % anim}
     var canvas := ps.instantiate() as ZenCanvas
     if canvas == null: return {"error": "%s is not a Zen animation" % anim}
+    var info := {
+        "elements": canvas.elements().map(func(e): return String((e as Node).name)),
+        "signals": canvas.signal_names(),
+        "pauses": canvas.pauses.size(),
+        "loops": canvas.loops(),
+    }
     canvas.live_playback = true
     canvas.fit_window = true
     canvas.click_to_continue = true
@@ -339,7 +345,7 @@ static func scene_text(anim: String) -> Dictionary:
     if ResourceSaver.save(out, tmp) != OK: return {"error": "cannot save %s" % tmp}
     var text := _read(tmp)
     DirAccess.remove_absolute(ProjectSettings.globalize_path(tmp))
-    return {"text": text}
+    return {"text": text, "info": info}
 
 
 static func _is_pixel_shape(path: String) -> bool:
@@ -399,7 +405,7 @@ static func export_anim(anim: String, s: Settings, files: Array = [], ship_runti
     var scene := "res://%s/%s.tscn" % [sub, ZenExport.sanitize(anim)]
     var err := _write(_abs(s, scene), rewrite_resource(text, map, standalone), files)
     if err != "": return {"ok": false, "error": err, "files": files}
-    return {"ok": true, "error": "", "files": files, "scene": scene}
+    return {"ok": true, "error": "", "files": files, "scene": scene, "info": st["info"]}
 
 
 ## Export several animations into one target (the dialog's chain). Stops at
@@ -409,8 +415,111 @@ static func export_chain(anims: Array, s: Settings) -> Dictionary:
     var scenes: Array = []
     var err := ensure_exports_project(s, files)
     if err != "": return {"ok": false, "error": err, "files": files, "scenes": scenes}
+    var infos := {}
     for i in anims.size():
         var r := export_anim(String(anims[i]), s, files, i == 0)
         if not bool(r["ok"]): return {"ok": false, "error": r["error"], "files": files, "scenes": scenes}
         scenes.append(r["scene"])
-    return {"ok": true, "error": "", "files": files, "scenes": scenes}
+        infos[r["scene"]] = r["info"]
+    var sub := clean_subdir(s.subdir)
+    var earlier := PackedStringArray()
+    for f in DirAccess.get_files_at(_abs(s, "res://" + sub)):
+        var scene := "res://%s/%s" % [sub, f]
+        if f.get_extension() == "tscn" and not infos.has(scene): earlier.append(scene)
+    var notes := "res://%s/%s" % [sub, NOTES_FILE]
+    err = _write(_abs(s, notes), notes_text(s, infos, earlier), files)
+    if err != "": return {"ok": false, "error": err, "files": files, "scenes": scenes}
+    return {"ok": true, "error": "", "files": files, "scenes": scenes, "notes": notes}
+
+
+# ---------------------------------------------------------------------------
+#  The notes that travel with an export.
+# ---------------------------------------------------------------------------
+
+## Written next to the scenes: how to move them into a game and use them. A
+## .txt, so the target's editor leaves it alone.
+const NOTES_FILE := "README.txt"
+
+
+## The notes for an export of `infos` (scene res:// path -> scene_text info);
+## `earlier` names scenes a previous export left in the same folder. Pure, so
+## it is tested on strings.
+static func notes_text(s: Settings, infos: Dictionary, earlier := PackedStringArray()) -> String:
+    var sub := clean_subdir(s.subdir)
+    var plugin := s.mode == Mode.PLUGIN
+    var first := String(infos.keys()[0]) if not infos.is_empty() else "res://%s/<anim>.tscn" % sub
+    var L := PackedStringArray()
+    L.append("ZEN ANIMATIONS - HOW TO USE THIS EXPORT")
+    L.append("Exported from Zen Animator %s, %s." % [_source_version(), Time.get_date_string_from_system()])
+    L.append("Runtime: %s." % ("the Zen plugin (res://addons/zen/)" if plugin
+        else "standalone - a private copy in %s/zen_runtime/, no plugin needed" % sub))
+    L.append("")
+    L.append("SCENES IN THIS EXPORT")
+    for scene in infos:
+        var info: Dictionary = infos[scene]
+        L.append("  %s" % scene)
+        L.append("      elements: %s" % ", ".join(PackedStringArray(info["elements"])))
+        if not (info["signals"] as Array).is_empty():
+            L.append("      signals:  %s   (fire(\"name\"))" % ", ".join(PackedStringArray(info["signals"])))
+        var traits := PackedStringArray()
+        traits.append("loops" if bool(info["loops"]) else "plays once, then emits finished")
+        if int(info["pauses"]) > 0:
+            traits.append("%d pause marker(s): holds there until resume() or a click" % int(info["pauses"]))
+        L.append("      %s" % "; ".join(traits))
+    if not earlier.is_empty():
+        L.append("  also in this folder, from an earlier export: %s" % ", ".join(earlier))
+    L.append("")
+    L.append("1. MOVE IT INTO YOUR GAME")
+    if s.to_exports:
+        L.append("   Copy the whole \"%s\" folder into the ROOT of your game's Godot project," % sub)
+        L.append("   so this file ends up at res://%s/%s." % [sub, NOTES_FILE])
+    else:
+        L.append("   It was exported straight into %s - nothing to copy." % target_root(s))
+        L.append("   To use it in another game, copy the \"%s\" folder to that project's root." % sub)
+    L.append("   Keep the folder name and everything inside it: every file names the others")
+    L.append("   by its full res://%s/... path, so a renamed or moved folder breaks them." % sub)
+    L.append("   (To use another folder, re-export with that subfolder name instead.)")
+    if plugin:
+        L.append("   This export needs the Zen plugin at res://addons/zen/. If the game does not")
+        L.append("   have it (or has an older one), copy the addons/zen folder %s" % (
+            "from %s" % target_root(s) if s.install_plugin else "from the Zen Animator project"))
+        L.append("   too, then enable \"Zen Animator\" in Project > Project Settings > Plugins.")
+    L.append("")
+    L.append("2. CHECK IT")
+    L.append("   Open the game in Godot and let it import the new files. Open a scene above")
+    L.append("   and press F6: it fills the window, and a click (or ui_accept) continues past")
+    L.append("   a pause marker.")
+    L.append("")
+    L.append("3. USE IT")
+    L.append("   a) As is - instance it anywhere, it plays on its own:")
+    L.append("        var anim = preload(\"%s\").instantiate()" % first)
+    L.append("        add_child(anim)")
+    L.append("      It is a Node2D the size of its design canvas: position and scale it like")
+    L.append("      any other. (It only stretches to the window when it is the running scene.)")
+    L.append("   b) Driven by game code - Scene > New Inherited Scene, pick the .tscn, attach")
+    L.append("      a script to its root and save the new scene OUTSIDE res://%s/:" % sub)
+    L.append("")
+    L.append("        %s" % extends_line(s))
+    L.append("")
+    L.append("        func _ready() -> void:")
+    L.append("            super()                   # required: the animation starts in here")
+    L.append("            finished.connect(queue_free)")
+    L.append("")
+    L.append("      play(from_start := true)   start (again), or carry on with play(false)")
+    L.append("      stop()                     freeze where it is")
+    L.append("      restart()                  play from the start")
+    L.append("      resume()                   continue past a held pause marker")
+    L.append("      fire(\"name\", {})           run an authored signal (list above)")
+    L.append("      signal_names()             the authored signals")
+    L.append("      signal finished            a one-shot ran out / a terminal signal ended")
+    L.append("      signal paused(index)       it is holding at a pause marker")
+    L.append("      $element_name              each element is a child node, by name")
+    L.append("      To start it stopped, untick live_playback in the inherited scene and")
+    L.append("      call play() when it should run.")
+    L.append("")
+    L.append("4. UPDATE IT")
+    L.append("   Re-export with the same subfolder and copy the folder over again - delete")
+    L.append("   the old one first, so files the new export no longer needs go away.")
+    L.append("   Do not edit files in res://%s/: an update replaces them. Your inherited" % sub)
+    L.append("   scenes and scripts live outside it and keep working.")
+    return "\n".join(L) + "\n"

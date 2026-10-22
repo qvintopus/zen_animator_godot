@@ -2167,8 +2167,9 @@ func test_export_dialog_preview() -> void:
           "no target project: Export disabled, reason shown")
     dlg._gs.target_dir = ProjectSettings.globalize_path("res://")
     dlg._refresh()
-    check(not dlg._export_btn.disabled and dlg._godot_hint.text.contains("res://zen/a.tscn"),
-          "a valid target lists the scenes it will write")
+    check(not dlg._export_btn.disabled and dlg._godot_hint.text.contains("res://zen/a.tscn")
+          and dlg._godot_hint.text.contains("README.txt"),
+          "a valid target lists the scenes and notes it will write")
     dlg._gs.target_dir = ""
     dlg._gs.to_exports = true
     dlg._refresh()
@@ -3379,6 +3380,11 @@ func test_godot_export_files() -> void:
             or (path.get_extension() != "gd" and t.contains("res://assets/"))
         if leaks:
             check(false, "godot export: %s still points into this project" % path)
+    var notes := FileAccess.get_file_as_string(dir.path_join("zen/README.txt"))
+    check(notes.contains("res://zen/ma_prog_01.tscn") and notes.contains("res://zen/pause_menu.tscn")
+          and notes.contains(ZenGodotExport.extends_line(s)) and notes.contains("nothing to copy"),
+          "godot export: README.txt lists the scenes, the extends line and the steps")
+    check(notes.contains("pause marker(s)"), "godot export: README.txt notes pause_menu's pause marker")
     var count := (r["files"] as Array).size()
     var r2 := ZenGodotExport.export_chain(["ma_prog_01", "pause_menu"], s)
     check((r2["files"] as Array).size() == count, "godot export: re-export rewrites the same files")
@@ -3392,6 +3398,8 @@ func test_godot_export_files() -> void:
           "godot export: install_plugin copies the addon")
     check(FileAccess.get_file_as_string(dir.path_join("plug/pause_menu.tscn")).contains("res://addons/zen/runtime/zen_canvas.gd"),
           "godot export: plugin-mode scene points at the addon")
+    check(FileAccess.get_file_as_string(dir.path_join("plug/README.txt")).contains("Project Settings > Plugins"),
+          "godot export: plugin-mode README.txt says to enable the plugin")
     _rm_tree(dir)
 
 

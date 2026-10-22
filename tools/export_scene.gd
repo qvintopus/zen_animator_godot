@@ -114,7 +114,7 @@ func _export_godot(a: Dictionary, names: PackedStringArray) -> void:
     if bool(r["ok"]):
         print("OK  %d files -> %s in %s" % [(r["files"] as Array).size(),
             ", ".join(PackedStringArray(r["scenes"])), ZenGodotExport.target_root(gs)])
-        print("inherit with: " + ZenGodotExport.extends_line(gs))
+        print("next steps: " + ZenGodotExport.target_root(gs).path_join(String(r["notes"]).trim_prefix("res://")))
         get_tree().quit(0)
     else:
         push_error("export failed: " + String(r["error"]))

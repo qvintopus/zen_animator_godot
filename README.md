@@ -206,6 +206,7 @@ stub project the export creates, to F6-test in and copy the subfolder from - a s
 
 ```
 res://zen/
+  README.txt           how to move it into a game and use it, for this export
   <anim>.tscn          the animation's own scene, dependency paths rewritten
   shapes/*.tres        the pixel shapes it draws
   fonts/*              fonts it uses from outside the addon

@@ -660,8 +660,11 @@ func _refresh_godot() -> void:
         var sub := ZenGodotExport.clean_subdir(_gs.subdir)
         var scenes := PackedStringArray()
         for nm in _chain: scenes.append("res://%s/%s.tscn" % [sub, ZenExport.sanitize(nm)])
-        _godot_hint.text = "writes %s\nthen in an inherited scene: %s" % [
-            ", ".join(scenes), ZenGodotExport.extends_line(_gs)]
+        var notes := "res://%s/%s" % [sub, ZenGodotExport.NOTES_FILE]
+        var then := "then copy the %s folder into your game's project root" % sub \
+            if _gs.to_exports else "into %s" % _gs.target_dir
+        _godot_hint.text = "writes %s and %s (how to use them)\n%s" % [
+            ", ".join(scenes), notes, then]
         _godot_hint.add_theme_color_override("font_color", Color(0.5, 0.55, 0.6, 1))
     _export_btn.disabled = bad != "" or _chain.is_empty()
 
@@ -912,7 +915,8 @@ func _export_godot() -> void:
     var r := ZenGodotExport.export_chain(_chain, _gs)
     if bool(r["ok"]):
         _exported_ok = true
-        _status_label.text = "wrote %d files -> %s" % [(r["files"] as Array).size(), _folder_path()]
+        _status_label.text = "wrote %d files -> %s - next steps in %s" % [
+            (r["files"] as Array).size(), _folder_path(), ZenGodotExport.NOTES_FILE]
         _save_defaults()
     else:
         _status_label.text = "export failed: %s" % String(r["error"])
