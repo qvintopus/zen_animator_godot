@@ -133,6 +133,56 @@ func bounds_px(t: float) -> Rect2:
     return _box(c, [Vector2(-hw, -hh), Vector2(hw, -hh), Vector2(hw, hh), Vector2(-hw, hh)], rot)
 
 
+## The drawn geometry, the same as _draw(): the line's stroke, the rim of the
+## outlined kinds, and a custom shape's non-empty cells.
+func hit_px(p: Vector2, t: float, slop: float) -> bool:
+    var sc := maxf(prop("scale", t, scale_base), 0.0)
+    var w_f := prop("w", t, size_frac.x) * sc
+    var h_f := prop("h", t, size_frac.y) * sc
+    var rot := deg_to_rad(prop("rot", t, rot_base))
+    var c := center_px(t)
+    var hw := _uw() * w_f * 0.5
+    var hh := _uh() * h_f * 0.5
+    match shape_kind:
+        Kind.LINE:
+            var d := Vector2(hw * cos(rot), _uh() * w_f * 0.5 * sin(rot))
+            var q := Geometry2D.get_closest_point_to_segment(p, c - d, c + d)
+            return q.distance_to(p) <= maxf(_uh() * h_f, 1.0) * 0.5 + slop
+        Kind.CIRCLE:
+            var q := _unrotate(p, c, rot)
+            var rx := hw + slop
+            var ry := hh + slop
+            return rx > 0.0 and ry > 0.0 and (q.x * q.x) / (rx * rx) + (q.y * q.y) / (ry * ry) <= 1.0
+        Kind.CUSTOM:
+            var q := _unrotate(p, c, rot)
+            if absf(q.x) > hw + slop or absf(q.y) > hh + slop: return false
+            var ps := shape_at(t)
+            if ps == null or hw <= 0.0 or hh <= 0.0: return true
+            # The cell under `p`, or any within `slop` of it.
+            var cell := Vector2(hw * 2.0 / ps.size.x, hh * 2.0 / ps.size.y)
+            var lo := ((q - Vector2(slop, slop) + Vector2(hw, hh)) / cell).floor()
+            var hi := ((q + Vector2(slop, slop) + Vector2(hw, hh)) / cell).floor()
+            for y in range(int(lo.y), int(hi.y) + 1):
+                for x in range(int(lo.x), int(hi.x) + 1):
+                    if ps.get_cell(x, y) != ZenPixelShape.EMPTY: return true
+            return false
+    var rim := _rim(hw, hh, rot)
+    var lp := p - c
+    if Geometry2D.is_point_in_polygon(lp, rim): return true
+    for i in rim.size():
+        var q := Geometry2D.get_closest_point_to_segment(lp, rim[i], rim[(i + 1) % rim.size()])
+        if q.distance_to(lp) <= slop: return true
+    return false
+
+
+func shows_at(t: float) -> bool:
+    if prop("scale", t, scale_base) <= 0.0: return false
+    if prop("alpha", t, color_base.a) > 0.0: return true
+    if shape_kind == Kind.LINE or prop("outline_alpha", t, outline_color_base.a) <= 0.0: return false
+    return shape_kind == Kind.CUSTOM \
+        or _uh() * prop("outline", t, outline_base) * prop("scale", t, scale_base) >= 0.5
+
+
 func _draw() -> void:
     var t := _t
     var fill_a := prop("alpha", t, color_base.a)

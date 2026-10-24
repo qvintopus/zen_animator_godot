@@ -276,6 +276,24 @@ func bounds_px(_t: float) -> Rect2:
     return Rect2()
 
 
+## Is canvas point `p` on what this element draws at `t`, within `slop`
+## pixels? Tighter than bounds_px: a diagonal line's box covers the whole
+## canvas, its stroke does not.
+func hit_px(p: Vector2, t: float, slop: float) -> bool:
+    return bounds_px(t).grow(slop).has_point(p)
+
+
+## Does anything of this element show at `t`? The editor prefers shown
+## elements when picking; a faded-out one is still reachable by cycling.
+func shows_at(_t: float) -> bool:
+    return true
+
+
+## `p` in the frame of a box centred on `c` and rotated by `rot`.
+static func _unrotate(p: Vector2, c: Vector2, rot: float) -> Vector2:
+    return (p - c).rotated(-rot)
+
+
 ## The axis-aligned box around `local` points rotated by `rot` about `c`.
 static func _box(c: Vector2, local: Array, rot: float) -> Rect2:
     var r := Rect2(c, Vector2.ZERO)

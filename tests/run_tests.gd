@@ -99,6 +99,7 @@ func _run() -> void:
     await test_viewer_intro_loop_toggles()
     test_pixel_shape()
     test_custom_shape_resolution()
+    test_element_hit()
     test_options_font_sort_filter()
     test_raylib_font()
     test_list_selection()
@@ -2367,6 +2368,43 @@ func test_custom_shape_resolution() -> void:
     ZenAnimBuilder.install(mc)
     m.shape = ZenPixelShape.new()
     check(m.shape_at(0.0) == null, "SHAPE_MISSING key draws the placeholder even with a rest shape")
+    mc.free()
+
+
+## Picking hits what is drawn, not the bounding box: a full-canvas diagonal
+## line only near its stroke, a custom shape only on its non-empty cells.
+func test_element_hit() -> void:
+    var c: ZenCanvas = (load("res://anims/main_menu.tscn") as PackedScene).instantiate()
+    var by := {}
+    for e in c.elements(): by[(e as ZenElement).elem_name] = e
+    var line: ZenShape = by["line_diag_topleft"]
+    var title: ZenText = by["title"]
+    var t := 2.0
+    check(line.bounds_px(t).has_point(Vector2(160, 30)), "the diagonal's box covers the title area")
+    check(line.hit_px(line.center_px(t), t, 1.0), "line: hit on its stroke")
+    check(not line.hit_px(Vector2(160, 30), t, 1.0), "line: no hit away from its stroke")
+    check(title.hit_px(title.center_px(t), t, 1.0), "text: hit inside its box")
+    check(not title.hit_px(title.bounds_px(t).end + Vector2(3, 3), t, 1.0), "text: no hit outside its box")
+    c.free()
+
+    var mc := ZenCanvas.new()
+    var m := ZenShape.new()
+    m.shape_kind = ZenShape.Kind.CUSTOM
+    m.size_frac = Vector2(0.1, 0.1)         # 32 x 18 px at 320 x 180
+    mc.add_child(m)
+    ZenAnimBuilder.install(mc)
+    var ps := ZenPixelShape.new()
+    ps.size = Vector2i(2, 1)
+    ps.set_cell(0, 0, ZenPixelShape.FILL)
+    m.shape = ps
+    var cp := m.center_px(0.0)
+    check(m.hit_px(cp + Vector2(-8, 0), 0.0, 0.0), "custom: hit on a filled cell")
+    check(not m.hit_px(cp + Vector2(8, 0), 0.0, 0.0), "custom: no hit on an empty cell")
+    check(m.hit_px(cp + Vector2(1, 0), 0.0, 2.0), "custom: slop reaches the neighbouring cell")
+    check(m.shows_at(0.0), "custom: shown at full alpha")
+    m.color_base.a = 0.0
+    m.outline_color_base.a = 0.0
+    check(not m.shows_at(0.0), "custom: hidden at zero alpha")
     mc.free()
 
 

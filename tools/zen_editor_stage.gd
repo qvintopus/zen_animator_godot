@@ -7,9 +7,10 @@ extends Control
 ## out with Control anchors would reposition elements, not enlarge them).
 ##
 ## On top: the screen border, selection boxes from ZenElement.bounds_px, and
-## picking - click selects the topmost element under the cursor, clicking the
-## same spot again cycles down through what overlaps there, drag moves the
-## selection (Shift locks the move to the nearest axis or diagonal).
+## picking - click selects the topmost element drawn under the cursor (its
+## stroke or pixels, not its bounding box), clicking the same spot again
+## cycles down through what overlaps there, drag moves the selection (Shift
+## locks the move to the nearest axis or diagonal).
 ##
 ## It knows nothing about undo or keys: it reports picks and drags, and the
 ## editor turns them into ops.
@@ -25,6 +26,7 @@ signal drag_ended
 signal play_clicked
 
 const DRAG_SLOP := 3.0
+const PICK_SLOP := 3.0                   ## screen px of grace around thin strokes
 
 var canvas: ZenCanvas = null
 var selected: Array = []                ## ZenElements to outline
@@ -36,7 +38,7 @@ var _press := Vector2.ZERO
 var _pressing := false
 var _dragging := false
 var _cycle_at := Vector2(-1e9, -1e9)
-var _cycle_i := 0
+var _pick_on_release := false            ## the press landed on the selection
 
 
 func _ready() -> void:
@@ -122,17 +124,24 @@ func _dotted(r: Rect2, c: Color) -> void:
         draw_dashed_line(pts[i], pts[(i + 1) % 4], c, 1.0, 4.0)
 
 
-## Elements under canvas point `p`, topmost first. Globals are full-screen and
-## would win every click, so they are picked from the Elements panel instead.
+## Elements whose drawing is under canvas point `p`: the shown ones first,
+## each group topmost first (z_index, then tree order - later draws on top).
+## Globals are full-screen and would win every click, so they are picked from
+## the Elements panel instead.
 func hits(p: Vector2) -> Array:
-    var out: Array = []
-    if canvas == null: return out
-    for e in canvas.elements():
-        var el := e as ZenElement
-        if el is ZenGlobal: continue
-        if el.bounds_px(time).grow(1.0).has_point(p): out.append(el)
-    out.sort_custom(func(a, b): return (a as Node2D).z_index > (b as Node2D).z_index)
-    return out
+    var found: Array = []
+    if canvas == null: return found
+    var slop := PICK_SLOP * canvas.design_size.x / maxf(view_rect().size.x, 1.0)
+    var els := canvas.elements()
+    for i in els.size():
+        var el := els[i] as ZenElement
+        if el is ZenGlobal or not el.hit_px(p, time, slop): continue
+        found.append([el, 1 if el.shows_at(time) else 0, el.z_index, i])
+    found.sort_custom(func(a, b):
+        for k in [1, 2, 3]:
+            if a[k] != b[k]: return a[k] > b[k]
+        return false)
+    return found.map(func(h): return h[0])
 
 
 func _gui_input(ev: InputEvent) -> void:
@@ -151,7 +160,11 @@ func _gui_input(ev: InputEvent) -> void:
             _dragging = false
             _pick(mb.position, mb.shift_pressed or mb.ctrl_pressed)
         else:
-            if _dragging: drag_ended.emit()
+            if _dragging:
+                drag_ended.emit()
+                _cycle_at = Vector2(-1e9, -1e9)
+                _pick_on_release = false
+            elif _pressing: _release(_press)
             _pressing = false
             _dragging = false
         accept_event()
@@ -178,23 +191,39 @@ static func _axis_lock(d: Vector2) -> Vector2:
     return best
 
 
+## A press. On the selection it picks nothing yet - the press may become a
+## drag of the whole selection - and _release() decides; elsewhere it picks
+## at once, so a press-drag moves what it just picked.
 func _pick(screen_p: Vector2, additive: bool) -> void:
-    var p := to_canvas(screen_p)
-    var hs := hits(p)
+    _pick_on_release = false
+    var hs := hits(to_canvas(screen_p))
     if hs.is_empty():
         _cycle_at = Vector2(-1e9, -1e9)
         empty_clicked.emit()
         return
-    # A click on an already-selected element keeps the selection, so it can be
-    # dragged as a group; clicking the same spot again cycles through overlaps.
+    if not additive and hs.any(func(e): return selected.has(e)):
+        _pick_on_release = true
+        return
+    _choose(screen_p, hs, additive)
+
+
+## A click that did not drag, after a press on the selection.
+func _release(screen_p: Vector2) -> void:
+    if not _pick_on_release: return
+    _pick_on_release = false
+    var hs := hits(to_canvas(screen_p))
+    if not hs.is_empty(): _choose(screen_p, hs, false)
+
+
+## The topmost hit - or, clicking the same spot again, the one under the
+## current pick, cycling down through what overlaps there.
+func _choose(screen_p: Vector2, hs: Array, additive: bool) -> void:
+    var el: ZenElement = hs[0]
     if not additive and screen_p.distance_to(_cycle_at) < DRAG_SLOP:
-        _cycle_i = (_cycle_i + 1) % hs.size()
-    else:
-        _cycle_i = 0
+        var at := -1
         for i in hs.size():
-            if selected.has(hs[i]):
-                _cycle_at = screen_p
-                if not additive: return
-                break
+            if selected.has(hs[i]): at = i
+        el = hs[(at + 1) % hs.size()]
     _cycle_at = screen_p
-    picked.emit(hs[_cycle_i], additive)
+    if not additive and selected.size() == 1 and selected[0] == el: return
+    picked.emit(el, additive)

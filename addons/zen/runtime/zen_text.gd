@@ -188,6 +188,16 @@ func bounds_px(t: float) -> Rect2:
         Vector2(-h.x, h.y)], deg_to_rad(prop("rot", t, rot_base)))
 
 
+func hit_px(p: Vector2, t: float, slop: float) -> bool:
+    var h := ZenTextMetrics.measure(text, _size_px(t), effective_font()) * 0.5 + Vector2(slop, slop)
+    var q := _unrotate(p, center_px(t), deg_to_rad(prop("rot", t, rot_base)))
+    return absf(q.x) <= h.x and absf(q.y) <= h.y
+
+
+func shows_at(t: float) -> bool:
+    return prop("alpha", t, color_base.a) > 0.0 and text != ""
+
+
 func _draw() -> void:
     var fnt := effective_font()
     # The raylib bitmap font is sampled nearest, like raylib's POINT filter -
