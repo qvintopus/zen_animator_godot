@@ -100,6 +100,7 @@ func _run() -> void:
     test_pixel_shape()
     test_custom_shape_resolution()
     test_element_hit()
+    test_stage_view()
     test_options_font_sort_filter()
     test_raylib_font()
     test_list_selection()
@@ -2373,6 +2374,35 @@ func test_custom_shape_resolution() -> void:
 
 ## Picking hits what is drawn, not the bounding box: a full-canvas diagonal
 ## line only near its stroke, a custom shape only on its non-empty cells.
+func test_stage_view() -> void:
+    var st := ZenEditorStage.new()
+    root.add_child(st)
+    var c := ZenCanvas.new()               # 320 x 180
+    ZenAnimBuilder.install(c)
+    st.set_canvas(c)
+    st.size = Vector2(1000, 600)
+    # Fitted: the old framing - 3x (floor of min(984/320, 584/180)), centred.
+    check(st.is_fitted(), "stage: starts fitted")
+    check_near(st.zoom(), 3.0, "stage: fitted zoom is the largest whole scale")
+    check(st.view_rect() == Rect2(Vector2(20, 30), Vector2(960, 540)), "stage: fitted rect centred")
+    var mid := Vector2(500, 300)
+    var at := st.to_canvas(mid)
+    st.zoom_step(-1, mid)
+    check(not st.is_fitted(), "stage: zooming leaves the fitted framing")
+    check_near(st.zoom(), 2.0, "stage: one step out from 3x is 2x")
+    check(st.to_canvas(mid).distance_to(at) < 0.001, "stage: zoom keeps the point under the cursor")
+    var p := Vector2(-40, 210)             # off the canvas
+    check(st.to_canvas(st.to_screen(p)).distance_to(p) < 0.001, "stage: screen/canvas round trip")
+    check(Rect2(Vector2.ZERO, st.size).has_point(st.to_screen(p)), "stage: an off-canvas point is on screen")
+    st.pan(Vector2(30, 0))
+    check(st.to_canvas(mid).distance_to(at - Vector2(15, 0)) < 0.001, "stage: pan moves the view")
+    st.fit_view()
+    check(st.view_rect() == Rect2(Vector2(20, 30), Vector2(960, 540)), "stage: fit_view restores the framing")
+    for i in 20: st.zoom_step(-1, mid)
+    check_near(st.zoom(), 0.25, "stage: zoom out stops at the ladder's end")
+    st.free()                              # the canvas goes with it
+
+
 func test_element_hit() -> void:
     var c: ZenCanvas = (load("res://anims/main_menu.tscn") as PackedScene).instantiate()
     var by := {}
@@ -3281,11 +3311,12 @@ func test_scene_editor() -> void:
     var vi := ZenCanvas.preset_index(Vector2(360, 640))
     ed._on_canvas_size_selected(vi)
     check(ed._canvas.design_size == Vector2(360, 640), "picking a preset resizes the canvas")
-    check(ed._stage._sub.size == Vector2i(360, 640), "...and the stage's viewport")
+    check(ed._stage._bg.size == Vector2(360, 640)
+          and is_equal_approx(ed._stage.view_rect().size.aspect(), 360.0 / 640.0), "...and the stage's view")
     check((ed._doc_rows["design"] as OptionButton).selected == vi, "the picker shows the preset")
     ed._do_undo()
     check(ed._canvas.design_size == before_size, "undo restores the canvas size")
-    check(ed._stage._sub.size == Vector2i(before_size), "...and the stage")
+    check(ed._stage._bg.size == before_size, "...and the stage")
 
     var nm := "zz_test_editor"
     ed._name = nm

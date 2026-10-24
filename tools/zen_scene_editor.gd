@@ -2036,6 +2036,12 @@ func _show_help() -> void:
         ["zen_back", "close a floating panel, then drop the key selection, then back"]])
 
 
+## The mouse is over the canvas view, not a panel or the timeline on top of it.
+func _over_stage() -> bool:
+    var hov := get_viewport().gui_get_hovered_control()
+    return hov != null and (hov == _stage or _stage.is_ancestor_of(hov))
+
+
 ## Editor keys are named InputMap actions (tools/gen_input_map.gd), taken only
 ## when no text field or dialog has focus.
 func _unhandled_input(ev: InputEvent) -> void:
@@ -2077,7 +2083,9 @@ func _unhandled_input(ev: InputEvent) -> void:
     elif ev.is_action_pressed("zen_edit_home"): _scrub_to(0.0)
     elif ev.is_action_pressed("zen_edit_frame_prev", true): _scrub_to(_t - FRAME)
     elif ev.is_action_pressed("zen_edit_frame_next", true): _scrub_to(_t + FRAME)
-    elif ev.is_action_pressed("zen_edit_fit"): _tl.fit()
+    elif ev.is_action_pressed("zen_edit_fit"):
+        if _over_stage(): _stage.fit_view()
+        else: _tl.fit()
     elif ev.is_action_pressed("zen_edit_key_prev", true): _jump_key(-1)
     elif ev.is_action_pressed("zen_edit_key_next", true): _jump_key(1)
     else:
