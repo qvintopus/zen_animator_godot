@@ -88,6 +88,8 @@ func _run() -> void:
     test_signal_then_chain()
     test_signal_normalize_legacy()
     test_signal_bake_no_pos_offset()
+    test_signal_ops_add_rename_remove()
+    test_signal_edit_anim_keyops()
     test_signal_terminal_edge()
     test_signal_terminal_holds_end_pose()
     test_signal_pack_roundtrip()
@@ -1692,6 +1694,107 @@ func test_signal_bake_no_pos_offset() -> void:
     root.add_child(canvas)
     canvas.bus().has("go")          # any entry point upgrades the scene
     check(anim.get_track_count() == 0, "legacy pos_offset tracks are dropped on load")
+    canvas.queue_free()
+
+
+## A canvas with one shape and no signals - what a new scene is.
+func _bare_canvas() -> ZenCanvas:
+    var canvas := _sig_canvas(ZenSignalData.defaults("x"))
+    var bus := canvas.bus()
+    canvas.remove_child(bus)
+    bus.free()
+    ZenAnimBuilder.find_player(canvas).remove_animation_library(ZenAnimBuilder.SIG_LIB)
+    return canvas
+
+
+## ZenSignalOps add / rename / remove keep signals_data, library `sig`, the
+## declared user signals and every `then` in step; the first add makes the bus.
+func test_signal_ops_add_rename_remove() -> void:
+    var canvas := _bare_canvas()
+    root.add_child(canvas)
+    check(canvas.bus() == null, "a new scene has no bus")
+    var a := ZenSignalOps.add(canvas)
+    check(canvas.bus() != null and canvas.bus().owner == canvas, "the first add creates an owned bus")
+    check(a == "signal1", "default names count up")
+    var b := ZenSignalOps.add(canvas, "signal1")
+    check(b == "signal11", "a taken name is made unique")
+    check(ZenSignalOps.anim(canvas, a) != null, "add makes the signal's Animation")
+    check(canvas.bus().has(a) and canvas.bus().has(b), "both are declared user signals")
+
+    ZenSignalOps.set_field(canvas, b, "then", a)
+    check(ZenSignalOps.rename(canvas, a, "go"), "rename to a free name")
+    check(not ZenSignalOps.rename(canvas, b, "go"), "rename onto a taken name fails")
+    check(String(ZenSignalOps.data(canvas, b)["then"]) == "go", "rename rewrites `then`")
+    check(ZenSignalOps.anim(canvas, "go") != null and ZenSignalOps.anim(canvas, a) == null,
+          "rename moves the Animation")
+    check(canvas.bus().has("go") and not canvas.bus().has(a), "rename re-declares the user signal")
+    check(canvas.fire("go"), "the renamed signal fires by its new name")
+
+    ZenSignalOps.set_field(canvas, b, "trigger", "press")
+    ZenSignalOps.set_field(canvas, "go", "trigger", "press")
+    check(ZenSignalOps.trigger_clash(canvas, b) == "go", "a later same-trigger signal clashes")
+    check(ZenSignalOps.trigger_clash(canvas, "go") == "", "the first one does not")
+
+    ZenSignalOps.remove(canvas, "go")
+    check(not ZenSignalOps.names(canvas).has("go"), "remove drops the data")
+    check(ZenSignalOps.anim(canvas, "go") == null, "remove drops the Animation")
+    check(not canvas.bus().has("go"), "remove retires the user signal")
+    check(String(ZenSignalOps.data(canvas, b)["then"]) == "", "remove clears `then` pointing at it")
+
+    ZenSignalOps.bind_point(canvas, b, "shape", Vector2(0.1, 0))
+    ZenSignalOps.bind_point(canvas, b, "shape", Vector2(0.2, 0))
+    check(ZenSignalOps.data(canvas, b)["point_elems"].size() == 1, "binding twice updates the offset")
+    ZenSignalOps.unbind_point(canvas, b, "shape")
+    check(ZenSignalOps.data(canvas, b)["point_elems"].is_empty(), "unbind drops the binding")
+    canvas.queue_free()
+
+
+## Signal keys are edited with ZenKeyOps through canvas.edit_anim; sync()
+## adds the t=0 capture key, lists the target and writes the capture meta, so
+## the fired signal eases from the LIVE pose into the authored key.
+func test_signal_edit_anim_keyops() -> void:
+    var canvas := _bare_canvas()
+    root.add_child(canvas)
+    var sh: ZenShape = canvas.get_node("shape")
+    var nm := ZenSignalOps.add(canvas, "go")
+    ZenSignalOps.set_field(canvas, nm, "length", 2.0)
+    canvas.edit_anim = nm
+    ZenKeyOps.insert(canvas, sh, "alpha", 2.0, 1.0, "linear")
+    canvas.edit_anim = ""
+    check(ZenKeyOps.keys(canvas, sh, "alpha").size() == 2, "the document timeline is untouched")
+    ZenSignalOps.sync(canvas, nm)
+
+    var sig := ZenSignalOps.data(canvas, nm)
+    check(sig["targets"].size() == 1 and sig["targets"][0]["prop"] == "alpha", "sync lists the target")
+    canvas.edit_anim = nm
+    var ks := ZenKeyOps.keys(canvas, sh, "alpha")
+    canvas.edit_anim = ""
+    check(ks.size() == 2 and float(ks[0]["t"]) == 0.0, "sync adds the t=0 capture key")
+    var cap: Dictionary = ZenSignalOps.anim(canvas, nm).get_meta(ZenTimeline.META_CAPTURE, {})
+    check(cap.has("shape:alpha") and is_equal_approx(float(cap["shape:alpha"][0]), 2.0),
+          "the capture meta names the first authored key")
+
+    # Fired at t=1 (track alpha 0.25), half way it reads 0.625: from the
+    # live pose, not from the placeholder.
+    canvas.pose(1.0)
+    canvas.fire(nm)
+    canvas.bus().advance(1.0)
+    canvas.pose(1.0)
+    check_near(sh.prop("alpha", 1.0, 0.0), 0.625, "an edited signal eases from the live pose")
+
+    # Doubling the length keeps each key at its u.
+    ZenSignalOps.set_field(canvas, nm, "length", 4.0)
+    canvas.edit_anim = nm
+    ks = ZenKeyOps.keys(canvas, sh, "alpha")
+    canvas.edit_anim = ""
+    check(ks.size() == 2 and is_equal_approx(float(ks[1]["t"]), 4.0), "length rescales the keys")
+
+    # Deleting the authored key leaves only the capture key: the target goes.
+    canvas.edit_anim = nm
+    ZenKeyOps.remove(canvas, sh, "alpha", 1)
+    canvas.edit_anim = ""
+    ZenSignalOps.sync(canvas, nm)
+    check(ZenSignalOps.data(canvas, nm)["targets"].is_empty(), "a capture-only track is dropped")
     canvas.queue_free()
 
 

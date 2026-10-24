@@ -111,21 +111,39 @@ func _drop_legacy_tracks() -> void:
 
 ## One user signal per authored name, each connected to our own handler.
 ##
-## The Callable's bound index IS the C's `void *user` pointer
+## The Callable's bound name IS the C's `void *user` pointer
 ## (anim_signal.c:38) - the same indirection, spelled in a way Godot can
-## introspect.
+## introspect. A name rather than an index, so the editor can add, remove and
+## rename signals (refresh()) without repointing the others.
 ##
 ## The Dictionary parameter carries a DEFAULT, which is what makes both of
 ## Zen's emit forms legal through one signature: emit_signal with a missing
 ## argument is an error unless the receiver supplies one, so `fire("x")` and
 ## `fire("x", {"pos": p})` both reach the same handler.
 func _declare_signals() -> void:
-    for i in signals_data.size():
-        var nm := String((signals_data[i] as Dictionary).get("name", ""))
-        if nm.is_empty(): continue
+    for nm in names():
         if has_signal(nm) or has_user_signal(nm): continue
         add_user_signal(nm, [{"name": "params", "type": TYPE_DICTIONARY}])
-        connect(nm, _on_fire.bind(i))
+        connect(nm, _on_fire.bind(nm))
+        _user.append(nm)
+
+
+## The user signals this bus declared, so refresh() can retire stale ones.
+var _user: Array = []
+
+
+## Re-sync the declared user signals with signals_data after the editor
+## added, removed or renamed one. Normalizes new entries as well.
+func refresh() -> void:
+    _ensure_ready()
+    for sd in signals_data: ZenSignalData.normalize(sd)
+    var want := names()
+    for nm in _user.duplicate():
+        if want.has(nm): continue
+        for c in get_signal_connection_list(nm): disconnect(nm, c["callable"])
+        remove_user_signal(nm)
+        _user.erase(nm)
+    _declare_signals()
 
 
 ## Fire by name. The direct path, and what the tests call.
@@ -164,6 +182,13 @@ func wants_pointer() -> bool:
     for sd in signals_data:
         if ZenSignalData.wants_pointer(sd): return true
     return false
+
+
+## The authored signal named `signal_name`, or {}.
+func find(signal_name: String) -> Dictionary:
+    for sd in signals_data:
+        if String((sd as Dictionary).get("name", "")) == signal_name: return sd
+    return {}
 
 
 func has(signal_name: String) -> bool:
@@ -216,11 +241,11 @@ func release_signal() -> void:
 
 ## Start the override. Called by the user signal, so an external `emit_signal`
 ## on the bus works identically to fire().
-func _on_fire(params: Dictionary, index: int) -> void:
+func _on_fire(params: Dictionary, signal_name: String) -> void:
     _ensure_ready()
     if inert: return
-    if index < 0 or index >= signals_data.size(): return
-    var sig: Dictionary = signals_data[index]
+    var sig := find(signal_name)
+    if sig.is_empty(): return
     var t := _doc_time()
     var nm := String(sig.get("name", ""))
     # A point signal fired without a position reads the pointer once, which is

@@ -262,15 +262,19 @@ static func bake_signal(sig: Dictionary, node_of := Callable()) -> Animation:
         if keys.is_empty() or ZenProps.is_stepped(prop): continue
         var node := _node(node_of, String(tg["elem"]), prop)
         var path := "%s:%s" % [node, ZenProps.track_prop(prop)]
+        var scaled: Array = []
         if ZenProps.is_color(prop):
             for ch in ["r", "g", "b"]:
                 var ck: Array = []
                 for k in keys:
                     var c: Color = k["c"]
                     ck.append({"t": k["t"], "v": c[ch], "ease": k.get("ease", "linear")})
-                _signal_track(anim, "%s:%s" % [path, ch], ck, span, true, capture)
+                scaled = _signal_track(anim, "%s:%s" % [path, ch], ck, span, true, capture)
         else:
-            _signal_track(anim, path, keys, span, true, capture)
+            scaled = _signal_track(anim, path, keys, span, true, capture)
+        # The same authored keys as the timeline's, so ZenKeyOps edits a
+        # signal exactly like the document (the capture placeholder included).
+        add_ease(anim, ease_path(node, prop), scaled)
 
     var seq_keys: Array = sig.get("seq_keys", [])
     if not seq_keys.is_empty():
@@ -287,8 +291,9 @@ static func _node(node_of: Callable, elem: String, prop: String) -> String:
 
 ## Bake `keys` (t in u) onto `anim` at u*span seconds. With `capture`, a first
 ## key past u=0 gets a placeholder key at t=0 and a capture-meta entry.
+## Returns the keys as baked, in seconds, placeholder first.
 static func _signal_track(anim: Animation, path: String, keys: Array, span: float,
-                          capture_start: bool, capture: Dictionary) -> void:
+                          capture_start: bool, capture: Dictionary) -> Array:
     var scaled: Array = []
     for k in keys:
         scaled.append({"t": float(k["t"]) * span, "v": float(k["v"]),
@@ -300,6 +305,7 @@ static func _signal_track(anim: Animation, path: String, keys: Array, span: floa
         else: p0 = 0.0
         scaled.push_front({"t": 0.0, "v": p0, "ease": "linear"})
     _insert_bezier(anim, path, ZenCurveBake.bake(scaled))
+    return scaled
 
 
 # ---------------------------------------------------------------------------
