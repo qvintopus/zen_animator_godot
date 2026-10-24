@@ -3759,9 +3759,79 @@ func test_scene_editor_playback() -> void:
         await process_frame
         guard += 1
     check(c.held_pause >= 0 and ed._playing, "playback holds at a pause marker")
-    ed._stage.play_clicked.emit()
+    ed._stage.play_pointer.emit("press", Vector2(0.5, 0.5))
     check(c.held_pause < 0 and ed._playing, "a click on the canvas continues")
     ed._stop()
+    ed.queue_free()
+    await process_frame
+    ZenSettings.set_editor_state(user_state)
+    await test_scene_editor_signals()
+
+
+## The Signals panel: add a signal (the first one makes the bus), key it in
+## signal key mode without touching the document, leave the mode with the
+## playhead back, undo it, and fire press triggers from the canvas while
+## playing.
+func test_scene_editor_signals() -> void:
+    var user_state := ZenSettings.editor_state()
+    ZenSettings.set_editor_state({})
+    var ed: ZenSceneEditor = (load("res://tools/zen_scene_editor.tscn") as PackedScene).instantiate()
+    root.add_child(ed)
+    await process_frame
+    ed.open("")
+    ed._add_element("shape")
+    var el := ed._primary()
+    ed._set_autokey(false)
+    ed._scrub_to(1.0)
+    ed._sigs.add_requested.emit()
+    var nm := ed._sig_pick
+    check(nm != "" and ed._canvas.bus() != null, "+ signal adds one and creates the bus")
+    check(ed._sigs._list.item_count == 1, "the panel lists it")
+
+    ed._sigs.edit_keys_requested.emit(nm, true)
+    check(ed._sig_edit == nm and ed._canvas.edit_anim == nm, "edit keys enters signal key mode")
+    check(ed._t == 0.0 and ed._doc_t == 1.0, "the playhead is signal time; the document's is kept")
+    ed._scrub_to(1.0)
+    ed._on_drag_start()
+    ed._on_drag(Vector2(0.2, 0.0))
+    ed._commit_live()
+    var sig := ZenSignalOps.data(ed._canvas, nm)
+    check(sig["targets"].any(func(tg): return tg["prop"] == "pos_x"),
+          "a drag in signal key mode keys the signal, auto-key or not")
+    check(ZenKeyOps.keys(ed._canvas, ZenElemOps.find(ed._canvas, el.elem_name), "pos_x").size() == 2,
+          "...with its capture key at 0")
+    check_near(float(ed._value_at(ZenElemOps.find(ed._canvas, el.elem_name), "pos_x", 1.0)), 0.7,
+               "the signal lands where it was dragged", 0.001)
+    ed._refresh_timeline()
+    check(ed._tl.lanes.size() == 2, "the timeline shows the signal's lanes (%d)" % ed._tl.lanes.size())
+
+    ed._set_sig_edit("")
+    check(ed._t == 1.0 and ed._canvas.edit_anim == "", "leaving restores the document playhead")
+    el = ZenElemOps.find(ed._canvas, el.elem_name)
+    check(not ZenKeyOps.has_track(ed._canvas, el, "pos_x"), "the document timeline was never keyed")
+
+    # Undo the drag: the signal loses its target again.
+    ed._do_undo()
+    check(ZenSignalOps.data(ed._canvas, nm)["targets"].is_empty(), "undo takes the signal keys back")
+    ed._do_redo()
+
+    # A press-triggered anchor signal fires from a canvas click while playing.
+    ed._sigs.field_set.emit(nm, "trigger", "press")
+    ed._sigs.field_set.emit(nm, "point", "anchor")
+    ed._sel.assign([el.elem_name])
+    ed._sigs.bind_requested.emit(nm)
+    check(ZenSignalOps.data(ed._canvas, nm)["point_elems"].size() == 1, "bind selected binds the element")
+    ed._play()
+    var fired: Array = []
+    ed._canvas.bus().signal_fired.connect(func(n, p): fired.append([n, p]))
+    ed._stage.play_pointer.emit("press", Vector2(0.25, 0.75))
+    check(fired.size() == 1 and fired[0][0] == nm and fired[0][1]["pos"] == Vector2(0.25, 0.75),
+          "a press on the canvas fires the press signal at the press")
+    ed._stop()
+    check(not ed._canvas.bus().is_overriding(), "stopping drops the fired signal")
+
+    ed._sigs.delete_requested.emit(nm)
+    check(ZenSignalOps.names(ed._canvas).is_empty(), "delete removes it")
     ed.queue_free()
     await process_frame
     ZenSettings.set_editor_state(user_state)

@@ -246,19 +246,7 @@ func _on_fire(params: Dictionary, signal_name: String) -> void:
     if inert: return
     var sig := find(signal_name)
     if sig.is_empty(): return
-    var t := _doc_time()
-    var nm := String(sig.get("name", ""))
-    # A point signal fired without a position reads the pointer once, which is
-    # how a code call reacts to the mouse with no extra API.
-    if String(sig.get("point", "none")) != "none" and not params.has("pos") \
-            and canvas != null:
-        params = params.duplicate()
-        params["pos"] = canvas.pointer_pos()
-    player.point_source = canvas.pointer_pos if canvas != null else Callable()
-    player.start(sig, params, _seq_index(), _capture.bind(t),
-        canvas.signal_timeline(nm) if canvas != null else ZenTimeline.new(),
-        func(e, p): return ZenAnimBuilder.node_name_for(canvas, e, p) \
-            if canvas != null else e)
+    _start(sig, params)
     running_name = String(sig.get("name", "")) if player.playing else ""
     set_process(player.playing)
 
@@ -276,6 +264,41 @@ func _on_fire(params: Dictionary, signal_name: String) -> void:
     # only after the next _process tick. An instant (length 0) terminal signal
     # would otherwise never be seen at all.
     _repose()
+
+
+## Start the player on `sig` from the pose on screen.
+func _start(sig: Dictionary, params: Dictionary) -> void:
+    var nm := String(sig.get("name", ""))
+    # A point signal fired without a position reads the pointer once, which is
+    # how a code call reacts to the mouse with no extra API.
+    if String(sig.get("point", "none")) != "none" and not params.has("pos") \
+            and canvas != null:
+        params = params.duplicate()
+        params["pos"] = canvas.pointer_pos()
+    player.point_source = canvas.pointer_pos if canvas != null else Callable()
+    player.start(sig, params, _seq_index(), _capture.bind(_doc_time()),
+        canvas.signal_timeline(nm) if canvas != null else ZenTimeline.new(),
+        func(e, p): return ZenAnimBuilder.node_name_for(canvas, e, p) \
+            if canvas != null else e)
+
+
+## The editor's signal key mode: show `signal_name` at `t` seconds into it,
+## from the pose on screen, with none of a fire's side effects - no replay
+## rewind, no running clock, no fired / terminal / chain signals.
+func preview(signal_name: String, t: float) -> void:
+    _ensure_ready()
+    var sig := find(signal_name)
+    if inert or sig.is_empty(): return
+    _start(sig, {})
+    running_name = ""
+    set_process(false)
+    if player.playing: player.clock = clampf(t, 0.0, float(sig.get("length", 0.0)))
+    _repose()
+
+
+## Holding a follow on the pointer after its catch-up.
+func is_following() -> bool:
+    return player.held and not player.playing and String(player.sig.get("point", "")) == "follow"
 
 
 ## Advance the signal's own clock.

@@ -27,9 +27,11 @@ signal empty_clicked
 signal drag_started
 signal dragged(delta_frac: Vector2)
 signal drag_ended
-## A left click while the scene plays (picking is off then): continues a
-## pause marker.
-signal play_clicked
+## The pointer while the scene plays (picking is off then), in canvas
+## fractions: "press" / "release" of the left button - a press also continues
+## a pause marker - and "move", which is sent while editing too, so a signal
+## previewed at the pointer has one.
+signal play_pointer(kind: String, frac: Vector2)
 
 const DRAG_SLOP := 3.0
 const PICK_SLOP := 3.0                   ## screen px of grace around thin strokes
@@ -280,10 +282,13 @@ func _gui_input(ev: InputEvent) -> void:
         pan((ev as InputEventMouseMotion).relative)
         accept_event()
         return
+    if ev is InputEventMouse:
+        var frac := to_canvas((ev as InputEventMouse).position) / canvas.design_size
+        if ev is InputEventMouseMotion: play_pointer.emit("move", frac)
+        elif playing and mb.button_index == MOUSE_BUTTON_LEFT:
+            play_pointer.emit("press" if mb.pressed else "release", frac)
     if playing:
-        if mb != null and mb.button_index == MOUSE_BUTTON_LEFT and mb.pressed:
-            play_clicked.emit()
-            accept_event()
+        if mb != null and mb.button_index == MOUSE_BUTTON_LEFT: accept_event()
         return
     if mb != null and mb.button_index == MOUSE_BUTTON_LEFT:
         if mb.pressed:

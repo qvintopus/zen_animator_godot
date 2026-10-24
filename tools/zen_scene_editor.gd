@@ -95,6 +95,14 @@ var _p_tl: ZenEditorPanel
 var _p_str: ZenEditorPanel
 var _p_keys: ZenEditorPanel
 var _keys: ZenKeyPanel
+var _p_sig: ZenEditorPanel
+var _sigs: ZenSignalPanel
+var _sig_pick := ""                     ## the signal the Signals panel shows
+## The signal whose keys the timeline edits ("" = the document). While set,
+## _t is seconds into the signal and _doc_t holds the document playhead the
+## signal is previewed from.
+var _sig_edit := ""
+var _doc_t := 0.0
 var _str_list: ItemList
 var _str_edit: TextEdit
 var _str_info: Label
@@ -152,6 +160,8 @@ func open(path: String) -> void:
         _name = ""
         c = ZenSceneOps.new_canvas("untitled")
     _t = 0.0
+    _sig_edit = ""
+    _sig_pick = ""
     _set_canvas(c)
     _sel.clear()
     var rows := ZenElemOps.rows(_canvas)
@@ -184,7 +194,12 @@ func _set_canvas(c: ZenCanvas) -> void:
     _stage.set_canvas(c)
     if old != null and old != c: old.queue_free()
     _canvas.edit_begin()
-    _canvas.scrub(_t)
+    # Signal key mode survives an undo only while its signal does.
+    if _sig_edit != "" and ZenSignalOps.anim(c, _sig_edit) == null:
+        _sig_edit = ""
+        _t = _doc_t
+    c.edit_anim = _sig_edit
+    _pose()
 
 
 func _selected_nodes() -> Array:
@@ -228,6 +243,7 @@ func _command(label: String, fn: Callable) -> void:
     _commit_live()
     var before := _snapshot()
     fn.call()
+    _sync_signal()
     _record(label, before)
     _after_edit()
     _set_status(label)
@@ -242,6 +258,7 @@ func _live(label: String, fn: Callable) -> void:
         _live_before = _snapshot()
         _live_label = label
     fn.call()
+    _sync_signal()
     _live_timer.start(LIVE_QUIET)
     _after_edit(false)
 
@@ -271,10 +288,14 @@ func _do_redo() -> void:
 ## inspector's controls (a spin box being dragged must not be replaced
 ## under the cursor) and only refreshes their values.
 func _after_edit(rebuild := true) -> void:
-    _canvas.scrub(_t)
+    if _sig_edit != "" and ZenSignalOps.anim(_canvas, _sig_edit) == null:
+        _sig_edit = ""                  # its signal was deleted or undone
+        _canvas.edit_anim = ""
+        _t = _doc_t
+    _pose()
     _stage.refresh_backdrop()
     _stage.selected = _selected_nodes()
-    _stage.time = _t
+    _stage.time = _pose_t()
     if rebuild:
         # Deferred: the edit may have come from a control inside the very
         # tree or inspector being rebuilt, mid-signal.
@@ -285,6 +306,7 @@ func _after_edit(rebuild := true) -> void:
     _refresh_timeline()
     _refresh_doc()
     _refresh_strings(not rebuild)
+    _refresh_signals()
     _sync_title()
 
 
@@ -305,7 +327,7 @@ func _build_ui() -> void:
     bar.add_child(_menu)
     _build_menus()
     for spec in [["elements", "1"], ["inspector", "2"], ["document", "3"], ["timeline", "4"],
-                 ["strings", "5"], ["keys", "6"]]:
+                 ["strings", "5"], ["keys", "6"], ["signals", "7"]]:
         var b := ZenEditorPanel._tool_button(spec[0], "Show / hide the %s panel (%s)" % spec)
         b.flat = false
         b.toggle_mode = true
@@ -341,7 +363,7 @@ func _build_ui() -> void:
     _stage.drag_started.connect(_on_drag_start)
     _stage.dragged.connect(_on_drag)
     _stage.drag_ended.connect(_commit_live)
-    _stage.play_clicked.connect(_continue)
+    _stage.play_pointer.connect(_on_play_pointer)
     _work.add_child(_stage)
 
     _p_elems = _add_panel("elements", "Elements", ZenEditorPanel.Edge.LEFT, 230)
@@ -362,6 +384,8 @@ func _build_ui() -> void:
     _build_strings(_p_str.body)
     _p_keys = _add_panel("keys", "Keys", ZenEditorPanel.Edge.RIGHT, 330)
     _build_keys(_p_keys.body)
+    _p_sig = _add_panel("signals", "Signals", ZenEditorPanel.Edge.RIGHT, 330)
+    _build_signals(_p_sig.body)
 
     _status = ZenUI.label("", ZenUI.TEXT)
     _status.clip_text = true
@@ -403,6 +427,7 @@ func _build_menus() -> void:
         ["Elements", _toggle_panel.bind("elements")], ["Inspector", _toggle_panel.bind("inspector")],
         ["Document", _toggle_panel.bind("document")], ["Timeline", _toggle_panel.bind("timeline")],
         ["Strings", _toggle_panel.bind("strings")], ["Keys", _toggle_panel.bind("keys")],
+        ["Signals", _toggle_panel.bind("signals")],
         [], ["Fit timeline", func(): _tl.fit()], ["Unpin all panels", _unpin_all]]))
 
 
@@ -974,8 +999,8 @@ func _on_drag_start() -> void:
     _drag_from.clear()
     for el in _selected_nodes():
         var e := el as ZenElement
-        _drag_from[e.elem_name] = Vector2(e.plain_prop("pos_x", _t, e.pos_frac.x),
-                                          e.plain_prop("pos_y", _t, e.pos_frac.y))
+        _drag_from[e.elem_name] = Vector2(float(_value_at(_owner_of(e, "pos_x"), "pos_x", _t)),
+                                          float(_value_at(_owner_of(e, "pos_y"), "pos_y", _t)))
 
 
 func _on_drag(delta: Vector2) -> void:
@@ -992,7 +1017,11 @@ func _on_drag(delta: Vector2) -> void:
 ## pose. Returns false when the write is refused (keyed, auto-key off).
 func _write_prop(el: ZenElement, prop: String, v: Variant) -> bool:
     var node := _owner_of(el, prop)
-    if _autokey:
+    # A signal has no base pose to write: its edits are always keys.
+    if _autokey or _sig_edit != "":
+        if _sig_edit != "" and ZenProps.is_stepped(prop):
+            _set_status("signals never drive %s" % prop)
+            return false
         ZenKeyOps.key_at_playhead(_canvas, node, prop, _t, v)
         return true
     if ZenKeyOps.has_track(_canvas, node, prop):
@@ -1098,7 +1127,7 @@ func _inspect_shape(g: GridContainer, s: ZenShape) -> void:
 func _inspect_text(t: ZenText) -> void:
     var pool := ZenStringOps.pool(_canvas)
     var use := ZenStringOps.usage(_canvas)
-    var cur := t.string_index_at(_t)
+    var cur := t.string_index_at(_pose_t())
     var head := HBoxContainer.new()
     _insp.add_child(head)
     var wl := ZenUI.label("words", ZenUI.LABEL)
@@ -1193,14 +1222,13 @@ func _refresh_inspector_values() -> void:
         kb.text = "◆" if here else ("◈" if keyed else "◇")
         kb.modulate = ZenUI.TITLE if keyed else ZenUI.DIM
         var ed: Control = r["editor"]
+        var free := not keyed or _autokey or _sig_edit != ""
         if ed is ColorPickerButton:
-            var c := node.plain_prop_color(prop, _t, node.base_color(prop), 1.0)
-            (ed as ColorPickerButton).color = c
-            (ed as ColorPickerButton).disabled = keyed and not _autokey
+            (ed as ColorPickerButton).color = _value_at(node, prop, _t)
+            (ed as ColorPickerButton).disabled = not free
         else:
-            var v := node.plain_prop(prop, _t, node.base_scalar(prop))
-            (ed as SpinBox).set_value_no_signal(v)
-            (ed as SpinBox).editable = not keyed or _autokey
+            (ed as SpinBox).set_value_no_signal(float(_value_at(node, prop, _t)))
+            (ed as SpinBox).editable = free
     _syncing = false
 
 
@@ -1210,8 +1238,7 @@ func _toggle_key(node: ZenElement, prop: String) -> void:
     if i >= 0:
         _command("unkey %s" % prop, func(): ZenKeyOps.remove(_canvas, node, prop, i))
         return
-    var v: Variant = node.plain_prop_color(prop, _t, node.base_color(prop), 1.0) \
-        if ZenProps.is_color(prop) else node.plain_prop(prop, _t, node.base_scalar(prop))
+    var v: Variant = _value_at(node, prop, _t)
     _command("key %s" % prop, func(): ZenKeyOps.key_at_playhead(_canvas, node, prop, _t, v))
 
 
@@ -1224,9 +1251,7 @@ func _key_all_here() -> void:
             for h in ZenElemOps.halves(_canvas, el):
                 for prop in ZenKeyOps.keyed_props(_canvas, h):
                     var node := h as ZenElement
-                    var v: Variant = node.plain_prop_color(prop, _t, node.base_color(prop), 1.0) \
-                        if ZenProps.is_color(prop) else node.plain_prop(prop, _t, node.base_scalar(prop))
-                    ZenKeyOps.insert(_canvas, node, prop, _t, v))
+                    ZenKeyOps.insert(_canvas, node, prop, _t, _value_at(node, prop, _t)))
 
 
 func _set_autokey(on: bool) -> void:
@@ -1291,8 +1316,17 @@ func _refresh_timeline() -> void:
     if _canvas == null: return
     var lanes: Array = []
     _lanes.clear()
-    var multi := _sel.size() > 1
-    for el in _selected_nodes():
+    var shown := _selected_nodes()
+    # A signal's keys show for every element it animates, picked or not.
+    if _sig_edit != "":
+        for el in ZenElemOps.rows(_canvas):
+            if shown.has(el): continue
+            for h in ZenElemOps.halves(_canvas, el):
+                if not ZenKeyOps.keyed_props(_canvas, h).is_empty():
+                    shown.append(el)
+                    break
+    var multi := shown.size() > 1
+    for el in shown:
         for h in ZenElemOps.halves(_canvas, el):
             var node := h as ZenElement
             for prop in ZenKeyOps.keyed_props(_canvas, node):
@@ -1309,8 +1343,11 @@ func _refresh_timeline() -> void:
     if _key_sel.is_empty(): _keys_dismissed = false
     _tl.selection = _view_selection()
     _tl.playhead = _t
-    _tl.set_model(lanes, ZenKeyOps.anim_of(_canvas).length, _canvas.intro_end,
-                  _canvas.outro_start, _canvas.pauses)
+    var span := ZenKeyOps.anim_of(_canvas).length
+    if _sig_edit != "":
+        _tl.set_model(lanes, span, 0.0, span, [])      # a signal has no markers
+    else:
+        _tl.set_model(lanes, span, _canvas.intro_end, _canvas.outro_start, _canvas.pauses)
     _sync_time()
     _refresh_keys()
 
@@ -1322,11 +1359,8 @@ func _samples(node: ZenElement, prop: String) -> PackedFloat32Array:
     var hi := -INF
     for i in SAMPLES:
         var t := span_t * float(i) / float(SAMPLES - 1)
-        var v: float
-        if ZenProps.is_color(prop):
-            v = node.plain_prop_color(prop, t, node.base_color(prop), 1.0).get_luminance()
-        else:
-            v = node.plain_prop(prop, t, node.base_scalar(prop))
+        var x: Variant = _value_at(node, prop, t)
+        var v: float = (x as Color).get_luminance() if x is Color else float(x)
         out.append(v)
         lo = minf(lo, v)
         hi = maxf(hi, v)
@@ -1348,8 +1382,8 @@ func _lane_prop(lane: int) -> String:
 func _scrub_to(t: float) -> void:
     _stop()
     _t = clampf(t, 0.0, ZenKeyOps.anim_of(_canvas).length)
-    _canvas.scrub(_t)
-    _stage.time = _t
+    _pose()
+    _stage.time = _pose_t()
     _tl.playhead = _t
     _tl.queue_redraw()
     _refresh_inspector_values()
@@ -1358,7 +1392,10 @@ func _scrub_to(t: float) -> void:
 
 
 func _sync_time() -> void:
-    if _time != null and _canvas != null:
+    if _time == null or _canvas == null: return
+    if _sig_edit != "":
+        _time.text = "signal %s  %.2f / %.2fs" % [_sig_edit, _t, ZenKeyOps.anim_of(_canvas).length]
+    else:
         _time.text = "%.2f / %.2fs" % [_t, _canvas.duration]
 
 
@@ -1570,8 +1607,8 @@ func _key_preview() -> Dictionary:
         var d := [absf(b.r - a.r), absf(b.g - a.g), absf(b.b - a.b)]
         ch = d.find(d.max())
     var at := func(t: float) -> float:
-        if ZenProps.is_color(prop): return node.plain_prop_color(prop, t, node.base_color(prop), 1.0)[ch]
-        return node.plain_prop(prop, t, node.base_scalar(prop))
+        var x: Variant = _value_at(node, prop, t)
+        return (x as Color)[ch] if x is Color else float(x)
     var v0: float = at.call(t0)
     var v1: float = at.call(t1)
     if absf(v1 - v0) < 1e-6: return {}
@@ -1701,6 +1738,7 @@ func _delete_keys() -> void:
 
 
 func _on_marker_dragged(kind: String, idx: int, t: float) -> void:
+    if _sig_edit != "": return
     _live("move %s" % kind, _move_marker.bind(kind, idx, t))
 
 
@@ -1782,8 +1820,7 @@ func _on_context_lane(lane: int, t: float, at: Vector2) -> void:
     if node == null: return
     _ctx_begin()
     _ctx_add("add key here (%.2fs)" % t, func():
-        var v: Variant = node.plain_prop_color(prop, t, node.base_color(prop), 1.0) \
-            if ZenProps.is_color(prop) else node.plain_prop(prop, t, node.base_scalar(prop))
+        var v: Variant = _value_at(node, prop, t)
         _command("key %s" % prop, func(): ZenKeyOps.insert(_canvas, node, prop, t, v)))
     _ctx_add("remove track %s" % prop, func():
         _command("remove track %s" % prop, func(): ZenKeyOps.remove_track(_canvas, node, prop)))
@@ -1793,6 +1830,9 @@ func _on_context_lane(lane: int, t: float, at: Vector2) -> void:
 func _on_context_ruler(t: float, at: Vector2) -> void:
     _ctx_begin()
     _ctx_add("playhead here", _scrub_to.bind(t))
+    if _sig_edit != "":
+        _ctx_show(at)
+        return
     _ctx_add("add pause here", func(): _command("add pause", func(): ZenDocOps.add_pause(_canvas, t)))
     _ctx_add("add pause (once) here", func(): _command("add pause", func(): ZenDocOps.add_pause(_canvas, t, true)))
     _ctx_add("intro ends here", func(): _command("intro_end", func(): ZenDocOps.set_intro_end(_canvas, t)))
@@ -1828,8 +1868,12 @@ func _continue() -> void:
 ## same as Home then play.
 func _play() -> void:
     _commit_live()
+    if _sig_edit != "":
+        _play_signal()
+        return
     var t := _t if _t < _canvas.play_end() - 0.01 else 0.0
     if t == 0.0: _scrub_to(0.0)
+    _canvas.release_signal()
     _canvas.play_from(t)
     _playing = true
     _stage.playing = true
@@ -1841,9 +1885,14 @@ func _stop() -> void:
     if not _playing: return
     _playing = false
     _stage.playing = false
-    _canvas.stop_timeline()
-    _t = _canvas.pose_time
-    _canvas.scrub(_t)
+    var bus := _canvas.bus()
+    if _sig_edit != "":
+        if bus != null: _t = minf(bus.player.clock, ZenKeyOps.anim_of(_canvas).length)
+    else:
+        _canvas.stop_timeline()
+        _t = _canvas.pose_time
+    if bus != null: bus.release_signal()
+    _pose()
     _play_btn.text = "play"
     _slide_to(0.0)
     _refresh_inspector_values()
@@ -1851,6 +1900,14 @@ func _stop() -> void:
 
 func _process(_dt: float) -> void:
     if not _playing or _canvas == null: return
+    if _sig_edit != "":
+        var bus := _canvas.bus()
+        _t = bus.player.clock if bus != null else _t
+        _tl.playhead = _t
+        _tl.queue_redraw()
+        _sync_time()
+        if bus == null or not bus.is_running(): _stop()
+        return
     _t = _canvas.pose_time
     _stage.time = _t
     _tl.playhead = _t
@@ -1858,7 +1915,182 @@ func _process(_dt: float) -> void:
     _sync_time()
     if _p_insp.is_open and _p_insp.pinned: _refresh_inspector_values()
     if _canvas.held_pause >= 0: _set_status("paused at a marker - click the canvas or SPACE to continue")
+    # A signal still shaping the pose - running, held at a terminal end, or
+    # following the pointer - keeps playback up until SPACE stops it.
+    var bus := _canvas.bus()
+    if bus != null and bus.is_overriding():
+        if _canvas.is_finished():
+            _set_status("signal %s - SPACE stops" % ("following" if bus.is_following() else "holding"
+                if not bus.is_running() else bus.running_name))
+        return
     if _canvas.is_finished(): _stop()
+
+
+# ---------------------------------------------------------------- signals
+
+func _build_signals(p: VBoxContainer) -> void:
+    _sigs = ZenSignalPanel.new()
+    _sigs.pick_requested.connect(func(nm):
+        _sig_pick = nm
+        _refresh_signals())
+    _sigs.add_requested.connect(func(): _command("add signal", func():
+        _sig_pick = ZenSignalOps.add(_canvas)))
+    _sigs.delete_requested.connect(func(nm): _command("delete signal %s" % nm, func():
+        ZenSignalOps.remove(_canvas, nm)
+        if _sig_pick == nm: _sig_pick = ""))
+    _sigs.rename_requested.connect(_rename_signal)
+    _sigs.fire_requested.connect(_fire_signal)
+    _sigs.field_set.connect(func(nm, key, v):
+        var fn := func(): ZenSignalOps.set_field(_canvas, nm, key, v)
+        if key == "length": _live("signal length", fn)
+        else: _command("signal %s %s" % [nm, key], fn))
+    _sigs.bind_requested.connect(func(nm):
+        if _sel.is_empty():
+            _set_status("select the elements that react to the point first")
+            return
+        _command("bind %s" % ", ".join(_sel), func():
+            for el in _sel: ZenSignalOps.bind_point(_canvas, nm, el)))
+    _sigs.unbind_requested.connect(func(nm, el): _command("unbind %s" % el, func():
+        ZenSignalOps.unbind_point(_canvas, nm, el)))
+    _sigs.offset_set.connect(func(nm, el, off): _live("point offset", func():
+        ZenSignalOps.bind_point(_canvas, nm, el, off)))
+    _sigs.edit_keys_requested.connect(func(nm, on): _set_sig_edit(nm if on else ""))
+    p.add_child(_sigs)
+
+
+func _refresh_signals() -> void:
+    if _sigs == null or _canvas == null: return
+    var names := ZenSignalOps.names(_canvas)
+    if not names.has(_sig_pick): _sig_pick = _sig_edit if names.has(_sig_edit) else \
+        (String(names[0]) if not names.is_empty() else "")
+    var bus := _canvas.bus()
+    var targets: Array = []
+    for tg in ZenSignalOps.data(_canvas, _sig_pick).get("targets", []):
+        targets.append("%s.%s" % [tg["elem"], tg["prop"]])
+    _sigs.set_model(bus.signals_data if bus != null else [], _sig_pick, _sig_edit,
+        ZenSignalOps.trigger_clash(_canvas, _sig_pick), targets)
+
+
+func _rename_signal(from: String, to: String) -> void:
+    if not ZenSignalOps.is_name_free(_canvas, to):
+        _set_status("a signal called %s already exists" % to)
+        _refresh_signals()
+        return
+    _command("rename signal %s -> %s" % [from, to], func():
+        ZenSignalOps.rename(_canvas, from, to)
+        if _sig_pick == from: _sig_pick = to
+        if _sig_edit == from: _sig_edit = to)
+
+
+## Point the timeline at a signal's keys ("" = back to the document). The
+## signal is previewed from the document pose at the playhead it left.
+func _set_sig_edit(nm: String) -> void:
+    if nm == _sig_edit: return
+    _stop()
+    _commit_live()
+    if _sig_edit == "": _doc_t = _t
+    var bus := _canvas.bus()
+    if bus != null: bus.release_signal()
+    _sig_edit = nm
+    _canvas.edit_anim = nm
+    _t = 0.0 if nm != "" else _doc_t
+    _key_sel.clear()
+    if nm != "":
+        _sig_pick = nm
+        if not _p_tl.is_open: _toggle_panel("timeline")
+        _set_status("editing signal %s - keys and drags key the signal; its first key is the pose captured at fire. ESC returns" % nm)
+    else:
+        _set_status("editing the document timeline")
+    _after_edit()
+
+
+## Keep a signal's runtime data in step with key edits in signal key mode.
+func _sync_signal() -> void:
+    if _sig_edit != "": ZenSignalOps.sync(_canvas, _sig_edit)
+
+
+## The time the canvas is posed at: the document playhead, which in signal
+## key mode is the pose the signal is previewed from.
+func _pose_t() -> float:
+    return _doc_t if _sig_edit != "" else _t
+
+
+## Pose the canvas for the playhead: the document at _t, or in signal key
+## mode the signal _t seconds in, from the document pose at _doc_t. Editing
+## (not playing) drops whatever a fired signal left behind.
+func _pose() -> void:
+    var bus := _canvas.bus()
+    if _sig_edit == "":
+        if bus != null and not _playing: bus.release_signal()
+        _canvas.scrub(_t)
+        return
+    _canvas.scrub(_doc_t)
+    if bus != null: bus.preview(_sig_edit, _t)
+
+
+## The value of `prop` at `t` on the timeline being edited: the document's
+## plain track, or the signal's curve eased from the document pose at _doc_t.
+func _value_at(node: ZenElement, prop: String, t: float) -> Variant:
+    var col := ZenProps.is_color(prop)
+    var t0 := _doc_t if _sig_edit != "" else t
+    var plain: Variant = node.plain_prop_color(prop, t0, node.base_color(prop), 1.0) if col \
+        else node.plain_prop(prop, t0, node.base_scalar(prop))
+    if _sig_edit == "" or ZenProps.is_stepped(prop): return plain
+    var tl := _canvas.signal_timeline(_sig_edit)
+    var path := node.track_path(prop)
+    return tl.blend_color(path, t, plain) if col else tl.blend(path, t, float(plain))
+
+
+## Fire a signal: live while the scene plays, else over the pose at the
+## playhead (the editing pose comes back on the next scrub or edit).
+func _fire_signal(nm: String) -> void:
+    if _sig_edit != "":
+        if nm != _sig_edit: _set_sig_edit(nm)
+        _play_signal()
+        return
+    if not _playing:
+        _commit_live()
+        _pose()
+    if not _canvas.fire(nm): _set_status("%s did not start - it animates nothing yet" % nm)
+
+
+## Play the edited signal through, from the document pose.
+func _play_signal() -> void:
+    var bus := _canvas.bus()
+    if bus == null: return
+    _canvas.scrub(_doc_t)
+    bus.preview(_sig_edit, 0.0)
+    if not bus.is_running():
+        _set_status("%s animates nothing yet - key something first" % _sig_edit)
+        return
+    bus.running_name = _sig_edit
+    bus.set_process(true)
+    _playing = true
+    _stage.playing = true
+    _play_btn.text = "stop"
+
+
+## The pointer over the canvas. A press continues a held pause first; while
+## the document plays the rest reaches the canvas, firing press / release
+## triggers there as it would in a game.
+func _on_play_pointer(kind: String, frac: Vector2) -> void:
+    if _canvas == null: return
+    if kind == "press" and _playing and _canvas.held_pause >= 0:
+        _continue()
+        return
+    if kind != "move" and (not _playing or _sig_edit != ""): return
+    if _canvas.pointer(kind, frac): _set_status("%s fired" % _canvas.bus().running_name)
+
+
+## Keys 1-9 while playing fire the scene's signals in list order, at the
+## pointer - the gallery's keys, and the C editor's.
+func _fire_digit(ev: InputEvent) -> bool:
+    var names := ZenSignalOps.names(_canvas)
+    for i in mini(names.size(), 9):
+        if ev.is_action_pressed("zen_signal_%d" % (i + 1)):
+            _fire_signal(String(names[i]))
+            return true
+    return false
 
 
 # ---------------------------------------------------------------- files
@@ -2037,11 +2269,13 @@ func _show_help() -> void:
             ["zen_play", "play / pause"], ["zen_edit_home", "playhead to start"],
             ["zen_edit_frame_prev", "back one frame"], ["zen_edit_frame_next", "forward one frame"],
             ["zen_edit_autokey", "auto-key on / off"],
-            ["click while playing", "continue from a pause marker"]]},
+            ["click while playing", "continue from a pause marker, else a press / release signal"],
+            ["1-9 while playing", "fire the scene's signals, in list order, at the pointer"]]},
         {"name": "Panels & file", "rows": [
             ["zen_edit_panel_1", "elements panel"], ["zen_edit_panel_2", "inspector"],
             ["zen_edit_panel_3", "document"], ["zen_edit_panel_4", "timeline"],
             ["zen_edit_panel_5", "string pool"], ["zen_edit_panel_6", "keys panel"],
+            ["zen_edit_panel_7", "signals panel"],
             ["zen_edit_undo", "undo"], ["zen_edit_redo", "redo"],
             ["zen_edit_save", "save"], ["zen_edit_save_as", "save as"],
             ["zen_help", "this sheet on / off"],
@@ -2077,6 +2311,7 @@ func _unhandled_input(ev: InputEvent) -> void:
     elif ev.is_action_pressed("zen_back"):
         if echo or _close_unpinned(): pass
         elif not _key_sel.is_empty(): _clear_keys()
+        elif _sig_edit != "": _set_sig_edit("")
         else: _request_leave()
     elif ev.is_action_pressed("zen_edit_redo", true): _do_redo()
     elif ev.is_action_pressed("zen_edit_undo", true): _do_undo()
@@ -2107,8 +2342,9 @@ func _unhandled_input(ev: InputEvent) -> void:
         else: _tl.fit()
     elif ev.is_action_pressed("zen_edit_key_prev", true): _jump_key(-1)
     elif ev.is_action_pressed("zen_edit_key_next", true): _jump_key(1)
+    elif _playing and _sig_edit == "" and _fire_digit(ev): pass
     else:
-        var ids := ["elements", "inspector", "document", "timeline", "strings", "keys"]
+        var ids := ["elements", "inspector", "document", "timeline", "strings", "keys", "signals"]
         for i in ids.size():
             if ev.is_action_pressed("zen_edit_panel_%d" % (i + 1)):
                 if not echo: _toggle_panel(ids[i])
