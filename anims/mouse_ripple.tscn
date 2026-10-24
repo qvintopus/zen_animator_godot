@@ -198,28 +198,6 @@ step = 0.0166667
 [sub_resource type="Animation" id="Animation_6o0yx"]
 length = 2.007874
 step = 0.0166667
-tracks/0/type = "bezier"
-tracks/0/imported = false
-tracks/0/enabled = true
-tracks/0/path = NodePath("shape:pos_offset_0:x")
-tracks/0/interp = 1
-tracks/0/loop_wrap = true
-tracks/0/keys = {
-"handle_modes": PackedInt32Array(0),
-"points": PackedFloat32Array(0, 0, 0, 0, 0),
-"times": PackedFloat32Array(0)
-}
-tracks/1/type = "bezier"
-tracks/1/imported = false
-tracks/1/enabled = true
-tracks/1/path = NodePath("shape:pos_offset_0:y")
-tracks/1/interp = 1
-tracks/1/loop_wrap = true
-tracks/1/keys = {
-"handle_modes": PackedInt32Array(0),
-"points": PackedFloat32Array(0, 0, 0, 0, 0),
-"times": PackedFloat32Array(0)
-}
 
 [sub_resource type="AnimationLibrary" id="AnimationLibrary_paagk"]
 _data = {
@@ -246,26 +224,30 @@ unit_abs = true
 [node name="Signals" type="Node" parent="." unique_id=1797251932]
 script = ExtResource("3_hfn6v")
 signals_data = [{
+"every_loop": false,
 "length": 1.0,
 "name": "enter",
-"pos_anchor": false,
-"pos_params": [],
+"point": "none",
+"point_ease": "sineOut",
+"point_elems": [],
 "replay": false,
 "seq_keys": [],
 "seq_mult": 0.0,
 "seq_targets": [],
 "targets": [],
 "terminal": false,
-"uses_pos": false,
+"then": "",
+"trigger": "code",
 "uses_seq": false
 }, {
+"every_loop": false,
 "length": 2.007874,
 "name": "ripple",
-"pos_anchor": true,
-"pos_params": [{
+"point": "anchor",
+"point_ease": "sineOut",
+"point_elems": [{
 "elem": "shape",
-"keys": [],
-"slot": 0
+"off": Vector2(0, 0)
 }],
 "replay": true,
 "seq_keys": [],
@@ -273,7 +255,8 @@ signals_data = [{
 "seq_targets": [],
 "targets": [],
 "terminal": false,
-"uses_pos": true,
+"then": "",
+"trigger": "press",
 "uses_seq": false
 }]
 

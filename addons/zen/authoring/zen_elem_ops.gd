@@ -208,35 +208,19 @@ static func remove(canvas: ZenCanvas, el: ZenElement) -> void:
     canvas.timeline_dirty()
 
 
-## Drop every signal reference to `nm`. A pos-param's keys live at
-## `Node:pos_offset_<i>`, indexed by its slot in the signal's list, so
-## removing one shifts the tracks of the params after it down a slot.
+## Drop every signal reference to `nm`.
 static func _prune_signals(canvas: ZenCanvas, nm: String) -> void:
     var bus := canvas.bus()
     if bus == null: return
     for s in bus.signals_data:
         var sig: Dictionary = s
-        sig["targets"] = (sig.get("targets", []) as Array).filter(
-            func(tg): return String(tg["elem"]) != nm)
-        sig["seq_targets"] = (sig.get("seq_targets", []) as Array).filter(
-            func(tg): return String(tg["elem"]) != nm)
-        var pps: Array = sig.get("pos_params", [])
-        var sa := _signal_anim(canvas, String(sig.get("name", "")))
-        var kept: Array = []
-        for i in pps.size():
-            if String(pps[i]["elem"]) == nm: continue
-            if sa != null and kept.size() != i:
-                _rename_slot(sa, i, kept.size())
-            kept.append(pps[i])
-        sig["pos_params"] = kept
+        for key in SIGNAL_REFS:
+            sig[key] = (sig.get(key, []) as Array).filter(
+                func(tg): return String(tg["elem"]) != nm)
 
 
-static func _rename_slot(anim: Animation, from: int, to: int) -> void:
-    var a := ":pos_offset_%d:" % from
-    var b := ":pos_offset_%d:" % to
-    for i in anim.get_track_count():
-        var p := String(anim.track_get_path(i))
-        if p.contains(a): anim.track_set_path(i, NodePath(p.replace(a, b)))
+## The lists in a signal whose entries name an element by `elem`.
+const SIGNAL_REFS := ["targets", "seq_targets", "point_elems"]
 
 
 # ---------------------------------------------------------------------------
@@ -264,7 +248,7 @@ static func rename(canvas: ZenCanvas, el: ZenElement, nm: String) -> bool:
     var bus := canvas.bus()
     if bus != null:
         for s in bus.signals_data:
-            for key in ["targets", "seq_targets", "pos_params"]:
+            for key in SIGNAL_REFS:
                 for tg in (s as Dictionary).get(key, []):
                     if String(tg["elem"]) == old: tg["elem"] = nm
     canvas.timeline_dirty()
@@ -307,11 +291,3 @@ static func _animations(canvas: ZenCanvas) -> Array:
         for an in lib.get_animation_list():
             out.append(lib.get_animation(an))
     return out
-
-
-static func _signal_anim(canvas: ZenCanvas, signal_name: String) -> Animation:
-    var ap := ZenAnimBuilder.find_player(canvas)
-    if ap == null or not ap.has_animation_library(ZenAnimBuilder.SIG_LIB): return null
-    var lib := ap.get_animation_library(ZenAnimBuilder.SIG_LIB)
-    var an := ZenAnimBuilder.sig_anim_name(signal_name)
-    return lib.get_animation(an) if lib.has_animation(an) else null

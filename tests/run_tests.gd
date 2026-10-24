@@ -79,6 +79,15 @@ func _run() -> void:
     test_signal_pos_anchor_translates()
     test_signal_pos_param_replaces()
     test_signal_pos_param_outranks_target()
+    test_signal_pointer_fill()
+    test_signal_follow_tracks_pointer()
+    test_signal_follow_superseded()
+    test_signal_trigger_press_release()
+    test_signal_trigger_end_oneshot()
+    test_signal_trigger_end_every_loop()
+    test_signal_then_chain()
+    test_signal_normalize_legacy()
+    test_signal_bake_no_pos_offset()
     test_signal_terminal_edge()
     test_signal_terminal_holds_end_pose()
     test_signal_pack_roundtrip()
@@ -172,22 +181,25 @@ func test_signal_u_normalization() -> void:
 ## `enter` signal is exactly this, and a player that "ran" would install an
 ## override that drives no property while still blocking the loop blend.
 func test_signal_no_start() -> void:
-    var empty := {"name": "enter", "length": 1.0, "targets": [], "pos_params": [],
-                  "seq_targets": [], "seq_keys": [], "uses_seq": false,
-                  "seq_mult": 0.0, "uses_pos": false, "pos_anchor": false}
+    var empty := ZenSignalData.defaults("enter")
     var p := ZenSignalPlayer.new()
     _start(p, empty, {}, 0, func(_e, _pr): return 0.0)
-    check(not p.playing, "a signal with no targets/posparams/seqtargets never starts")
+    check(not p.playing, "a signal with no targets/point elems/seqtargets never starts")
     check(p.is_done(), "and reports done immediately")
     check(p.eval("shape", "pos_x") == null, "an unstarted signal drives nothing")
 
-    # But posparams ALONE, or seqtargets ALONE, are enough to play.
+    # But point bindings ALONE, or seqtargets ALONE, are enough to play.
     var only_pos: Dictionary = empty.duplicate(true)
-    only_pos["uses_pos"] = true
-    only_pos["pos_params"] = [{"elem": "shape", "slot": 0, "keys": []}]
+    only_pos["point"] = "anchor"
+    only_pos["point_elems"] = [{"elem": "shape", "off": Vector2.ZERO}]
     var q := ZenSignalPlayer.new()
     _start(q, only_pos, {"pos": Vector2(0.5, 0.5)}, 0, func(_e, _pr): return 0.0)
-    check(q.playing, "posparams alone are enough to start")
+    check(q.playing, "point bindings alone are enough to start")
+    # ...but not when point is "none": the bindings are then inert data.
+    only_pos["point"] = "none"
+    var q2 := ZenSignalPlayer.new()
+    _start(q2, only_pos, {}, 0, func(_e, _pr): return 0.0)
+    check(not q2.playing, "point bindings with point=none do not start a signal")
 
     var only_seq: Dictionary = empty.duplicate(true)
     only_seq["seq_targets"] = [{"elem": "shape", "prop": "scale"}]
@@ -1363,23 +1375,28 @@ func test_signal_no_compounding() -> void:
     canvas.queue_free()
 
 
-## posAnchor is a CONSTANT TRANSLATION: the element is born at the cursor and
+## A point-signal dictionary over `shape`: `mode` is anchor / seek / follow.
+func _point_sig(mode: String, off := Vector2.ZERO) -> Dictionary:
+    var sig := ZenSignalData.defaults("go")
+    sig["length"] = 2.0
+    sig["point"] = mode
+    sig["point_ease"] = "linear"
+    sig["point_elems"] = [{"elem": "shape", "off": off}]
+    return sig
+
+
+## anchor is a CONSTANT TRANSLATION: the element is born at the cursor and
 ## plays its authored path, which is why anchor mode does NOT replace the slot
 ## (anim.c:1621-1622, 1783-1816). This is mouse_ripple's `ripple`.
 func test_signal_pos_anchor_translates() -> void:
-    var sig := {"name": "ripple", "length": 2.0, "terminal": false,
-                "uses_pos": true, "pos_anchor": true, "replay": true,
-                "targets": [], "seq_mult": 0.0, "uses_seq": false,
-                "seq_targets": [], "seq_keys": [],
-                "pos_params": [{"elem": "shape", "slot": 0, "keys": []}]}
-    var canvas := _sig_canvas(sig)
+    var canvas := _sig_canvas(_point_sig("anchor"))
     root.add_child(canvas)
     var sh: ZenShape = canvas.get_node("shape")
     var bus: ZenSignalBus = canvas.bus()
 
     # The element sits at the centre; emit at (0.75, 0.25).
     check_near(sh.prop("pos_x", 0.0, 0.5), 0.5, "element starts centred")
-    bus.fire("ripple", {"pos": Vector2(0.75, 0.25)})
+    bus.fire("go", {"pos": Vector2(0.75, 0.25)})
     canvas.pose(0.0)
     check_near(sh.prop("pos_x", 0.0, 0.5), 0.75, "anchored to the emitted x")
     check_near(sh.prop("pos_y", 0.0, 0.5), 0.25, "anchored to the emitted y")
@@ -1387,52 +1404,69 @@ func test_signal_pos_anchor_translates() -> void:
     # (0,0) is a LEGAL emit - the top-left corner - which is why the payload
     # uses the presence of "pos" rather than a separate has_pos bool that
     # could contradict it (signal.h:33).
-    bus.fire("ripple", {"pos": Vector2.ZERO})
+    bus.fire("go", {"pos": Vector2.ZERO})
     canvas.pose(0.0)
     check_near(sh.prop("pos_x", 0.0, 0.5), 0.0, "(0,0) is a legal emit, not 'no position'")
 
-    # And with no position at all, the anchor contributes nothing.
-    bus.fire("ripple", {})
+    # The binding's constant offset is added to the point.
+    var c2 := _sig_canvas(_point_sig("anchor", Vector2(0.1, -0.1)))
+    root.add_child(c2)
+    c2.bus().fire("go", {"pos": Vector2(0.5, 0.5)})
+    c2.pose(0.0)
+    var sh2: ZenShape = c2.get_node("shape")
+    check_near(sh2.prop("pos_x", 0.0, 0.5), 0.6, "anchor adds the binding offset (x)")
+    check_near(sh2.prop("pos_y", 0.0, 0.5), 0.4, "anchor adds the binding offset (y)")
+    canvas.queue_free()
+    c2.queue_free()
+
+
+## No position given: a point signal reads the canvas pointer ONCE, at fire
+## time - how a code trigger reacts to the mouse with no extra API.
+func test_signal_pointer_fill() -> void:
+    var canvas := _sig_canvas(_point_sig("anchor"))
+    root.add_child(canvas)
+    var sh: ZenShape = canvas.get_node("shape")
+    canvas.pointer("move", Vector2(0.2, 0.7))
+    canvas.fire("go")
     canvas.pose(0.0)
-    check_near(sh.prop("pos_x", 0.0, 0.5), 0.5, "no emitted pos = no anchor offset")
+    check_near(sh.prop("pos_x", 0.0, 0.5), 0.2, "a code fire with no pos uses the pointer (x)")
+    check_near(sh.prop("pos_y", 0.0, 0.5), 0.7, "a code fire with no pos uses the pointer (y)")
+    # A snapshot, not live: moving the pointer afterwards changes nothing.
+    canvas.pointer("move", Vector2(0.9, 0.9))
+    canvas.pose(0.0)
+    check_near(sh.prop("pos_x", 0.0, 0.5), 0.2, "anchor keeps the fire-time pointer")
     canvas.queue_free()
 
 
-## A non-anchor posparam REPLACES the position (the centre branch), rather than
-## offsetting it (anim.c:1615-1673).
+## seek REPLACES the position, easing from the captured centre to the point.
 func test_signal_pos_param_replaces() -> void:
-    var sig := {"name": "go", "length": 2.0, "terminal": false,
-                "uses_pos": true, "pos_anchor": false, "replay": false,
-                "targets": [], "seq_mult": 0.0, "uses_seq": false,
-                "seq_targets": [], "seq_keys": [],
-                "pos_params": [{"elem": "shape", "slot": 0,
-                                "keys": [{"t": 1.0, "off": Vector2.ZERO,
-                                          "ease": "linear"}]}]}
-    var canvas := _sig_canvas(sig)
+    var canvas := _sig_canvas(_point_sig("seek"))
     root.add_child(canvas)
     var sh: ZenShape = canvas.get_node("shape")
     var bus: ZenSignalBus = canvas.bus()
 
     bus.fire("go", {"pos": Vector2(0.9, 0.1)})
-    bus.advance(1.999)          # still driving; a finished signal stops entirely
+    bus.advance(1.0)
     canvas.pose(0.0)
-    check_near(sh.prop("pos_x", 0.0, 0.5), 0.9, "posparam replaces pos_x", 0.001)
-    check_near(sh.prop("pos_y", 0.0, 0.5), 0.1, "posparam replaces pos_y", 0.001)
+    check_near(sh.prop("pos_x", 0.0, 0.5), 0.7, "seek is half way at u=0.5 (x)", 0.001)
+    check_near(sh.prop("pos_y", 0.0, 0.5), 0.3, "seek is half way at u=0.5 (y)", 0.001)
+    bus.advance(0.999)
+    canvas.pose(0.0)
+    check_near(sh.prop("pos_x", 0.0, 0.5), 0.9, "seek lands on the point (x)", 0.001)
+    check_near(sh.prop("pos_y", 0.0, 0.5), 0.1, "seek lands on the point (y)", 0.001)
+    # Seek ends like any signal: the timeline takes the element back.
+    bus.advance(1.0)
+    canvas.pose(0.0)
+    check_near(sh.prop("pos_x", 0.0, 0.5), 0.5, "a finished seek hands back to the timeline")
     canvas.queue_free()
 
 
-## RULE 4: a posparam OUTRANKS a plain target on the same prop. `ripple_old`
-## has both, and the posparam must win (anim.c:1683).
+## RULE 4: a point binding OUTRANKS a plain target on the same prop.
+## `ripple_old` has both, and the point must win (anim.c:1683).
 func test_signal_pos_param_outranks_target() -> void:
-    var sig := {"name": "go", "length": 2.0, "terminal": false,
-                "uses_pos": true, "pos_anchor": false, "replay": false,
-                "targets": [{"elem": "shape", "prop": "pos_x",
-                             "keys": [{"t": 1.0, "v": 0.2, "ease": "linear"}]}],
-                "seq_mult": 0.0, "uses_seq": false,
-                "seq_targets": [], "seq_keys": [],
-                "pos_params": [{"elem": "shape", "slot": 0,
-                                "keys": [{"t": 1.0, "off": Vector2.ZERO,
-                                          "ease": "linear"}]}]}
+    var sig := _point_sig("seek")
+    sig["targets"] = [{"elem": "shape", "prop": "pos_x",
+                       "keys": [{"t": 1.0, "v": 0.2, "ease": "linear"}]}]
     var canvas := _sig_canvas(sig)
     root.add_child(canvas)
     var sh: ZenShape = canvas.get_node("shape")
@@ -1441,10 +1475,223 @@ func test_signal_pos_param_outranks_target() -> void:
     bus.fire("go", {"pos": Vector2(0.9, 0.5)})
     bus.advance(1.999)          # still driving; a finished signal stops entirely
     canvas.pose(0.0)
-    # The plain target would drive pos_x to 0.2, the posparam to 0.9. Opposite
+    # The plain target would drive pos_x to 0.2, the point to 0.9. Opposite
     # directions, so there is no reading of this that both could satisfy.
     check_near(sh.prop("pos_x", 0.0, 0.5), 0.9,
-               "the posparam wins over a plain target on the same prop", 0.001)
+               "the point wins over a plain target on the same prop", 0.001)
+    canvas.queue_free()
+
+
+## follow: seek toward the LIVE pointer, then keep tracking it after `length`
+## until something supersedes it.
+func test_signal_follow_tracks_pointer() -> void:
+    var canvas := _sig_canvas(_point_sig("follow"))
+    root.add_child(canvas)
+    var sh: ZenShape = canvas.get_node("shape")
+    var bus: ZenSignalBus = canvas.bus()
+
+    canvas.pointer("move", Vector2(0.9, 0.5))
+    canvas.fire("go")
+    bus.advance(1.0)
+    canvas.pose(0.0)
+    check_near(sh.prop("pos_x", 0.0, 0.5), 0.7, "follow catches up over length", 0.001)
+    # The pointer moves mid-flight: the target moves with it.
+    canvas.pointer("move", Vector2(0.1, 0.5))
+    canvas.pose(0.0)
+    check_near(sh.prop("pos_x", 0.0, 0.5), 0.3, "follow eases toward the LIVE pointer", 0.001)
+
+    bus.advance(5.0)
+    check(not bus.is_running(), "the catch-up has run")
+    check(bus.is_overriding(), "but a follow keeps overriding after length")
+    check(bus.is_processing(), "and keeps re-posing every frame")
+    canvas.pointer("move", Vector2(0.25, 0.75))
+    canvas.pose(0.0)
+    check_near(sh.prop("pos_x", 0.0, 0.5), 0.25, "follow sits on the pointer (x)", 0.001)
+    check_near(sh.prop("pos_y", 0.0, 0.5), 0.75, "follow sits on the pointer (y)", 0.001)
+
+    canvas.release_signal()
+    check(not bus.is_overriding(), "release_signal lets go of a follow")
+    check_near(sh.prop("pos_x", 0.0, 0.5), 0.5, "released: back on the timeline")
+    canvas.queue_free()
+
+
+## Another signal fired supersedes a follow - one player per canvas.
+func test_signal_follow_superseded() -> void:
+    var canvas := _sig_canvas(_point_sig("follow"))
+    var bus: ZenSignalBus = canvas.bus()
+    var other := _one_target_sig("alpha", 1.0)
+    other["name"] = "fade"
+    bus.signals_data.append(other)
+    ZenAnimBuilder.install(canvas)
+    root.add_child(canvas)
+    var sh: ZenShape = canvas.get_node("shape")
+    canvas.pointer("move", Vector2(0.9, 0.9))
+    canvas.fire("go")
+    bus.advance(5.0)
+    canvas.pose(0.0)
+    check_near(sh.prop("pos_x", 0.0, 0.5), 0.9, "following before the next fire")
+    canvas.fire("fade")
+    canvas.pose(0.0)
+    check_near(sh.prop("pos_x", 0.0, 0.5), 0.5, "a new signal supersedes the follow")
+    canvas.queue_free()
+
+
+## press / release triggers fire from pointer(), at the pointer position; a
+## trigger with no matching signal fires nothing; the first in list order wins.
+func test_signal_trigger_press_release() -> void:
+    var down := _point_sig("anchor")
+    down["name"] = "down"
+    down["trigger"] = "press"
+    var canvas := _sig_canvas(down)
+    var bus: ZenSignalBus = canvas.bus()
+    var up := _point_sig("seek")
+    up["name"] = "up"
+    up["trigger"] = "release"
+    var dup := up.duplicate(true)
+    dup["name"] = "up2"
+    bus.signals_data.append(up)
+    bus.signals_data.append(dup)
+    ZenAnimBuilder.install(canvas)
+    root.add_child(canvas)
+    var fired: Array = []
+    bus.signal_fired.connect(func(nm, params): fired.append([nm, params]))
+
+    check(not canvas.pointer("move", Vector2(0.3, 0.3)), "a move fires nothing")
+    check(canvas.pointer("press", Vector2(0.2, 0.4)), "press fires the press signal")
+    check(canvas.pointer("release", Vector2(0.6, 0.8)), "release fires the release signal")
+    check(fired.size() == 2 and fired[0][0] == "down" and fired[1][0] == "up",
+          "press -> down, release -> the FIRST release signal")
+    check(fired.size() == 2 and fired[1][1].get("pos") == Vector2(0.6, 0.8),
+          "the trigger carries the pointer position")
+    check(bus.wants_pointer(), "a bus with press/release signals wants the pointer")
+    check(not bus.trigger("end"), "no end signal: the end trigger fires nothing")
+    canvas.queue_free()
+
+
+## `end`: a one-shot running out fires its end signal BEFORE `finished`; a
+## timeline a terminal signal stopped short is no `end`.
+func test_signal_trigger_end_oneshot() -> void:
+    var sig := _one_target_sig("alpha", 1.0)
+    sig["name"] = "done"
+    sig["trigger"] = "end"
+    var canvas := _sig_canvas(sig)
+    canvas.loop_play = false
+    root.add_child(canvas)
+    var order: Array = []
+    canvas.bus().signal_fired.connect(func(nm, _p): order.append(nm))
+    canvas.finished.connect(func(): order.append("finished"))
+    canvas.setup_animation_player(false)
+
+    canvas._seek_safe(1.0)          # stopped mid-way: not an end
+    canvas.stop_timeline()
+    canvas._check_finished()
+    check(order == ["finished"], "a timeline stopped short of its end fires no end signal")
+
+    canvas._finished_sent = false
+    order.clear()
+    canvas._seek_safe(canvas.play_end())
+    canvas.stop_timeline()
+    canvas._check_finished()
+    check(order == ["done", "finished"], "end fires its signal, then finished")
+    canvas._check_finished()
+    check(order.size() == 2, "and only once")
+    canvas.queue_free()
+
+
+## `end` on a looping timeline: every wrap with every_loop, else the first.
+func test_signal_trigger_end_every_loop() -> void:
+    for every in [false, true]:
+        var sig := _one_target_sig("alpha", 1.0)
+        sig["name"] = "wrap"
+        sig["trigger"] = "end"
+        sig["every_loop"] = every
+        var canvas := _sig_canvas(sig)
+        canvas.loop_play = true
+        root.add_child(canvas)
+        var n := [0]
+        canvas.bus().signal_fired.connect(func(_nm, _p): n[0] += 1)
+        canvas.setup_animation_player(false)
+        canvas._seek_safe(1.0)
+        canvas._check_wrap()
+        check(n[0] == 0, "no wrap, no end signal (every_loop=%s)" % every)
+        for _i in 3:
+            canvas._last_raw = 3.9          # the clock went backwards: a wrap
+            canvas._check_wrap()
+        check(n[0] == (3 if every else 1),
+              "every_loop=%s fires on %s wrap" % [every, "every" if every else "the first"])
+        canvas.rewind_timeline()
+        canvas._last_raw = 3.9
+        canvas._check_wrap()
+        check(n[0] == (4 if every else 2), "a rewind starts the wrap count over")
+        canvas.queue_free()
+
+
+## `then` chains on the completion edge; a terminal signal never chains.
+func test_signal_then_chain() -> void:
+    var a := _one_target_sig("alpha", 1.0)
+    a["name"] = "a"
+    a["then"] = "b"
+    var canvas := _sig_canvas(a)
+    var bus: ZenSignalBus = canvas.bus()
+    var b := _one_target_sig("alpha", 0.0)
+    b["name"] = "b"
+    bus.signals_data.append(b)
+    ZenAnimBuilder.install(canvas)
+    root.add_child(canvas)
+    bus.fire("a")
+    bus.advance(1.0)
+    check(bus.running_name == "a", "a is still running")
+    bus.advance(1.5)
+    check(bus.running_name == "b", "a's completion edge fires b")
+
+    (bus.signals_data[0] as Dictionary)["terminal"] = true
+    bus.fire("a")
+    bus.advance(3.0)
+    check(bus.running_name == "", "a terminal signal does not chain")
+    check(ZenSignalData.chained(_point_sig("follow")) == "", "a follow does not chain")
+    canvas.queue_free()
+
+
+## Legacy uses_pos / pos_anchor / pos_params upgrade to the point fields.
+func test_signal_normalize_legacy() -> void:
+    var old := {"name": "r", "length": 1.0, "uses_pos": true, "pos_anchor": false,
+                "replay": false, "targets": [],
+                "pos_params": [
+                    {"elem": "shape", "slot": 0,
+                     "keys": [{"t": 1.0, "off": Vector2(0.1, 0.0), "ease": "quadIn"}]},
+                    {"elem": "box", "slot": 1, "keys": []}]}
+    ZenSignalData.normalize(old)
+    check(old["point"] == "seek", "uses_pos without anchor is seek")
+    check(old["point_elems"].size() == 1, "the corner slot is dropped")
+    check(old["point_elems"][0]["off"] == Vector2(0.1, 0.0), "the last key's offset carries over")
+    check(old["point_ease"] == "quadIn", "the last key's ease carries over")
+    check(old["trigger"] == "code", "legacy signals are code-triggered")
+    check(not old.has("uses_pos") and not old.has("pos_params"), "legacy fields are gone")
+    var again: Dictionary = old.duplicate(true)
+    ZenSignalData.normalize(again)
+    check(again == old, "normalize is idempotent")
+
+    var anchor := {"name": "r", "uses_pos": true, "pos_anchor": true,
+                   "pos_params": [{"elem": "shape", "slot": 0, "keys": []}]}
+    ZenSignalData.normalize(anchor)
+    check(anchor["point"] == "anchor", "uses_pos with pos_anchor is anchor")
+    check(anchor["point_elems"][0]["off"] == Vector2.ZERO, "stripped keys mean no offset")
+    var none := {"name": "n", "uses_pos": false, "pos_anchor": false, "pos_params": []}
+    ZenSignalData.normalize(none)
+    check(none["point"] == "none", "uses_pos off is point none")
+
+
+## Point signals bake no tracks, and a legacy `pos_offset` track is dropped on
+## load rather than left for the AnimationPlayer to fail to resolve.
+func test_signal_bake_no_pos_offset() -> void:
+    var canvas := _sig_canvas(_point_sig("seek"))
+    var anim := ZenAnimBuilder.signal_anim(canvas, "go")
+    check(anim != null and anim.get_track_count() == 0, "a point signal bakes no tracks")
+    var tr := anim.add_track(Animation.TYPE_BEZIER)
+    anim.track_set_path(tr, NodePath("shape:pos_offset_0:x"))
+    root.add_child(canvas)
+    canvas.bus().has("go")          # any entry point upgrades the scene
+    check(anim.get_track_count() == 0, "legacy pos_offset tracks are dropped on load")
     canvas.queue_free()
 
 

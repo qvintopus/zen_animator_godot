@@ -501,10 +501,12 @@ pos_frac = Vector2(0.5, 0.748032)
 [node name="Signals" type="Node" parent="." unique_id=809680675]
 script = ExtResource("5_07rg1")
 signals_data = [{
+"every_loop": false,
 "length": 3.031496,
 "name": "TV-out",
-"pos_anchor": false,
-"pos_params": [],
+"point": "none",
+"point_ease": "sineOut",
+"point_elems": [],
 "replay": false,
 "seq_keys": [],
 "seq_mult": 0.0,
@@ -559,7 +561,8 @@ signals_data = [{
 "prop": "pos_y"
 }],
 "terminal": true,
-"uses_pos": false,
+"then": "",
+"trigger": "code",
 "uses_seq": false
 }]
 

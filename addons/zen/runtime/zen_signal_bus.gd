@@ -84,10 +84,29 @@ func _ensure_ready() -> void:
         canvas = get_parent()
     if _declared: return
     _declared = true
+    for sd in signals_data: ZenSignalData.normalize(sd)
+    _drop_legacy_tracks()
     _declare_signals()
 
 
 var _declared := false
+
+
+## Pre-point scenes keyed pos-param offsets at `Node:pos_offset_<i>:x|y`.
+## Those offsets are now one constant per binding (ZenSignalData.normalize),
+## and the pseudo-props the tracks pointed at are gone, so the tracks would
+## only make the AnimationPlayer warn that it cannot resolve them.
+func _drop_legacy_tracks() -> void:
+    var ap := ZenAnimBuilder.find_player(canvas) if canvas != null else null
+    if ap == null or not ap.has_animation_library(ZenAnimBuilder.SIG_LIB): return
+    var lib := ap.get_animation_library(ZenAnimBuilder.SIG_LIB)
+    for an in lib.get_animation_list():
+        var a := lib.get_animation(an)
+        for i in range(a.get_track_count() - 1, -1, -1):
+            if String(a.track_get_path(i)).contains(":pos_offset_"): a.remove_track(i)
+        var cap: Dictionary = a.get_meta(ZenTimeline.META_CAPTURE, {})
+        for k in cap.keys():
+            if String(k).contains(":pos_offset_"): cap.erase(k)
 
 
 ## One user signal per authored name, each connected to our own handler.
@@ -123,6 +142,30 @@ func fire(signal_name: String, params: Dictionary = {}) -> bool:
     return true
 
 
+## Fire whatever the canvas itself triggers on `kind` ("press", "release",
+## "end"): the FIRST signal in list order with that trigger, so two signals
+## sharing one never race (the editor flags the clash). `pos` is the pointer
+## for press/release, in canvas fractions. `wrap` is the loop wrap count for
+## "end" (0 = a one-shot running out, 1 = the first wrap, ...): a signal
+## without `every_loop` only answers 0 or 1. False when nothing fired.
+func trigger(kind: String, pos: Variant = null, wrap := 0) -> bool:
+    _ensure_ready()
+    for sd in signals_data:
+        var sig: Dictionary = sd
+        if String(sig["trigger"]) != kind: continue
+        if kind == "end" and wrap > 1 and not bool(sig["every_loop"]): continue
+        return fire(String(sig["name"]), {"pos": pos} if pos is Vector2 else {})
+    return false
+
+
+## Does any signal need pointer events (press/release triggers, a follow)?
+func wants_pointer() -> bool:
+    _ensure_ready()
+    for sd in signals_data:
+        if ZenSignalData.wants_pointer(sd): return true
+    return false
+
+
 func has(signal_name: String) -> bool:
     _ensure_ready()
     return has_user_signal(signal_name)
@@ -152,10 +195,22 @@ func is_holding() -> bool:
     return player.held and not player.playing
 
 
-## Hand the elements back to the timeline after a held terminal end pose.
+## Hand the elements back to the timeline after a held terminal end pose, or
+## let go of a follow.
 func release_hold() -> void:
     if not player.held: return
     player.release()
+    set_process(player.playing)
+    _repose()
+
+
+## Stop whatever signal is shaping the pose - running, holding or following -
+## and hand the elements back to the timeline.
+func release_signal() -> void:
+    player.playing = false
+    player.release()
+    running_name = ""
+    set_process(false)
     _repose()
 
 
@@ -168,6 +223,13 @@ func _on_fire(params: Dictionary, index: int) -> void:
     var sig: Dictionary = signals_data[index]
     var t := _doc_time()
     var nm := String(sig.get("name", ""))
+    # A point signal fired without a position reads the pointer once, which is
+    # how a code call reacts to the mouse with no extra API.
+    if String(sig.get("point", "none")) != "none" and not params.has("pos") \
+            and canvas != null:
+        params = params.duplicate()
+        params["pos"] = canvas.pointer_pos()
+    player.point_source = canvas.pointer_pos if canvas != null else Callable()
     player.start(sig, params, _seq_index(), _capture.bind(t),
         canvas.signal_timeline(nm) if canvas != null else ZenTimeline.new(),
         func(e, p): return ZenAnimBuilder.node_name_for(canvas, e, p) \
@@ -218,7 +280,8 @@ func advance(delta: float) -> void:
         var nm := running_name
         var terminal := bool(player.sig.get("terminal", false))
         running_name = ""
-        set_process(false)
+        # A follow keeps re-posing to the live pointer after its catch-up.
+        set_process(player.is_overriding() and not terminal)
         if terminal:
             # The instance stops here, having played the authored transition
             # through, rather than being cut off. The player keeps HOLDING
@@ -226,6 +289,8 @@ func advance(delta: float) -> void:
             # draws where the signal finished, not the frozen timeline pose.
             if canvas != null: canvas.stop_timeline()
             terminal_finished.emit(nm)
+        var next := ZenSignalData.chained(player.sig)
+        if not next.is_empty(): fire(next)
 
 
 # ---------------------------------------------------------------------------
@@ -260,8 +325,6 @@ func _capture(elem_name: String, prop: String, t: float) -> Variant:
     if e == null:
         push_warning("zen: signal targets unknown element '%s'" % elem_name)
         return null
-    # Asked for by the pos-param capture; it is element metadata, not a track.
-    if prop == "corner_mode": return e.corner_mode
     if ZenProps.is_color(prop):
         return e.plain_prop_color(prop, t, e.base_color(prop), 1.0)
     return e.plain_prop(prop, t, e.base_scalar(prop))
@@ -277,7 +340,7 @@ func _find_elem(nm: String, prop := "") -> ZenElement:
     if canvas == null: return null
     for e in canvas.elements():
         var el := e as ZenElement
-        if el.elem_name == nm and (prop.is_empty() or prop == "corner_mode" or el.owns(prop)):
+        if el.elem_name == nm and (prop.is_empty() or el.owns(prop)):
             return el
     return null
 

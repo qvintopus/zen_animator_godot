@@ -54,9 +54,6 @@ func _ready() -> void:
 #  - it SAMPLES the Animation itself (ZenTimeline). In the editor a write means
 #  the author scrubbed or dragged a key, so the canvas re-poses.
 # ---------------------------------------------------------------------------
-const POS_OFFSETS := 3          ## pos_offset_0..2, a signal's binding slots
-
-
 func _get_property_list() -> Array[Dictionary]:
     var out: Array[Dictionary] = []
     for p in ZenProps.scalars_for(zen_kind()):
@@ -66,9 +63,6 @@ func _get_property_list() -> Array[Dictionary]:
     for p in ZenProps.colors_for(zen_kind()):
         if not owns(p): continue
         out.append({"name": p, "type": TYPE_COLOR, "usage": PROPERTY_USAGE_EDITOR})
-    for i in POS_OFFSETS:
-        out.append({"name": "pos_offset_%d" % i, "type": TYPE_VECTOR2,
-            "usage": PROPERTY_USAGE_EDITOR})
     for p in _eased_props():
         out.append({"name": ZenAnimBuilder.EASE_PREFIX + p, "type": TYPE_STRING,
             "usage": PROPERTY_USAGE_EDITOR})
@@ -85,7 +79,6 @@ func _eased_props() -> Array:
 
 func _is_zen_prop(n: StringName) -> bool:
     var s := String(n)
-    if s.begins_with("pos_offset_"): return true
     if s.begins_with(ZenAnimBuilder.EASE_PREFIX):
         return _eased_props().has(s.trim_prefix(ZenAnimBuilder.EASE_PREFIX))
     var p := ZenProps.prop_of_track(s)
@@ -98,7 +91,6 @@ func _is_zen_prop(n: StringName) -> bool:
 func _get(n: StringName) -> Variant:
     if not _is_zen_prop(n): return null
     var s := String(n)
-    if s.begins_with("pos_offset_"): return Vector2.ZERO
     if s.begins_with(ZenAnimBuilder.EASE_PREFIX): return "linear"
     var p := ZenProps.prop_of_track(s)
     return base_color(p) if ZenProps.is_color(p) else base_scalar(p)

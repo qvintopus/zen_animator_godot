@@ -1408,17 +1408,20 @@ unit_abs = true
 [node name="Signals" type="Node" parent="." unique_id=1336935808]
 script = ExtResource("7_5c20g")
 signals_data = [{
+"every_loop": false,
 "length": 1.0,
 "name": "enter",
-"pos_anchor": false,
-"pos_params": [],
+"point": "none",
+"point_ease": "sineOut",
+"point_elems": [],
 "replay": false,
 "seq_keys": [],
 "seq_mult": 0.0,
 "seq_targets": [],
 "targets": [],
 "terminal": false,
-"uses_pos": false,
+"then": "",
+"trigger": "code",
 "uses_seq": false
 }]
 

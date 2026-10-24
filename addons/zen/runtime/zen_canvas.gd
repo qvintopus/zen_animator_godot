@@ -157,6 +157,11 @@ func _join_group() -> void:
 var pose_time := 0.0
 var pose_looping_flag := false
 
+## Which Animation the editor's key ops write: "" is the document timeline,
+## otherwise a signal name, whose Animation in library `sig` is edited instead
+## (ZenKeyOps.anim_of). Editor state, never stored.
+var edit_anim := ""
+
 
 # ---------------------------------------------------------------------------
 #  Timeline: the AnimationPlayer's animations, sampled purely (ZenTimeline).
@@ -345,6 +350,7 @@ func setup_animation_player(autostart := true) -> AnimationPlayer:
 		held_pause = -1
 		_spent.clear()
 		_finished_sent = false
+		_wraps = 0
 		# Godot's native section-loop only engages with LOOP_LINEAR (measured:
 		# with LOOP_NONE a section plays once and holds at its end, regardless
 		# of play_section vs play_section_with_markers). LOOP_NONE is what one
@@ -412,6 +418,7 @@ func _process(_delta: float) -> void:
 	if Engine.is_editor_hint(): return
 	if _ap == null: return
 	_check_finished()
+	_check_wrap()
 	# The handover below is NOT gated on is_playing(): measured on 4.7.2, a
 	# LOOP_NONE section playing to its own end already reports is_playing() ==
 	# false on the very frame current_animation_position reaches that end -
@@ -554,6 +561,7 @@ func rewind_timeline() -> void:
 	held_pause = -1
 	_spent.clear()
 	_finished_sent = false
+	_wraps = 0
 	if skips_intro():
 		_seek_safe(play_start())
 		_intro_done = true
@@ -601,6 +609,7 @@ func stop_timeline() -> void:
 ## first whenever the target falls outside it - this is the ONLY chokepoint
 ## that may call `_ap.seek()` in the whole project.
 func _seek_safe(t: float) -> void:
+	_last_raw = t
 	if _ap == null: return
 	if t < play_start() - 0.0001:
 		_ap.set_section(0.0, play_end())
@@ -643,7 +652,7 @@ func play(from_start := true) -> void:
 	_game_ready()
 	if from_start:
 		var bus_ := bus()
-		if bus_ != null: bus_.release_hold()
+		if bus_ != null: bus_.release_signal()
 		if setup_animation_player(true) == null: return
 		# A scene saved with live_playback off parks its player inactive.
 		_ap.active = true
@@ -679,6 +688,64 @@ func fire(signal_name: String, params: Dictionary = {}) -> bool:
 	return bus_ != null and bus_.fire(signal_name, params)
 
 
+## Stop the signal shaping the pose - running, holding its end pose, or
+## following the pointer - and hand the elements back to the timeline.
+func release_signal() -> void:
+	var bus_ := bus()
+	if bus_ != null: bus_.release_signal()
+
+
+# ---------------------------------------------------------------------------
+#  Pointer: what press / release triggers and point signals read.
+# ---------------------------------------------------------------------------
+
+## Let the canvas read the mouse itself, so press / release / follow signals
+## work with no game code. Off, a game feeds pointer() itself.
+@export var pointer_input := true
+
+## The last pointer position, in canvas fractions. Centre until one arrives.
+var _pointer := Vector2(0.5, 0.5)
+
+
+func pointer_pos() -> Vector2:
+	return _pointer
+
+
+## Feed the pointer, in canvas fractions: "move" only records it, "press" and
+## "release" also fire the signal triggered by them. The host entry point -
+## the gallery and the scene editor forward their own input here, and a game
+## scene's _unhandled_input does the same. True when a signal fired.
+func pointer(kind: String, frac: Vector2) -> bool:
+	_pointer = frac
+	if kind == "move": return false
+	var bus_ := bus()
+	return bus_ != null and bus_.trigger(kind, frac)
+
+
+## The mouse in canvas fractions: local to the canvas, so a fitted or nested
+## canvas reads the same.
+func mouse_frac() -> Vector2:
+	return get_local_mouse_position() / design_size
+
+
+## Loop wraps this playthrough - what an `end` trigger's every_loop gates on.
+var _wraps := 0
+var _last_raw := 0.0
+
+
+## A looping timeline wrapped since the last frame: the raw clock went
+## backwards without a seek (_seek_safe records seeks). The intro handover
+## restarts at intro_end, which reads as a wrap too - the first pass ended.
+func _check_wrap() -> void:
+	var raw := _ap.current_animation_position
+	var wrapped := raw < _last_raw - 0.0001 and loops()
+	_last_raw = raw
+	if not wrapped: return
+	_wraps += 1
+	var bus_ := bus()
+	if bus_ != null: bus_.trigger("end", null, _wraps)
+
+
 ## Every authored signal name, for a game that wires them up by data.
 func signal_names() -> Array:
 	var bus_ := bus()
@@ -693,7 +760,7 @@ func _game_ready() -> void:
 	var bus_ := bus()
 	if bus_ != null and not bus_.terminal_finished.is_connected(_on_terminal):
 		bus_.terminal_finished.connect(_on_terminal)
-	set_process_unhandled_input(click_to_continue)
+	set_process_unhandled_input(click_to_continue or _wants_pointer())
 	if fit_window and get_tree().current_scene == self:
 		# Running on its own: letterbox in black, as a video of it would be.
 		RenderingServer.set_default_clear_color(Color.BLACK)
@@ -702,8 +769,20 @@ func _game_ready() -> void:
 	if draw_background: queue_redraw()
 
 
+func _wants_pointer() -> bool:
+	var bus_ := bus()
+	return pointer_input and bus_ != null and bus_.wants_pointer()
+
+
+## A one-shot ran out: fire its `end` signal, THEN report finished, so a game
+## awaiting `finished` sees the end signal already started. A timeline that a
+## terminal signal stopped short of its end is not an `end`.
 func _check_finished() -> void:
-	if is_finished(): _send_finished()
+	if not is_finished() or _finished_sent: return
+	if _anim_time() >= play_end() - 0.001:
+		var bus_ := bus()
+		if bus_ != null: bus_.trigger("end", null, 0)
+	_send_finished()
 
 
 ## A terminal signal ends the instance whatever the clock was doing - even
@@ -726,12 +805,19 @@ func _fit() -> void:
 
 
 func _unhandled_input(ev: InputEvent) -> void:
-	if held_pause < 0: return
 	var mb := ev as InputEventMouseButton
-	var click := mb != null and mb.pressed and mb.button_index == MOUSE_BUTTON_LEFT
-	if click or ev.is_action_pressed("ui_accept"):
-		resume()
-		get_viewport().set_input_as_handled()
+	var left := mb != null and mb.button_index == MOUSE_BUTTON_LEFT
+	if held_pause >= 0 and click_to_continue:
+		# A click that continues a held pause is consumed, not also a trigger.
+		if (left and mb.pressed) or ev.is_action_pressed("ui_accept"):
+			resume()
+			get_viewport().set_input_as_handled()
+			return
+	if not _wants_pointer(): return
+	if ev is InputEventMouseMotion:
+		pointer("move", mouse_frac())
+	elif left:
+		pointer("press" if mb.pressed else "release", mouse_frac())
 
 
 func _draw() -> void:

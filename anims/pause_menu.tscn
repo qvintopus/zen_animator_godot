@@ -314,10 +314,12 @@ pos_frac = Vector2(0, 0.287402)
 [node name="Signals" type="Node" parent="." unique_id=2041617590]
 script = ExtResource("4_m5ssp")
 signals_data = [{
+"every_loop": false,
 "length": 0.866142,
 "name": "exit",
-"pos_anchor": false,
-"pos_params": [],
+"point": "none",
+"point_ease": "sineOut",
+"point_elems": [],
 "replay": false,
 "seq_keys": [],
 "seq_mult": 0.0,
@@ -356,7 +358,8 @@ signals_data = [{
 "prop": "alpha"
 }],
 "terminal": true,
-"uses_pos": false,
+"then": "",
+"trigger": "code",
 "uses_seq": false
 }]
 

@@ -30,8 +30,8 @@ extends RefCounted
 ## (see ZenKeyOps). Stepped props have none - they never interpolate.
 ##
 ## A signal's keys sit at `u * length` seconds, so its Animation shows real
-## time. Its sequence envelope is the `Signals:seq` track and its pos-param
-## offsets are `Node:pos_offset_<i>:x|y`. See ZenTimeline for the capture rule.
+## time. Its sequence envelope is the `Signals:seq` track. See ZenTimeline for
+## the capture rule.
 ##
 ## The retained `_anim_pose` method track keeps the old "the Animation owns
 ## time" contract: it calls canvas.pose_looping(), the one resolver.
@@ -277,19 +277,6 @@ static func bake_signal(sig: Dictionary, node_of := Callable()) -> Animation:
         # The envelope starts from a constant 0, so it is a real key, not a capture.
         _signal_track(anim, "%s:%s" % [SEQ_NODE, SEQ_PROP], seq_keys, span, false, capture)
 
-    var pos_params: Array = sig.get("pos_params", [])
-    for i in pos_params.size():
-        var pp: Dictionary = pos_params[i]
-        var keys: Array = pp.get("keys", [])
-        if keys.is_empty(): continue
-        var node := _node(node_of, String(pp["elem"]), "pos_x")
-        for axis in ["x", "y"]:
-            var ak: Array = []
-            for k in keys:
-                var off: Vector2 = k["off"]
-                ak.append({"t": k["t"], "v": off[axis], "ease": k.get("ease", "linear")})
-            _signal_track(anim, "%s:pos_offset_%d:%s" % [node, i, axis], ak, span, true, capture)
-
     if not capture.is_empty(): anim.set_meta(ZenTimeline.META_CAPTURE, capture)
     return anim
 
@@ -318,6 +305,15 @@ static func _signal_track(anim: Animation, path: String, keys: Array, span: floa
 # ---------------------------------------------------------------------------
 #  Installing into a canvas
 # ---------------------------------------------------------------------------
+
+## The Animation a signal's keys live in, or null.
+static func signal_anim(canvas: Node, signal_name: String) -> Animation:
+    var ap := find_player(canvas)
+    if ap == null or not ap.has_animation_library(SIG_LIB): return null
+    var lib := ap.get_animation_library(SIG_LIB)
+    var an := sig_anim_name(signal_name)
+    return lib.get_animation(an) if lib.has_animation(an) else null
+
 
 ## The canvas's AnimationPlayer, or null.
 static func find_player(canvas: Node) -> AnimationPlayer:
@@ -373,4 +369,3 @@ static func _library(ap: AnimationPlayer, nm: String) -> AnimationLibrary:
 static func strip_keys(sig: Dictionary) -> void:
     for tg in sig.get("targets", []): tg["keys"] = []
     sig["seq_keys"] = []
-    for pp in sig.get("pos_params", []): pp["keys"] = []

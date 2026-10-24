@@ -38,7 +38,11 @@ const DEFAULT_EASE := "linear"
 #  Lookup
 # ---------------------------------------------------------------------------
 
+## The Animation key ops edit: the document timeline, or the signal named by
+## canvas.edit_anim (its keys are seconds into the signal, 0..length).
 static func anim_of(canvas: ZenCanvas) -> Animation:
+    if not canvas.edit_anim.is_empty():
+        return ZenAnimBuilder.signal_anim(canvas, canvas.edit_anim)
     var ap := ZenAnimBuilder.find_player(canvas)
     if ap == null or not ap.has_animation(ANIM): return null
     return ap.get_animation(ANIM)

@@ -42,26 +42,29 @@ var playing := false
 var held := false
 var seq := 0                      ## stage sequence index, 0 = not sequenced
 var params: Dictionary = {}       ## {"pos": Vector2}; presence of "pos" IS has_pos
+## Where a `follow` signal reads its point every frame: Callable() -> Vector2
+## in canvas fractions (ZenCanvas.pointer_pos). Unset, follow reads params.pos.
+var point_source := Callable()
 
 ## The captured live pose, by target index: scalars and colours.
 var _from_value: Array = []
 var _from_color: Array = []
-## The captured live geometry, by pos-param index:
-## {"px","py","w","h","scale","corner"}.
-var _from_pose: Array = []
+## The captured centre of each point_elems entry, by index.
+var _from_center: Array = []
 ## The signal's Animation, sampled, and the elem/prop -> node-name resolver
 ## its track paths were baked with.
 var _tl: ZenTimeline = null
 var _node_of := Callable()
-## One warning per player for the deferred corner branch, not one per frame.
-var _warned_corner := false
 
 
 func has_pos() -> bool:
-    return params.has("pos")
+    return params.has("pos") or (_point() == "follow" and point_source.is_valid())
 
 
+## The point: the live pointer for a follow, else the position it was fired at.
 func pos() -> Vector2:
+    if _point() == "follow" and point_source.is_valid():
+        return point_source.call()
     return params.get("pos", Vector2.ZERO)
 
 
@@ -93,17 +96,16 @@ func start(signal_data: Dictionary, p: Dictionary, seq_index: int,
     params = p.duplicate()
     _from_value = []
     _from_color = []
-    _from_pose = []
+    _from_center = []
     if sig.is_empty(): return
 
     var targets: Array = sig.get("targets", [])
-    var pos_params: Array = sig.get("pos_params", [])
+    var point_elems: Array = sig.get("point_elems", []) if _point() != "none" else []
     var seq_targets: Array = sig.get("seq_targets", [])
     # A signal driving NOTHING does not start. mouse_ripple's `enter` signal
-    # is exactly this (anim.c:1505-1507). A signal with only
-    # posparams or only seqtargets DOES start: it has a pose to ease from and a
-    # length to run.
-    if targets.is_empty() and pos_params.is_empty() and seq_targets.is_empty():
+    # is exactly this (anim.c:1505-1507). A signal with only point bindings or
+    # only seqtargets DOES start: it has a pose to ease from and a length to run.
+    if targets.is_empty() and point_elems.is_empty() and seq_targets.is_empty():
         return
 
     for tg in targets:
@@ -116,18 +118,13 @@ func start(signal_data: Dictionary, p: Dictionary, seq_index: int,
             _from_value.append(float(v) if v is float or v is int else 0.0)
             _from_color.append(Color(0, 0, 0, 0))
 
-    for pp in pos_params:
-        var nm := String(pp["elem"])
-        var pose := {"px": 0.0, "py": 0.0, "w": 0.0, "h": 0.0,
-                     "scale": 1.0, "corner": false}
-        # The geometry a binding eases FROM (anim.c:1537-1543).
-        for slot in [["px", "pos_x"], ["py", "pos_y"], ["w", "w"],
-                     ["h", "h"], ["scale", "scale"]]:
-            var v: Variant = capture.call(nm, String(slot[1]))
-            if v is float or v is int: pose[String(slot[0])] = float(v)
-        var cm: Variant = capture.call(nm, "corner_mode")
-        pose["corner"] = cm is bool and cm
-        _from_pose.append(pose)
+    # The centre each point binding eases (or is translated) FROM.
+    for pe in point_elems:
+        var c := Vector2.ZERO
+        for ax in ["pos_x", "pos_y"]:
+            var v: Variant = capture.call(String(pe["elem"]), ax)
+            if v is float or v is int: c[0 if ax == "pos_x" else 1] = float(v)
+        _from_center.append(c)
 
     playing = true
 
@@ -142,7 +139,8 @@ func update(dt: float) -> void:
     if clock >= len_s:
         clock = len_s
         playing = false
-        held = bool(sig.get("terminal", false))
+        # A terminal signal holds its end pose; a follow keeps tracking.
+        held = bool(sig.get("terminal", false)) or _point() == "follow"
 
 
 func is_done() -> bool:
@@ -160,13 +158,13 @@ func release() -> void:
 
 
 ## The scalar value this signal drives for (elem, prop), or null if it drives
-## none. Pos-param bindings are tried FIRST: they replace the authored value
-## outright (anim.c:1683), and `ripple_old` has both a posparam and a plain `w`
-## target on the same element, where the posparam must win.
+## none. Point bindings are tried FIRST: they replace the authored value
+## outright (anim.c:1683), and `ripple_old` has both a point binding and a
+## plain target on the same element, where the point must win.
 func eval(elem: String, prop: String) -> Variant:
     if not is_overriding(): return null
 
-    var pv: Variant = _pos_param_eval(elem, prop)
+    var pv: Variant = point_eval(elem, prop)
     if pv != null: return pv
 
     var i := _target_index(elem, prop)
@@ -215,35 +213,35 @@ func seq_offset(elem: String, prop: String) -> float:
 
 
 ## The spawn-anchor translation: a CONSTANT offset moving the element so its
-## bound point at fire time lands on the emitted position (anim.c:1783-1816).
+## centre at fire time lands on the point (anim.c:1783-1816).
 ##
 ## This is what "born at the cursor" means - the element keeps its authored
-## path and the whole path is translated, which is why anchor mode makes
-## _pos_param_eval return null instead of replacing the slot. POS props only;
-## size is left to the authored animation. Only the FIRST binding of an element
-## is honoured: anchoring one element to two cursor points is contradictory.
+## path and the whole path is translated, which is why anchor mode leaves
+## point_eval() returning null. POS props only; size is left to the authored
+## animation.
 func pos_anchor(elem: String, prop: String) -> float:
     if not is_overriding(): return 0.0
-    if not bool(sig.get("uses_pos", false)): return 0.0
-    if not bool(sig.get("pos_anchor", false)): return 0.0
-    if not has_pos(): return 0.0
+    if _point() != "anchor" or not has_pos(): return 0.0
     if not ZenProps.is_pos(prop): return 0.0
+    var i := _point_index(elem)
+    if i < 0: return 0.0
+    var d := pos() + _point_off(i) - (_from_center[i] as Vector2)
+    return d.x if prop == "pos_x" else d.y
 
-    var pos_params: Array = sig.get("pos_params", [])
-    for i in pos_params.size():
-        if String(pos_params[i]["elem"]) != elem: continue
-        if i >= _from_pose.size(): return 0.0
-        var fp: Dictionary = _from_pose[i]
-        var px := float(fp["px"])
-        var py := float(fp["py"])
-        if bool(fp["corner"]):
-            # The bound point is a corner, so shift by half the fire-time size.
-            var sc := float(fp["scale"])
-            var s := -1.0 if int(pos_params[i]["slot"]) == 0 else 1.0
-            px += s * float(fp["w"]) * sc * 0.5
-            py += s * float(fp["h"]) * sc * 0.5
-        return (pos().x - px) if prop == "pos_x" else (pos().y - py)
-    return 0.0
+
+## Seek / follow: the bound centre eased from its capture to (point + off)
+## over u with `point_ease`, or null when this signal does not move it. After
+## `length` a follow sits on the point, which pos() keeps re-reading.
+func point_eval(elem: String, prop: String) -> Variant:
+    var mode := _point()
+    if mode != "seek" and mode != "follow": return null
+    if not has_pos() or not ZenProps.is_pos(prop): return null
+    var i := _point_index(elem)
+    if i < 0: return null
+    var to := pos() + _point_off(i)
+    var from := _from_center[i] as Vector2
+    var k := ZenEasing.apply(String(sig.get("point_ease", ZenSignalData.DEFAULT_POINT_EASE)), u())
+    return lerpf(from.x, to.x, k) if prop == "pos_x" else lerpf(from.y, to.y, k)
 
 
 # ---------------------------------------------------------------------------
@@ -258,53 +256,20 @@ func _target_index(elem: String, prop: String) -> int:
     return -1
 
 
-## Pos-param binding for (elem, prop), or null when nothing binds it.
-##
-## Anchor mode deliberately returns null: it does NOT replace the slot, it lets
-## the authored value through and adds a constant offset later (anim.c:1621).
-##
-## The CORNER branch is deferred - no bundled document binds a corner, and the C
-## itself flags the mode as limited (fire-time pose, no live scale tracking).
-## `corner_mode` is carried as data so nothing is lost.
-func _pos_param_eval(elem: String, prop: String) -> Variant:
-    if not bool(sig.get("uses_pos", false)): return null
-    if not has_pos(): return null
-    if bool(sig.get("pos_anchor", false)): return null
-    if not ZenProps.is_pos(prop) and not ZenProps.is_size(prop): return null
-
-    var pos_params: Array = sig.get("pos_params", [])
-    var i_center := -1
-    var saw_corner := false
-    for i in pos_params.size():
-        if String(pos_params[i]["elem"]) != elem: continue
-        if i < _from_pose.size() and bool(_from_pose[i]["corner"]):
-            saw_corner = true              # corner binding: deferred
-            continue
-        i_center = i
-    if i_center < 0:
-        # Loud, not silent: a corner binding would animate as if the signal
-        # had no posparam at all, which looks like a content bug.
-        if saw_corner and not _warned_corner:
-            _warned_corner = true
-            push_warning("zen: pos-param CORNER binding on '%s' is not implemented; "
-                         % elem + "the element keeps its authored position")
-        return null
-    if not ZenProps.is_pos(prop): return null        # centre drives POS only
-
-    var fp: Dictionary = _from_pose[i_center]
-    var live := float(fp["px"]) if prop == "pos_x" else float(fp["py"])
-    return _pos_binding_point(i_center, live, prop == "pos_x")
+func _point() -> String:
+    return String(sig.get("point", "none"))
 
 
-## The eased point a binding drives its centre to: each key's target is
-## (emitted pos + the key's offset), blended from the live capture over u.
-func _pos_binding_point(i: int, live: float, is_x: bool) -> float:
-    var pp: Dictionary = sig["pos_params"][i]
-    var base := pos().x if is_x else pos().y
-    var node := String(_node_of.call(String(pp["elem"]), "pos_x")) \
-        if _node_of.is_valid() else String(pp["elem"])
-    var path := "%s:pos_offset_%d:%s" % [node, i, "x" if is_x else "y"]
-    return _tl.blend(path, _t(), live, base)
+func _point_index(elem: String) -> int:
+    var pes: Array = sig.get("point_elems", [])
+    for i in mini(pes.size(), _from_center.size()):
+        if String(pes[i]["elem"]) == elem: return i
+    return -1
+
+
+func _point_off(i: int) -> Vector2:
+    var off: Variant = (sig["point_elems"][i] as Dictionary).get("off", Vector2.ZERO)
+    return off if off is Vector2 else Vector2.ZERO
 
 
 ## Seconds into the signal's Animation: u * its length.
