@@ -228,11 +228,11 @@ func _build_ui() -> void:
     rows.add_child(_status)
     _hint = Label.new()
     _hint.add_theme_color_override("font_color", ZenUI.DIM)
-    # Essentials only; the full list is the hold-H sheet. A long legend here
+    # Essentials only; the full list is the H sheet. A long legend here
     # would set the window's minimum width.
     _hint.text = "  LMB paint      RMB erase      " + ZenHotkeyHelp.footer([
         ["zen_edit_undo", "undo"], ["zen_edit_save", "save"],
-        ["zen_help", "(hold) all hotkeys"], ["zen_back", "back"]]).strip_edges()
+        ["zen_help", "help"], ["zen_back", "back"]]).strip_edges()
     _hint.clip_text = true
     _hint.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
     rows.add_child(_hint)
@@ -827,34 +827,37 @@ func _process(_dt: float) -> void:
 # ---------------------------------------------------------------- keys
 
 func _show_help() -> void:
-    _help.show_rows("Shape editor", [
+    _help.show_pages("Shape editor", [{"name": "Paint", "rows": [
         ["LMB", "paint with the active tool and ink"],
         ["RMB", "erase with the active tool"],
-        ["wheel", "zoom about the cursor"],
-        ["MMB drag", "pan"],
-        ["Alt + drag", "move the reference image"],
-        ["Alt + wheel", "scale the reference image"],
         ["zen_edit_tool_pen", "pen"], ["zen_edit_tool_line", "line"],
         ["zen_edit_tool_rect", "rectangle"], ["zen_edit_tool_fill", "flood fill"],
         ["zen_edit_ink_empty", "ink: empty"], ["zen_edit_ink_fill", "ink: fill"],
         ["zen_edit_ink_outline", "ink: rim"],
         ["zen_edit_brush_down", "smaller brush"], ["zen_edit_brush_up", "bigger brush"],
-        ["zen_edit_mirror", "mirror X on / off"], ["zen_edit_fit", "fit the shape in view"],
-        ["zen_edit_undo", "undo"], ["zen_edit_redo", "redo"], ["zen_edit_save", "save"],
+        ["zen_edit_mirror", "mirror X on / off"],
+        ["zen_edit_undo", "undo"], ["zen_edit_redo", "redo"]]},
+        {"name": "View & file", "rows": [
+        ["wheel", "zoom about the cursor"],
+        ["MMB drag", "pan"],
+        ["zen_edit_fit", "fit the shape in view"],
         ["drop an image", "load it as the reference"],
-        ["zen_back", "back to the gallery"]])
+        ["Alt + drag", "move the reference image"],
+        ["Alt + wheel", "scale the reference image"],
+        ["zen_edit_save", "save"],
+        ["zen_help", "this sheet on / off"],
+        ["zen_back", "back to the gallery"]]}])
 
 
 ## Editor keys are named InputMap actions (tools/gen_input_map.gd). They are
 ## only taken when no text field or dialog has focus, so typing a name never
 ## switches tools.
 func _unhandled_input(ev: InputEvent) -> void:
-    if ev.is_action_released("zen_help"):
-        _help.visible = false
-        get_viewport().set_input_as_handled()
-        return
     if not (ev is InputEventKey) or not ev.is_pressed(): return
     if _name_dialog.visible or _confirm.visible or _leave_dialog.visible: return
+    if _help.handle_key(ev):
+        get_viewport().set_input_as_handled()
+        return
     var handled := true
     if ev.is_action_pressed("zen_help"):
         if not ev.is_echo(): _show_help()

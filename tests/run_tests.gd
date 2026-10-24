@@ -101,6 +101,7 @@ func _run() -> void:
     test_custom_shape_resolution()
     test_element_hit()
     test_stage_view()
+    test_help_pages()
     test_options_font_sort_filter()
     test_raylib_font()
     test_list_selection()
@@ -2374,6 +2375,37 @@ func test_custom_shape_resolution() -> void:
 
 ## Picking hits what is drawn, not the bounding box: a full-canvas diagonal
 ## line only near its stroke, a custom shape only on its non-empty cells.
+func test_help_pages() -> void:
+    var host := Control.new()
+    host.size = Vector2(800, 300)
+    root.add_child(host)
+    var h := ZenHotkeyHelp.new()
+    host.add_child(h)
+    var rows: Array = []
+    for i in 60: rows.append(["row %d" % i, "a long list"])
+    h.show_pages("Test", [{"name": "A", "rows": [["zen_play", "play"]]},
+        {"name": "B", "rows": rows}, {"name": "C", "rows": [["x", "y"]]}], 1)
+    check(h.visible and h.page() == 1, "help: opens on the start page")
+    check(h.size.y <= host.size.y, "help: a long page scrolls instead of leaving the screen")
+    var key := func(code: Key, shift := false) -> InputEventKey:
+        var ev := InputEventKey.new()
+        ev.keycode = code
+        ev.physical_keycode = code
+        ev.shift_pressed = shift
+        ev.pressed = true
+        return ev
+    check(h.handle_key(key.call(KEY_RIGHT)) and h.page() == 2, "help: Right flips to the next page")
+    h.handle_key(key.call(KEY_TAB))
+    check(h.page() == 0, "help: Tab wraps around")
+    h.handle_key(key.call(KEY_TAB, true))
+    check(h.page() == 2, "help: Shift+Tab goes back")
+    check(h.handle_key(key.call(KEY_SPACE)) and h.visible, "help: other keys are swallowed while open")
+    h.handle_key(key.call(KEY_H))
+    check(not h.visible, "help: H closes it")
+    check(not h.handle_key(key.call(KEY_SPACE)), "help: closed, keys pass through")
+    host.free()
+
+
 func test_stage_view() -> void:
     var st := ZenEditorStage.new()
     root.add_child(st)

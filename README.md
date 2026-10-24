@@ -43,9 +43,11 @@ asset still drawn by an animation is named. **E** on several animations opens Ex
 them as the chain, in list order; **Ctrl+E** appends them all to the export queue.
 
 Each screen's footer names only its essential keys (a full legend in one Label set the
-window's minimum width and pushed the gallery off both sides of the screen). **Hold H**
-(**zen_help**) for a sheet of every hotkey of the current screen - gallery, playback or
-shape editor - read from the live InputMap, so rebinding a key updates it.
+window's minimum width and pushed the gallery off both sides of the screen). **H**
+(**zen_help**) toggles a sheet of every hotkey - gallery, playback, shape editor or scene
+editor - read from the live InputMap, so rebinding a key updates it. It is paged: it opens
+on the tab for what you are doing (the canvas or the timeline, in the scene editor), and
+**Left/Right** or **Tab** flips tabs; **H** or ESC closes it.
 
 **Scenes are authored in the scene editor** (`tools/zen_scene_editor.tscn`): **Ctrl+ENTER**
 on an animation opens it, **N** starts a new one (the original editor's HELLO starter),
@@ -69,6 +71,11 @@ as time / value / ease. Picking summons the **Keys** panel (**6**): time, value 
 the incoming ease (a grid of curve thumbnails) for one key or many - a field shows the
 shared value or *mixed*, and an edit writes every picked key as one undo step. Time moves
 the pick as a block; stretch scales its gaps. Double-click a key to jump the playhead to it.
+
+The canvas view starts fitted; the **wheel** zooms about the cursor, a **middle drag** pans,
+and **F** over the canvas fits it again (elsewhere F fits the timeline). Everything placed
+off the canvas still draws, under a hatched veil, so an element parked outside the screen
+can be seen, picked and dragged back.
 
 SPACE plays from the playhead, or from 0 once the end is reached; a click on the canvas
 (or SPACE) continues playback held at a pause marker, in the editor and the gallery.
@@ -316,7 +323,7 @@ addons/zen/authoring/  the scene editor's UI-free ops: zen_scene_ops (scene CRUD
 zen_gallery.tscn       the main scene (F5): browse, inspect and play animations
 tools/                 zen_gallery.gd, zen_options.gd (font picker), zen_shape_editor.gd/.tscn
                        + zen_pixel_canvas.gd + zen_shape_preview.gd (shape editor),
-                       zen_hotkey_help.gd (the hold-H hotkey sheet), zen_ui.gd (shared
+                       zen_hotkey_help.gd (the H hotkey sheet), zen_ui.gd (shared
                        palette, screen shell and selectable-row list),
                        zen_list_selection.gd (Shift/Ctrl multi-selection),
                        zen_scene_editor.gd/.tscn + zen_editor_panel.gd (summoned, pinnable

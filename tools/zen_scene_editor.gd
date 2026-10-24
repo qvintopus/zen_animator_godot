@@ -367,7 +367,7 @@ func _build_ui() -> void:
     _status.clip_text = true
     rows.add_child(_status)
     var hint := ZenUI.label(ZenHotkeyHelp.footer([["zen_play", "play"], ["zen_edit_autokey", "auto-key"],
-        ["zen_edit_save", "save"], ["zen_edit_undo", "undo"], ["zen_help", "(hold) all hotkeys"],
+        ["zen_edit_save", "save"], ["zen_edit_undo", "undo"], ["zen_help", "help"],
         ["zen_back", "back"]]).strip_edges(), ZenUI.DIM)
     hint.clip_text = true
     rows.add_child(hint)
@@ -2011,47 +2011,66 @@ func _delete_selection() -> void:
 
 # ---------------------------------------------------------------- keys
 
+## The hotkey sheet, in pages; it opens on the one for what the mouse is over.
 func _show_help() -> void:
-    _help.show_rows("Scene editor", [
-        ["zen_play", "play / pause"], ["zen_edit_home", "playhead to start"],
-        ["zen_edit_frame_prev", "back one frame"], ["zen_edit_frame_next", "forward one frame"],
-        ["zen_edit_autokey", "auto-key on / off"],
-        ["zen_edit_panel_1", "elements panel"], ["zen_edit_panel_2", "inspector"],
-        ["zen_edit_panel_3", "document"], ["zen_edit_panel_4", "timeline"],
-        ["zen_edit_panel_5", "string pool"], ["zen_edit_panel_6", "keys panel"],
-        ["zen_edit_key_prev", "playhead to the previous key (picks the keys there)"],
-        ["zen_edit_key_next", "playhead to the next key (picks the keys there)"],
-        ["zen_edit_select_all", "select every key on the timeline"],
-        ["double-click a key", "edit it in the Keys panel"],
-        ["Alt+click a key", "select every key at that time"],
-        ["click a lane label", "select the lane's keys (Shift adds)"],
-        ["click / Shift+click", "select / add an element on the canvas"],
-        ["drag", "move the selection (Shift: lock to an axis)"],
-        ["zen_delete", "delete the selected keys, else the selected elements"],
-        ["zen_duplicate", "duplicate the selected elements"],
-        ["zen_rename", "rename the selected element"],
-        ["zen_edit_fit", "fit the timeline"],
-        ["zen_edit_undo", "undo"], ["zen_edit_redo", "redo"],
-        ["zen_edit_save", "save"], ["zen_edit_save_as", "save as"],
-        ["zen_back", "close a floating panel, then drop the key selection, then back"]])
+    var pages := [
+        {"name": "Canvas", "rows": [
+            ["click / Shift+click", "select / add an element"],
+            ["click the same spot", "cycle down through what overlaps there"],
+            ["drag", "move the selection (Shift: lock to an axis)"],
+            ["wheel", "zoom the view about the cursor"],
+            ["middle drag", "pan the view"],
+            ["zen_edit_fit", "fit the view (mouse over the canvas)"],
+            ["zen_delete", "delete the selected elements"],
+            ["zen_duplicate", "duplicate the selected elements"],
+            ["zen_rename", "rename the selected element"]]},
+        {"name": "Timeline & keys", "rows": [
+            ["zen_edit_key_prev", "playhead to the previous key (picks the keys there)"],
+            ["zen_edit_key_next", "playhead to the next key (picks the keys there)"],
+            ["zen_edit_select_all", "select every key on the timeline"],
+            ["double-click a key", "edit it in the Keys panel"],
+            ["Alt+click a key", "select every key at that time"],
+            ["click a lane label", "select the lane's keys (Shift adds)"],
+            ["zen_delete", "delete the selected keys"],
+            ["zen_edit_fit", "fit the timeline (mouse off the canvas)"]]},
+        {"name": "Playback", "rows": [
+            ["zen_play", "play / pause"], ["zen_edit_home", "playhead to start"],
+            ["zen_edit_frame_prev", "back one frame"], ["zen_edit_frame_next", "forward one frame"],
+            ["zen_edit_autokey", "auto-key on / off"],
+            ["click while playing", "continue from a pause marker"]]},
+        {"name": "Panels & file", "rows": [
+            ["zen_edit_panel_1", "elements panel"], ["zen_edit_panel_2", "inspector"],
+            ["zen_edit_panel_3", "document"], ["zen_edit_panel_4", "timeline"],
+            ["zen_edit_panel_5", "string pool"], ["zen_edit_panel_6", "keys panel"],
+            ["zen_edit_undo", "undo"], ["zen_edit_redo", "redo"],
+            ["zen_edit_save", "save"], ["zen_edit_save_as", "save as"],
+            ["zen_help", "this sheet on / off"],
+            ["zen_back", "close a floating panel, then drop the key selection, then back"]]}]
+    var start := 2
+    if _over(_p_tl) or not _key_sel.is_empty(): start = 1
+    elif _over_stage(): start = 0
+    _help.show_pages("Scene editor", pages, start)
+
+
+func _over(c: Control) -> bool:
+    var hov := get_viewport().gui_get_hovered_control()
+    return hov != null and c.visible and (hov == c or c.is_ancestor_of(hov))
 
 
 ## The mouse is over the canvas view, not a panel or the timeline on top of it.
 func _over_stage() -> bool:
-    var hov := get_viewport().gui_get_hovered_control()
-    return hov != null and (hov == _stage or _stage.is_ancestor_of(hov))
+    return _over(_stage)
 
 
 ## Editor keys are named InputMap actions (tools/gen_input_map.gd), taken only
 ## when no text field or dialog has focus.
 func _unhandled_input(ev: InputEvent) -> void:
-    if ev.is_action_released("zen_help"):
-        _help.visible = false
-        get_viewport().set_input_as_handled()
-        return
     if not (ev is InputEventKey) or not ev.is_pressed(): return
     for d in [_name_dialog, _confirm, _open_dialog, _leave_dialog]:
         if (d as Window).visible: return
+    if _help.handle_key(ev):
+        get_viewport().set_input_as_handled()
+        return
     var echo := ev.is_echo()
     if ev.is_action_pressed("zen_help"):
         if not echo: _show_help()

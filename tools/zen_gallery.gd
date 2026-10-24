@@ -92,7 +92,7 @@ var _replay_hold := 0.0
 @onready var _hint: Label = $Margin/Rows/Foot/Hint
 @onready var _status: Label = $Margin/Rows/Head/Status
 
-## Held H: every hotkey of the current screen. The footer shows only the
+## H: every hotkey of the gallery. The footer shows only the
 ## essentials - one long legend Label widened the window past the screen.
 var _help := ZenHotkeyHelp.new()
 
@@ -470,15 +470,15 @@ func _gallery_hint() -> String:
 	if _section == Section.ASSETS:
 		if _asset_sel.is_multi():
 			return ZenHotkeyHelp.footer([["zen_delete", "delete %d" % _asset_sel.marks.size()],
-					["zen_help", "(hold) all hotkeys"], ["zen_back", "clear selection"]])
+					["zen_help", "help"], ["zen_back", "clear selection"]])
 		return ZenHotkeyHelp.footer([["zen_play", "edit"], ["zen_tab", "animations"],
-				["zen_help", "(hold) all hotkeys"], ["zen_back", "quit"]])
+				["zen_help", "help"], ["zen_back", "quit"]])
 	if _anim_sel.is_multi():
 		var n := _anim_sel.marks.size()
 		return ZenHotkeyHelp.footer([["zen_export", "export %d" % n], ["zen_delete", "delete %d" % n],
-				["zen_help", "(hold) all hotkeys"], ["zen_back", "clear selection"]])
+				["zen_help", "help"], ["zen_back", "clear selection"]])
 	return ZenHotkeyHelp.footer([["zen_play", "play"], ["zen_edit_scene", "edit"], ["zen_new", "new"],
-			["zen_tab", "assets"], ["zen_help", "(hold) all hotkeys"], ["zen_back", "quit"]])
+			["zen_tab", "assets"], ["zen_help", "help"], ["zen_back", "quit"]])
 
 
 ## Whether the playing footer currently advertises "continue".
@@ -499,7 +499,7 @@ func _show_playing(nm: String) -> void:
 	pairs.append(["zen_restart", "restart"])
 	if n == 1: pairs.append(["1", "fire signal"])
 	elif n > 1: pairs.append(["1-%d" % n, "fire signal"])
-	pairs.append_array([["zen_help", "(hold) all hotkeys"], ["zen_back", "back"]])
+	pairs.append_array([["zen_help", "help"], ["zen_back", "back"]])
 	_hint.text = ZenHotkeyHelp.footer(pairs)
 
 
@@ -508,46 +508,43 @@ func _signal_count() -> int:
 	return _playing.bus().names().size()
 
 
-## Every hotkey of the screen showing now, for the hold-H sheet.
+## Every hotkey of the gallery, for the H sheet: a page per screen, opening
+## on the one showing now.
 func _show_help() -> void:
-	var rows: Array = []
-	if _view == View.PLAYING:
-		rows.append(["zen_continue", "continue from a pause marker"])
-		rows.append(["zen_restart", "restart the animation"])
-		var n := _signal_count()
-		if n > 0: rows.append(["1" if n == 1 else "1-%d" % n, "fire signal (%s)" % ", ".join(_playing.bus().names())])
-		rows.append_array([["click a row", "switch to that animation"],
-			["zen_toggle_intro", "intro on / off"], ["zen_toggle_loop", "loop on / off"],
-			["zen_tab", "switch to assets (stops playback)"],
-			["zen_export", "export..."], ["zen_export_queue", "add to the export queue"],
-			["zen_back", "back to the gallery"]])
-		_help.show_rows(_title.text, rows)
-		return
+	var playing: Array = [["zen_continue", "continue from a pause marker"],
+		["zen_restart", "restart the animation"]]
+	var n := _signal_count() if _view == View.PLAYING else 0
+	if n > 0: playing.append(["1" if n == 1 else "1-%d" % n, "fire signal (%s)" % ", ".join(_playing.bus().names())])
+	playing.append_array([["click a row", "switch to that animation"],
+		["zen_toggle_intro", "intro on / off"], ["zen_toggle_loop", "loop on / off"],
+		["zen_tab", "switch to assets (stops playback)"],
+		["zen_export", "export..."], ["zen_export_queue", "add to the export queue"],
+		["zen_back", "back to the gallery"]])
 	var multi: Array = [["Shift+click, Shift+Up/Down", "select a range"],
 		["Ctrl+click", "add / remove one row"]]
-	if _section == Section.ASSETS:
-		rows = [["zen_play", "edit the asset (row 1: new asset)"], ["double-click", "edit the asset"],
-			["zen_prev", "previous"], ["zen_next", "next"]]
-		rows.append_array(multi)
-		rows.append_array([["zen_delete", "delete the selected assets"],
-			["zen_tab", "switch to animations"],
-			["zen_restart", "reload the lists"], ["zen_options", "options"],
-			["zen_back", "clear the selection, then quit"]])
-	else:
-		rows = [["zen_play", "play"], ["double-click", "play"],
-			["zen_edit_scene", "edit in the scene editor"], ["zen_new", "new animation"],
-			["zen_rename", "rename"], ["zen_duplicate", "duplicate"],
-			["zen_prev", "previous"], ["zen_next", "next"]]
-		rows.append_array(multi)
-		rows.append_array([["zen_delete", "delete the selected animations"],
-			["zen_tab", "switch to assets"],
-			["zen_restart", "reload the lists"],
-			["zen_toggle_intro", "intro on / off (now %s)" % ("on" if ZenSettings.play_intro() else "off")],
-			["zen_toggle_loop", "loop on / off (now %s)" % ("on" if ZenSettings.play_loop() else "off")],
-			["zen_options", "options"], ["zen_export", "export... (the selection, as a chain)"],
-			["zen_export_queue", "add the selection to the export queue"],
-			["zen_back", "clear the selection, then quit"]])
-	_help.show_rows("Gallery - " + ("assets" if _section == Section.ASSETS else "animations"), rows)
+	var anims: Array = [["zen_play", "play"], ["double-click", "play"],
+		["zen_edit_scene", "edit in the scene editor"], ["zen_new", "new animation"],
+		["zen_rename", "rename"], ["zen_duplicate", "duplicate"],
+		["zen_prev", "previous"], ["zen_next", "next"]]
+	anims.append_array(multi)
+	anims.append_array([["zen_delete", "delete the selected animations"],
+		["zen_tab", "switch to assets"],
+		["zen_restart", "reload the lists"],
+		["zen_toggle_intro", "intro on / off (now %s)" % ("on" if ZenSettings.play_intro() else "off")],
+		["zen_toggle_loop", "loop on / off (now %s)" % ("on" if ZenSettings.play_loop() else "off")],
+		["zen_options", "options"], ["zen_export", "export... (the selection, as a chain)"],
+		["zen_export_queue", "add the selection to the export queue"],
+		["zen_back", "clear the selection, then quit"]])
+	var assets: Array = [["zen_play", "edit the asset (row 1: new asset)"], ["double-click", "edit the asset"],
+		["zen_prev", "previous"], ["zen_next", "next"]]
+	assets.append_array(multi)
+	assets.append_array([["zen_delete", "delete the selected assets"],
+		["zen_tab", "switch to animations"],
+		["zen_restart", "reload the lists"], ["zen_options", "options"],
+		["zen_back", "clear the selection, then quit"]])
+	var start := 0 if _view == View.PLAYING else (2 if _section == Section.ASSETS else 1)
+	_help.show_pages("Gallery", [{"name": "Playing", "rows": playing},
+		{"name": "Animations", "rows": anims}, {"name": "Assets", "rows": assets}], start)
 
 
 ## The I / L state as a compact badge pair. With a canvas, a toggle that does
@@ -1008,10 +1005,10 @@ func _toggle(which: String) -> void:
 
 
 func _unhandled_input(ev: InputEvent) -> void:
-	if ev.is_action_released("zen_help"):
-		_help.visible = false
-		return
 	if _confirm.visible or _name_dialog.visible: return
+	if _help.handle_key(ev):
+		get_viewport().set_input_as_handled()
+		return
 	if ev.is_echo(): return
 	if ev.is_action_pressed("zen_help"):
 		if _view in [View.GALLERY, View.PLAYING]:
