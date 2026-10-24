@@ -175,7 +175,7 @@ func _describe(path: String, base: String) -> Dictionary:
 	for ch in c.get_children():
 		if ch is ZenSignalBus:
 			for sd in (ch as ZenSignalBus).signals_data:
-				sig_names.append(String((sd as Dictionary).get("name", "?")))
+				sig_names.append(_signal_label(ZenSignalData.normalize((sd as Dictionary).duplicate(true))))
 
 	info["ok"] = true
 	info["elements"] = c.elements().size()
@@ -933,23 +933,49 @@ func _delete_files(files: Array[String]) -> void:
 	if not failed.is_empty(): _status.text += "   could not delete: %s" % ", ".join(failed)
 
 
+## A click continues a held pause marker; otherwise the pointer reaches the
+## playing canvas, so press / release / follow signals work as in a game.
 func _on_screen_input(ev: InputEvent) -> void:
+	if _view != View.PLAYING or _playing == null or not (ev is InputEventMouse): return
 	var mb := ev as InputEventMouseButton
-	if mb == null or not mb.pressed or mb.button_index != MOUSE_BUTTON_LEFT: return
-	if _view == View.PLAYING and _playing != null and _playing.held_pause >= 0:
+	if mb != null and mb.button_index != MOUSE_BUTTON_LEFT: return
+	if mb != null and mb.pressed and _playing.held_pause >= 0:
 		_playing.release_pause()
 		_update_status()
 		_screen.accept_event()
+		return
+	var frac := _screen_frac((ev as InputEventMouse).position)
+	var kind := "move" if mb == null else ("press" if mb.pressed else "release")
+	if _playing.pointer(kind, frac):
+		_status.text = "fired  %s" % _playing.bus().running_name
+	if mb != null: _screen.accept_event()
 
 
-## Fire a signal by number while playing. This is the only interactive way to
-## see one: an export never fires a signal, by design.
+## A point on the stage in canvas fractions: the texture is drawn
+## aspect-fit and centred (stretch_mode keep-aspect-centred).
+func _screen_frac(p: Vector2) -> Vector2:
+	var ts := _playing.design_size
+	var k := minf(_screen.size.x / ts.x, _screen.size.y / ts.y)
+	return (p - (_screen.size - ts * k) * 0.5) / k / ts
+
+
+## "name" plus how it is triggered when that is not code alone.
+static func _signal_label(sd: Dictionary) -> String:
+	var tags: Array = []
+	if String(sd["trigger"]) != "code": tags.append("on " + String(sd["trigger"]))
+	if String(sd["point"]) != "none": tags.append(String(sd["point"]))
+	return String(sd["name"]) + ("" if tags.is_empty() else " (%s)" % ", ".join(tags))
+
+
+## Fire a signal by number while playing. With a click on the stage this is
+## the interactive way to see one: an export never fires a signal, by design.
 func _fire(n: int) -> void:
 	if _playing == null: return
 	var bus := _playing.bus()
 	if bus == null: return
 	var names: Array = bus.names()
 	if n < 0 or n >= names.size(): return
+	# A point signal reads the pointer itself (ZenSignalBus._start).
 	bus.fire(String(names[n]))
 	_status.text = "fired  %s" % String(names[n])
 
@@ -966,6 +992,7 @@ func _update_status() -> void:
 	var bus := _playing.bus()
 	var extra := ""
 	if bus != null and bus.is_running(): extra = "   [signal]"
+	elif bus != null and bus.is_following(): extra = "   [following]"
 	elif bus != null and bus.is_holding(): extra = "   [signal end]"
 	elif _playing.held_pause >= 0: extra = "   [paused - SPACE or click to continue]"
 	if _view == View.PLAYING and _hint_paused != (_playing.held_pause >= 0):

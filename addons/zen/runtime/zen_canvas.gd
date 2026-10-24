@@ -722,10 +722,11 @@ func pointer(kind: String, frac: Vector2) -> bool:
 	return bus_ != null and bus_.trigger(kind, frac)
 
 
-## The mouse in canvas fractions: local to the canvas, so a fitted or nested
-## canvas reads the same.
-func mouse_frac() -> Vector2:
-	return get_local_mouse_position() / design_size
+## Where a mouse event lands, in canvas fractions: local to the canvas, so a
+## fitted or nested canvas reads the same. From the event, not a polled mouse
+## position, which can lag (or be absent for injected input).
+func event_frac(ev: InputEventMouse) -> Vector2:
+	return (make_input_local(ev) as InputEventMouse).position / design_size
 
 
 ## Loop wraps this playthrough - what an `end` trigger's every_loop gates on.
@@ -815,9 +816,9 @@ func _unhandled_input(ev: InputEvent) -> void:
 			return
 	if not _wants_pointer(): return
 	if ev is InputEventMouseMotion:
-		pointer("move", mouse_frac())
+		pointer("move", event_frac(ev))
 	elif left:
-		pointer("press" if mb.pressed else "release", mouse_frac())
+		pointer("press" if mb.pressed else "release", event_frac(ev))
 
 
 func _draw() -> void:

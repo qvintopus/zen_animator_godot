@@ -4009,6 +4009,8 @@ func test_godot_export_files() -> void:
           and notes.contains(ZenGodotExport.extends_line(s)) and notes.contains("nothing to copy"),
           "godot export: README.txt lists the scenes, the extends line and the steps")
     check(notes.contains("pause marker(s)"), "godot export: README.txt notes pause_menu's pause marker")
+    check(notes.contains("exit - from code only, ends the scene"),
+          "godot export: README.txt says what triggers each signal")
     var count := (r["files"] as Array).size()
     var r2 := ZenGodotExport.export_chain(["ma_prog_01", "pause_menu"], s)
     check((r2["files"] as Array).size() == count, "godot export: re-export rewrites the same files")

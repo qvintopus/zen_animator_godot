@@ -227,8 +227,8 @@ bug above.
 
 ### 2. The ripple is born at the cursor
 
-`mouse_ripple`'s `ripple` signal uses `pos_anchor`, which does **not** replace the
-slot - it adds a constant translation, so the element is born at the cursor and then
+`mouse_ripple`'s `ripple` signal is `trigger: press`, `point: anchor`. Anchor does **not**
+replace the position - it adds a constant translation, so the element is born at the cursor and then
 plays its authored path. Pinned by `test_ripple_anchors_to_cursor`, which emits at
 `(0.25, 0.30)` and measures the ring's centroid there.
 
@@ -236,9 +236,10 @@ Sampled at `t = 0.75` deliberately: the scale track runs to 10 by `t = 2`, and a
 of ~100px radius centred off-centre is clipped by the canvas edges, which drags the
 measured centroid back toward the middle and makes a working anchor look broken.
 
-To see it by hand, run the scene and click around - the ring should appear under the
-pointer each time, not at the canvas centre. `replay` is set, so each click restarts
-the ripple from the beginning.
+To see it by hand, play it in the gallery (or the scene editor, or F6 on a Godot export -
+no game code involved) and click around - the press trigger fires it, and the ring should
+appear under the pointer each time, not at the canvas centre. `replay` is set, so each
+click restarts the ripple from the beginning.
 
 ### 3. Export purity still holds with a bus present
 

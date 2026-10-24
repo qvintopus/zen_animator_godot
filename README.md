@@ -7,10 +7,11 @@ Animations are authored as Godot scenes and exported to video.
 
 What works: shape, text and global elements; intro/loop/outro
 trim with a smooth-loop blend and pause markers; signals (a named transition that
-overrides the timeline per-property, so `crumble` and the cursor-anchored ripple are
+overrides the timeline per-property, fired from code, a mouse press or release, or the
+timeline's end, and able to react to a point - so `crumble` and the click-born ripple are
 reachable); frame-exact video export; and a gallery (F5) and live playback (F6) built on
-Godot's own `AnimationPlayer`. Live interactive UI (wiring a signal to a button, a stage
-running several copies of one document) is not built yet.
+Godot's own `AnimationPlayer`. A stage running several copies of one document is not
+built yet.
 
 **F5 opens a gallery.** `zen_gallery.tscn` is the project's main scene: it lists every
 animation in `anims/`, shows what each one actually contains (clock, elements, tracks,
@@ -20,8 +21,9 @@ them in place. Hotkeys are named `InputMap` actions (**zen_play**: ENTER/KP_ENTE
 **zen_signal_1..9**: 1-9), rebindable in Project Settings > Input Map rather than
 hard-coded keycodes. **zen_play** or double-click plays, **zen_prev/zen_next** selects,
 **zen_restart** restarts (re-scans in the list), **zen_back** backs out then quits, and
-**zen_signal_1..9** fire a signal while playing - the only interactive way to see one,
-since an export never fires one. Clicking another row while playing switches straight to
+**zen_signal_1..9** fire a signal while playing, and clicks on the stage reach
+press/release signals (mouse_ripple's ripple is born where you click) - the interactive
+ways to see one, since an export never fires one. Clicking another row while playing switches straight to
 it, and a finished one-shot replays after holding its last frame, so the gallery always
 shows motion. A **terminal** signal (pause_menu's `exit`) holds the pose it ends on - it no
 longer snaps back to the timeline - and then the whole animation restarts.
@@ -58,8 +60,8 @@ a second copy of the data:
   from the `zen` Animation. Scrubbing seeks that player, and every key edit lands in it.
 - **The Elements panel is the node tree.** Add, delete, reorder (drag, or up/down) and
   rename are node operations, and **Save** packs that same tree.
-- **Panels are summoned.** Elements, Inspector, Document, Timeline, Strings and Keys stay
-  hidden until opened from the top bar, the View menu or **1-6**. Unpinned, a panel floats and
+- **Panels are summoned.** Elements, Inspector, Document, Timeline, Strings, Keys and
+  Signals stay hidden until opened from the top bar, the View menu or **1-7**. Unpinned, a panel floats and
   auto-hides (ESC, a click on empty canvas, another panel on its side). Pinned, it stays
   and the canvas makes room. While playing, the unpinned ones slide away and a pinned
   one stays (a pinned Timeline shows the playhead running).
@@ -71,6 +73,19 @@ as time / value / ease. Picking summons the **Keys** panel (**6**): time, value 
 the incoming ease (a grid of curve thumbnails) for one key or many - a field shows the
 shared value or *mixed*, and an edit writes every picked key as one undo step. Time moves
 the pick as a block; stretch scales its gaps. Double-click a key to jump the playhead to it.
+
+**Signals** are authored in the **Signals** panel (**7**): add, rename, delete, fire, and
+for the picked one its length, `terminal`, `replay`, trigger, point and bound elements. A
+warning shows when an earlier signal already answers the same trigger, since only the
+first one fires. **edit keys on the timeline** enters *signal key mode*: the timeline,
+Keys panel, inspector and canvas drags then edit the signal's Animation (`0..length`,
+always as keys, auto-key or not), previewed over the document pose at the playhead you
+left; SPACE plays the signal through, and ESC goes back to the document with its playhead
+restored. A signal track's first key sits at 0 and *is* the pose captured at fire time:
+only its shape matters. While the document plays, canvas presses and releases reach
+press/release signals, and **1-9** fire signals at the pointer. Playback stays up while a
+signal is still shaping the pose (running, holding a terminal end, following); SPACE stops
+it and drops the signal.
 
 The canvas view starts fitted; the **wheel** zooms about the cursor, a **middle drag** pans,
 and **F** over the canvas fits it again (elsewhere F fits the timeline). Everything placed
@@ -84,8 +99,9 @@ SPACE plays from the playhead, or from 0 once the end is reached; a click on the
 are locked and edits change the base pose. Undo (Ctrl+Z / Ctrl+Shift+Z) is snapshot-based,
 one step per gesture. The editing ops are UI-free and tested headless (`addons/zen/authoring/`):
 `ZenSceneOps` (new/open/save/rename/duplicate/delete, snapshots), `ZenElemOps`,
-`ZenKeyOps`, `ZenDocOps` and `ZenStringOps`. Signals are kept consistent across renames and deletes but
-cannot be edited yet.
+`ZenKeyOps`, `ZenDocOps`, `ZenStringOps` and `ZenSignalOps`. Signals are kept consistent
+across element renames and deletes, and their own renames rewrite every `then` that
+names them.
 
 **Text is always a string-pool reference** - the original editor's string pool, ported as
 one `ZenStrings` resource (`entries: PackedStringArray`) that the canvas owns
@@ -254,9 +270,12 @@ func close_menu() -> void:
 ```
 
 `play(from_start := true)`, `stop()`, `restart()`, `resume()` (past a pause marker),
-`fire(name, params := {})`, `signal_names()`; signals `finished` and `paused(index)`,
-plus `bus().signal_fired` / `bus().terminal_finished`. Set `live_playback = false` in the
-inherited scene to start it stopped, then call `play()`.
+`fire(name, params := {})`, `release_signal()` (let go of a follow or a held end pose),
+`signal_names()`; signals `finished` and `paused(index)`, plus `bus().signal_fired` /
+`bus().terminal_finished`. Set `live_playback = false` in the inherited scene to start it
+stopped, then call `play()`. Press/release/follow signals read the mouse by themselves;
+untick `pointer_input` to feed `pointer(kind, frac)` from game code instead. The
+generated README.txt says what triggers each of the scene's signals.
 
 ```sh
 ./Godot_v4.7.2-stable_linux.x86_64 --headless --path . tools/export_scene.tscn -- \
@@ -308,7 +327,8 @@ Visual checks needing a display are collected in `VISUAL_CHECKS.md`.
 addons/zen/runtime/    zen_easing, zen_curve, zen_curve_bake (ease -> bezier), zen_timeline (pure Animation
                        sampling), zen_canvas (clock + pauses),
                        zen_element, zen_shape, zen_text, zen_text_metrics, zen_global,
-                       zen_props (property registry), zen_signal_player (override eval),
+                       zen_props (property registry), zen_signal_data (a signal's fields
+                       and the legacy upgrade), zen_signal_player (override eval),
                        zen_signal_bus (per-canvas dispatch), zen_signals (global relay
                        autoload), zen_anim_builder (assembles the saved AnimationPlayer),
                        zen_pixel_shape (the pixel-shape asset), zen_assets (asset lookup/save),
@@ -319,6 +339,7 @@ addons/zen/authoring/  the scene editor's UI-free ops: zen_scene_ops (scene CRUD
                        zen_elem_ops (element CRUD on the node tree), zen_key_ops (keys and
                        eases, rebaking only the touched segments), zen_doc_ops (clock markers),
                        zen_string_ops (string pool: usage, holes, clean-up, assign),
+                       zen_signal_ops (signal CRUD, fields, point bindings, key sync),
                        zen_elem_factory (elements and canvases from Dictionaries)
 zen_gallery.tscn       the main scene (F5): browse, inspect and play animations
 tools/                 zen_gallery.gd, zen_options.gd (font picker), zen_shape_editor.gd/.tscn
@@ -330,6 +351,7 @@ tools/                 zen_gallery.gd, zen_options.gd (font picker), zen_shape_e
                        panels) + zen_editor_stage.gd (canvas view, picking) +
                        zen_timeline_view.gd (the AnimationPlayer as a timeline),
                        zen_key_panel.gd + zen_ease_graph.gd (the Keys panel),
+                       zen_signal_panel.gd (the Signals panel),
                        zen_export.gd (the
                        engine: plan_chain + Job), zen_export_dialog.gd/.tscn (the Export
                        screen, E / Ctrl+E), export_scene.tscn (CLI door onto the same
@@ -470,6 +492,38 @@ be closed and ffmpeg waited on (killing it truncates the container), and two ray
 workarounds do *not* port: Godot blends straight alpha (no premultiply dance) and its
 SubViewport reads back top-down (no vertical flip).
 
+**A signal is three independent choices** (`ZenSignalData`), which is the rethink of the
+C's: there, *when* a signal fired was hand-written game code (`main_menu.c` turned a left
+click into `"ripple"`), and *how it used a position* was spread over interdependent flags
+(`usesPos`, `posAnchor`, `replay` hidden under "position param") plus a fourth keyed type
+for position offsets, with corner bindings never finished. Here:
+
+- **effect** - `length`, `terminal`, `replay` and the keyed targets (library `sig`);
+- **trigger** - `code` (only `fire()` / `ZenSignals.emit()`), `press`, `release` (the
+  pointer position comes along) or `end` (a one-shot running out - fired *before*
+  `finished` - or, with `every_loop`, every wrap of a looping timeline instead of the
+  first); `then` chains another signal on the completion edge (never from a terminal or a
+  follow). Any signal can still be fired from code; of several sharing a trigger, the
+  first in list order fires;
+- **point** - `none`, `anchor` (the bound elements' authored path is moved to start at the
+  point: "born at the cursor"), `seek` (they ease to the point with `point_ease` over the
+  length) or `follow` (seek toward the *live* pointer, then keep following it until
+  another signal fires or `release_signal()`). `point_elems` lists the bound elements, each
+  with a constant offset. A point signal fired with no `pos` reads the pointer once, which
+  is how a code trigger reacts to the mouse with no extra API.
+
+| scenario | trigger | point |
+|---|---|---|
+| ripple born at a click (mouse_ripple) | press | anchor |
+| move to where the mouse was released | release | seek |
+| follow the mouse | press or code | follow |
+| code trigger, optionally at the mouse | code | none / anchor / seek |
+| on the animation's end, or every loop | end (+ every_loop) | any |
+| one after another | any + `then` | any |
+
+`ZenSignalData.normalize` upgrades the old `uses_pos` / `pos_anchor` / `pos_params` data
+on load (the bundled scenes are re-saved in the new shape).
+
 **Signals own the emit edge only.** A Zen signal is a named transition that *overrides*
 the timeline per-property, easing from whatever is on screen right now into its authored
 keys. Godot's native signal table does the dispatch - `add_user_signal` on a `ZenSignalBus`
@@ -477,7 +531,7 @@ node, because the `signal` keyword cannot carry Zen's names (`signal TV-out` is 
 error, and user signals do not survive `PackedScene.pack()`, so the data is an exported
 Array re-declared at runtime). Everything downstream - capture, eval, seq, anchor - is
 plain data and method calls. The payoff is real: `await bus.terminal_finished`, and every
-Zen signal appearing in Godot's Signals dock so a future button can be wired by dragging.
+Zen signal appearing in Godot's Signals dock so a button can be wired to it by dragging.
 
 Evaluation is **per canvas**, and a thin `ZenSignals` autoload only fans a name out over
 the `zen_canvas` group. That split is the C's own (`signal.c` / `anim_signal.c`) and it is
@@ -489,9 +543,9 @@ Four ordering rules carry the weight, in `prop()`, in the C's order:
 **stepped props return before the override is consulted** (they key a pool index, so a
 signal targeting `string` is ignored by design); a signal **replaces** the timeline *and*
 the loop blend (an `if` instead of an `else` would still pass every seam test); the two
-additive offsets - seq and pos-anchor - apply **even when the signal did not drive that
-property** (`zooming_box` seq-targets a `scale` that has no plain target); and pos-params
-**outrank** plain targets.
+additive offsets - seq and the point anchor - apply **even when the signal did not drive
+that property** (`zooming_box` seq-targets a `scale` that has no plain target); and a
+seek/follow point **outranks** plain targets.
 
 And the same `_draw()`-is-deferred trap again, the highest-risk detail here: elements read
 properties inside `_draw()`, which Godot defers to the rendered frame, so `pose()` must

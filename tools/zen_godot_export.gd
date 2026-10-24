@@ -324,7 +324,7 @@ static func scene_text(anim: String) -> Dictionary:
     if canvas == null: return {"error": "%s is not a Zen animation" % anim}
     var info := {
         "elements": canvas.elements().map(func(e): return String((e as Node).name)),
-        "signals": canvas.signal_names(),
+        "signals": _signal_lines(canvas),
         "pauses": canvas.pauses.size(),
         "loops": canvas.loops(),
     }
@@ -460,7 +460,8 @@ static func notes_text(s: Settings, infos: Dictionary, earlier := PackedStringAr
         L.append("  %s" % scene)
         L.append("      elements: %s" % ", ".join(PackedStringArray(info["elements"])))
         if not (info["signals"] as Array).is_empty():
-            L.append("      signals:  %s   (fire(\"name\"))" % ", ".join(PackedStringArray(info["signals"])))
+            L.append("      signals (any can also be fired from code: fire(\"name\")):")
+            for line in info["signals"]: L.append("        %s" % line)
         var traits := PackedStringArray()
         traits.append("loops" if bool(info["loops"]) else "plays once, then emits finished")
         if int(info["pauses"]) > 0:
@@ -510,6 +511,9 @@ static func notes_text(s: Settings, infos: Dictionary, earlier := PackedStringAr
     L.append("      restart()                  play from the start")
     L.append("      resume()                   continue past a held pause marker")
     L.append("      fire(\"name\", {})           run an authored signal (list above)")
+    L.append("      release_signal()           let go of a follow / a held end pose")
+    L.append("      pointer(kind, frac)        feed the pointer yourself (\"move\" / \"press\" /")
+    L.append("                                 \"release\", canvas fractions) with pointer_input off")
     L.append("      signal_names()             the authored signals")
     L.append("      signal finished            a one-shot ran out / a terminal signal ended")
     L.append("      signal paused(index)       it is holding at a pause marker")
@@ -523,3 +527,22 @@ static func notes_text(s: Settings, infos: Dictionary, earlier := PackedStringAr
     L.append("   Do not edit files in res://%s/: an update replaces them. Your inherited" % sub)
     L.append("   scenes and scripts live outside it and keep working.")
     return "\n".join(L) + "\n"
+
+
+## One README line per signal: its name and what fires it, so a scene whose
+## signals react to the mouse by themselves says so.
+static func _signal_lines(canvas: ZenCanvas) -> Array:
+    var out: Array = []
+    var bus := canvas.bus()
+    if bus == null: return out
+    for sd in bus.signals_data:
+        var sig := ZenSignalData.normalize((sd as Dictionary).duplicate(true))
+        var how: String = {"code": "from code only", "press": "on a mouse press over it",
+            "release": "on a mouse release over it",
+            "end": "when it ends" + (" (every loop)" if bool(sig["every_loop"]) else "")}[sig["trigger"]]
+        var pt: String = {"none": "", "anchor": ", born at the pointer",
+            "seek": ", moves to the pointer", "follow": ", follows the pointer"}[sig["point"]]
+        var then := "" if ZenSignalData.chained(sig).is_empty() else ", then %s" % ZenSignalData.chained(sig)
+        out.append("%s - %s%s%s%s" % [sig["name"], how, pt, then,
+            ", ends the scene" if bool(sig["terminal"]) else ""])
+    return out
