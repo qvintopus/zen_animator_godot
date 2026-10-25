@@ -13,10 +13,15 @@ static func set_duration(canvas: ZenCanvas, d: float) -> void:
     var anim := ZenKeyOps.anim_of(canvas)
     if anim == null: return
     d = maxf(d, 0.1)
+    var old := canvas.duration
     anim.length = d
     canvas.duration = d
     # outro_start <= 0 means "unset"; a set outro past the new end is clamped.
-    if canvas.outro_start > d: canvas.outro_start = d
+    # An outro sitting at the old end is "no outro" (every scene stores one
+    # there), so it follows the end - otherwise a longer clip would keep a
+    # phantom outro at the old end and never play or export the new tail.
+    if canvas.outro_start > d or (canvas.outro_start > 0.0 and canvas.outro_start >= old - 0.0001):
+        canvas.outro_start = d
     if canvas.intro_end > d: canvas.intro_end = d
     _commit(canvas, anim)
 
