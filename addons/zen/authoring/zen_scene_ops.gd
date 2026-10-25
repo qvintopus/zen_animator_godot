@@ -268,6 +268,7 @@ const CLIP_DIRS := ["res://library", "user://library"]
 static func clip_paths() -> Dictionary:
     var out := {}
     for root in CLIP_DIRS:
+        if not DirAccess.dir_exists_absolute(root): continue
         for f in DirAccess.get_files_at(root):
             var file := f.trim_suffix(".remap")
             if file.ends_with(".tscn"): out[file.get_basename()] = "%s/%s" % [root, file]

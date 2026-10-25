@@ -1,5 +1,9 @@
 # Clip length, and a library of reusable clips
 
+**Status (2026-10-25):** length fix, `ZenClipOps` copy/paste, Ctrl+C/V/Shift+V, the Library
+panel (8) and the seeded `library/` are done. Not done: the gallery "clips" section, the
+timeline end-drag handle, retime, dimmed past-the-end keys.
+
 ## Context
 
 Two asks: (1) the length of an animation must be freely changeable, (2) a selection of
