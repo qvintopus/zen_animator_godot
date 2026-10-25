@@ -3656,6 +3656,17 @@ func test_clip_ops() -> void:
           "a clip round-trips as a scene")
     if back != null: back.free()
     ZenSceneOps.delete("zz_test_clip")
+
+    # The library keeps clips apart from the animations.
+    var lp := ZenSceneOps.save_clip(clip, "ZZ Test Clip")
+    check(not lp.is_empty() and lp.begins_with(ZenSceneOps.clip_save_root()), "a clip saves into the library")
+    check(ZenSceneOps.clip_names().has("zz_test_clip") and not ZenSceneOps.scene_paths().has("zz_test_clip"),
+          "...and is a clip, not an animation")
+    var lc := ZenSceneOps.open_clip("zz_test_clip")
+    check(lc != null and ZenElemOps.find(lc, "box") != null, "a library clip opens")
+    if lc != null: lc.free()
+    check(ZenSceneOps.delete_clip("zz_test_clip") == OK and not ZenSceneOps.clip_names().has("zz_test_clip"),
+          "a library clip deletes")
     for c in [src, clip, one, dest, d2, d3, sc, tclip, dc]: c.free()
 
 
@@ -3878,6 +3889,20 @@ func test_scene_editor_clip() -> void:
     var pk := ZenKeyOps.keys(ed._canvas, ZenElemOps.find(ed._canvas, "sh_page1"), "pos_x")
     check(pk.any(func(k): return absf(float(k["t"]) - 2.0) < 1e-4), "a one-key clip merges onto the selection")
     check(ks.size() > 0, "(the source keys exist)")
+
+    # The Library panel: save the clipboard, list it, paste it back from the file.
+    check(ed._panel("library") != null, "the editor has a Library panel")
+    ed._lib_name.text = "ZZ Panel Clip"
+    ed._lib_save()
+    check(ZenSceneOps.clip_names().has("zz_panel_clip") and ed._lib_list.item_count > 0, "save puts the clip in the list")
+    ZenClipOps.set_clipboard(null)
+    for i in ed._lib_list.item_count:
+        if ed._lib_list.get_item_metadata(i) == "zz_panel_clip": ed._lib_list.select(i)
+    var before := ZenElemOps.rows(ed._canvas).size()
+    ed._t = 0.5
+    ed._lib_paste(false)
+    check(ZenElemOps.rows(ed._canvas).size() == before + 1, "a library clip pastes at the playhead")
+    ZenSceneOps.delete_clip("zz_panel_clip")
     ed.queue_free()
     await process_frame
     ZenClipOps.set_clipboard(null)

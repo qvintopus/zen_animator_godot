@@ -49,7 +49,7 @@ const ACTIONS := {
     # Gallery scene CRUD.
     "zen_new": [KEY_N],
     "zen_rename": [KEY_F2],
-    # Scene editor. 1-7 summon panels (the shape editor's inks share 1-3);
+    # Scene editor. 1-8 summon panels (the shape editor's inks share 1-3);
     # while the scene plays they fire signals instead (zen_signal_N).
     "zen_edit_autokey": [KEY_K],
     "zen_edit_home": [KEY_HOME],
@@ -62,6 +62,7 @@ const ACTIONS := {
     "zen_edit_panel_5": [KEY_5],
     "zen_edit_panel_6": [KEY_6],
     "zen_edit_panel_7": [KEY_7],
+    "zen_edit_panel_8": [KEY_8],
     "zen_edit_key_prev": [KEY_UP],
     "zen_edit_key_next": [KEY_DOWN],
 }

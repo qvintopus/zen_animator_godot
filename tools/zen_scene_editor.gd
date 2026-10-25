@@ -96,6 +96,9 @@ var _p_doc: ZenEditorPanel
 var _p_tl: ZenEditorPanel
 var _p_str: ZenEditorPanel
 var _p_keys: ZenEditorPanel
+var _p_lib: ZenEditorPanel
+var _lib_list: ItemList
+var _lib_name: LineEdit
 var _keys: ZenKeyPanel
 var _p_sig: ZenEditorPanel
 var _sigs: ZenSignalPanel
@@ -331,7 +334,7 @@ func _build_ui() -> void:
     bar.add_child(_menu)
     _build_menus()
     for spec in [["elements", "1"], ["inspector", "2"], ["document", "3"], ["timeline", "4"],
-                 ["strings", "5"], ["keys", "6"], ["signals", "7"]]:
+                 ["strings", "5"], ["keys", "6"], ["signals", "7"], ["library", "8"]]:
         var b := ZenEditorPanel._tool_button(spec[0], "Show / hide the %s panel (%s)" % spec)
         b.flat = false
         b.toggle_mode = true
@@ -390,6 +393,8 @@ func _build_ui() -> void:
     _build_keys(_p_keys.body)
     _p_sig = _add_panel("signals", "Signals", ZenEditorPanel.Edge.RIGHT, 330)
     _build_signals(_p_sig.body)
+    _p_lib = _add_panel("library", "Library", ZenEditorPanel.Edge.LEFT, 260)
+    _build_library(_p_lib.body)
 
     _status = ZenUI.label("", ZenUI.TEXT)
     _status.clip_text = true
@@ -431,7 +436,7 @@ func _build_menus() -> void:
         ["Elements", _toggle_panel.bind("elements")], ["Inspector", _toggle_panel.bind("inspector")],
         ["Document", _toggle_panel.bind("document")], ["Timeline", _toggle_panel.bind("timeline")],
         ["Strings", _toggle_panel.bind("strings")], ["Keys", _toggle_panel.bind("keys")],
-        ["Signals", _toggle_panel.bind("signals")],
+        ["Signals", _toggle_panel.bind("signals")], ["Library", _toggle_panel.bind("library")],
         [], ["Fit timeline", func(): _tl.fit()], ["Unpin all panels", _unpin_all]]))
 
 
@@ -614,6 +619,88 @@ func _build_dialogs() -> void:
     _leave_dialog.custom_action.connect(_on_leave_action)
     _leave_dialog.confirmed.connect(func(): closed.emit())
     add_child(_leave_dialog)
+
+
+# ---------------------------------------------------------------- clip library
+
+func _build_library(p: VBoxContainer) -> void:
+    _lib_list = ItemList.new()
+    _lib_list.size_flags_vertical = SIZE_EXPAND_FILL
+    _lib_list.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+    _lib_list.item_activated.connect(func(_i): _lib_paste(false))
+    p.add_child(_lib_list)
+    _lib_name = LineEdit.new()
+    _lib_name.placeholder_text = "name for the clipboard"
+    _lib_name.text_submitted.connect(func(_s): _lib_save())
+    p.add_child(_lib_name)
+    var g := HFlowContainer.new()
+    p.add_child(g)
+    for spec in [["save", "Save the clipboard (Ctrl+C first) into the library under this name", _lib_save],
+                 ["paste", "Paste the selected clip at the playhead as new elements (double-click)", _lib_paste.bind(false)],
+                 ["onto", "Merge the selected one-element clip into the selected element, positions relative", _lib_paste.bind(true)],
+                 ["copy", "Put the selected clip on the clipboard (Ctrl+V pastes it)", _lib_to_clipboard],
+                 ["delete", "Delete the selected clip from the library", _lib_delete]]:
+        var b := ZenEditorPanel._tool_button(spec[0], spec[1])
+        b.flat = false
+        b.pressed.connect(spec[2])
+        g.add_child(b)
+    p.add_child(ZenUI.label("Ctrl+C copies the picked keys or selected elements", ZenUI.DIM, 11))
+    _refresh_library()
+
+
+func _refresh_library() -> void:
+    var keep := _lib_selected()
+    _lib_list.clear()
+    for nm in ZenSceneOps.clip_names():
+        var ix := _lib_list.add_item(String(nm))
+        _lib_list.set_item_metadata(ix, nm)
+        if nm == keep: _lib_list.select(ix)
+
+
+func _lib_selected() -> String:
+    var s := _lib_list.get_selected_items()
+    return String(_lib_list.get_item_metadata(s[0])) if not s.is_empty() else ""
+
+
+func _lib_save() -> void:
+    var clip := ZenClipOps.clipboard
+    if clip == null or not is_instance_valid(clip):
+        _set_status("nothing to save: copy something first (Ctrl+C)")
+        return
+    var nm := ZenSceneOps.clean_name(_lib_name.text)
+    if nm.is_empty():
+        _set_status("name the clip first")
+        return
+    if ZenSceneOps.save_clip(clip, nm).is_empty():
+        _set_status("could not save the clip")
+        return
+    _lib_name.text = ""
+    _refresh_library()
+    _set_status("saved clip %s" % nm)
+
+
+## Load the selected library clip onto the clipboard.
+func _lib_to_clipboard() -> bool:
+    var nm := _lib_selected()
+    var clip := ZenSceneOps.open_clip(nm) if nm != "" else null
+    if clip == null:
+        _set_status("select a clip first")
+        return false
+    ZenClipOps.set_clipboard(clip)
+    _set_status("clipboard: %s (%.2fs)" % [nm, clip.duration])
+    return true
+
+
+func _lib_paste(onto: bool) -> void:
+    if _lib_to_clipboard(): _paste_clip(onto, onto)
+
+
+func _lib_delete() -> void:
+    var nm := _lib_selected()
+    if nm == "": return
+    _ask_confirm("Delete clip %s from the library?" % nm, func():
+        ZenSceneOps.delete_clip(nm)
+        _refresh_library())
 
 
 # ---------------------------------------------------------------- string pool
@@ -2334,6 +2421,7 @@ func _show_help() -> void:
             ["zen_edit_panel_3", "document"], ["zen_edit_panel_4", "timeline"],
             ["zen_edit_panel_5", "string pool"], ["zen_edit_panel_6", "keys panel"],
             ["zen_edit_panel_7", "signals panel"],
+            ["zen_edit_panel_8", "library panel"],
             ["zen_edit_undo", "undo"], ["zen_edit_redo", "redo"],
             ["zen_edit_save", "save"], ["zen_edit_save_as", "save as"],
             ["zen_help", "this sheet on / off"],
@@ -2408,7 +2496,7 @@ func _unhandled_input(ev: InputEvent) -> void:
     elif ev.is_action_pressed("zen_edit_key_next", true): _jump_key(1)
     elif _playing and _sig_edit == "" and _fire_digit(ev): pass
     else:
-        var ids := ["elements", "inspector", "document", "timeline", "strings", "keys", "signals"]
+        var ids := ["elements", "inspector", "document", "timeline", "strings", "keys", "signals", "library"]
         for i in ids.size():
             if ev.is_action_pressed("zen_edit_panel_%d" % (i + 1)):
                 if not echo: _toggle_panel(ids[i])

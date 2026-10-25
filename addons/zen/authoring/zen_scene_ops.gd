@@ -237,7 +237,10 @@ static func _own(canvas: ZenCanvas) -> void:
 ## Save `canvas` as scene `nm`, replacing any cached copy so the gallery plays
 ## the saved version. Returns the path written, or "".
 static func save(canvas: ZenCanvas, nm: String, folder := "") -> String:
-    var path := save_path(nm, folder)
+    return _save_to(canvas, save_path(nm, folder))
+
+
+static func _save_to(canvas: ZenCanvas, path: String) -> String:
     DirAccess.make_dir_recursive_absolute(path.get_base_dir())
     _own(canvas)
     # The editor runs its canvas with live playback off; the saved scene must
@@ -251,6 +254,52 @@ static func save(canvas: ZenCanvas, nm: String, folder := "") -> String:
     if ResourceSaver.save(ps, path) != OK: return ""
     ps.take_over_path(path)
     return path
+
+
+# ---------------------------------------------------------------------------
+#  The clip library: scenes of copied elements (ZenClipOps), kept apart from
+#  the animations so they never show up as one.
+# ---------------------------------------------------------------------------
+
+const CLIP_DIRS := ["res://library", "user://library"]
+
+
+## Every clip name mapped to its path (user over shipped), flat: no folders.
+static func clip_paths() -> Dictionary:
+    var out := {}
+    for root in CLIP_DIRS:
+        for f in DirAccess.get_files_at(root):
+            var file := f.trim_suffix(".remap")
+            if file.ends_with(".tscn"): out[file.get_basename()] = "%s/%s" % [root, file]
+    return out
+
+
+static func clip_names() -> Array:
+    var out := clip_paths().keys()
+    out.sort_custom(func(a, b): return String(a).naturalnocasecmp_to(String(b)) < 0)
+    return out
+
+
+static func clip_save_root() -> String:
+    return CLIP_DIRS[0] if OS.has_feature("editor") else CLIP_DIRS[1]
+
+
+## Save `clip` into the library as `nm` (cleaned). Returns the path, or "".
+static func save_clip(clip: ZenCanvas, nm: String) -> String:
+    nm = clean_name(nm)
+    if nm.is_empty(): return ""
+    return _save_to(clip, "%s/%s.tscn" % [clip_save_root(), nm])
+
+
+static func open_clip(nm: String) -> ZenCanvas:
+    var p := String(clip_paths().get(nm, ""))
+    return open(p) if not p.is_empty() else null
+
+
+static func delete_clip(nm: String) -> Error:
+    var p := String(clip_paths().get(nm, ""))
+    if p.is_empty(): return ERR_FILE_NOT_FOUND
+    return DirAccess.remove_absolute(ProjectSettings.globalize_path(p))
 
 
 ## Rename scene `from` to `to` on disk. Fails when `to` is taken.
