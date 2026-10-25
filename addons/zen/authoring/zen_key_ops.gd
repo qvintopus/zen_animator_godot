@@ -161,6 +161,17 @@ static func _read(anim: Animation, el: ZenElement, prop: String) -> Array:
     return model
 
 
+## The segment model of `prop` (see above), for ops that move keys between
+## elements or canvases (ZenClipOps). Empty when `prop` has no keys.
+static func read_model(canvas: ZenCanvas, el: ZenElement, prop: String) -> Array:
+    var anim := anim_of(canvas)
+    return _read(anim, el, prop) if anim != null else []
+
+
+static func write_model(canvas: ZenCanvas, el: ZenElement, prop: String, model: Array) -> void:
+    _write(canvas, el, prop, model)
+
+
 ## Write the model back: clean segments verbatim, dirty ones re-derived.
 static func _write(canvas: ZenCanvas, el: ZenElement, prop: String, model: Array) -> void:
     var anim := anim_of(canvas)

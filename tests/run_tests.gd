@@ -133,6 +133,7 @@ func _run() -> void:
     test_elem_ops()
     test_doc_ops()
     test_scene_ops_roundtrip()
+    test_clip_ops()
     test_string_pool_scenes()
     test_string_ops()
     test_string_pool_shared()
@@ -3566,6 +3567,95 @@ func test_doc_ops() -> void:
     ZenDocOps.set_intro_end(c, 0.0)
     check(not anim.get_marker_names().has("intro_end"), "intro 0 clears the marker")
     c.free()
+
+
+func _samp(c: ZenCanvas, path: String, t: float) -> float:
+    var anim := _zen_anim(c)
+    return anim.bezier_track_interpolate(anim.find_track(NodePath(path), Animation.TYPE_BEZIER), t)
+
+
+func test_clip_ops() -> void:
+    var keys := [_k(0.5, 0.2), _k(1.0, 0.8, "bounceOut"), _k(1.5, 0.4, "cubicIn"), _k(1.8, 0.9)]
+    var src := _authoring_canvas({"pos_x": keys, "alpha": [_k(0.5, 0.0), _k(1.0, 1.0, "sineOut")]})
+    src.duration = 3.0
+    var box: ZenElement = src.get_node("box")
+
+    # Whole-element copy: rebased to 0, values, eases and the curve between keys survive.
+    var clip := ZenClipOps.copy(src, [box])
+    check(clip != null and ZenElemOps.find(clip, "box") != null, "a clip carries the element")
+    var cb := ZenElemOps.find(clip, "box")
+    var ck := ZenKeyOps.keys(clip, cb, "pos_x")
+    check(ck.size() == 4 and absf(float(ck[0]["t"])) < 1e-5, "the first key is rebased to 0")
+    check(ck.map(func(k): return k["ease"]) == ["linear", "bounceOut", "cubicIn", "linear"],
+          "eases survive the copy: %s" % [ck.map(func(k): return k["ease"])])
+    check_near(clip.duration, 1.3, "the clip is as long as the copied keys", 1e-4)
+    for tt in [0.1, 0.3, 0.6, 0.9, 1.2]:
+        check_near(_samp(clip, "box:pos_x", tt), _samp(src, "box:pos_x", tt + 0.5),
+                   "the copied curve matches the source at %.1f" % tt, 1e-4)
+
+    # Paste as a new element at t=2: same curve, shifted exactly 2s; the scene grows to fit.
+    var dest := _authoring_canvas({})
+    ZenDocOps.set_outro_start(dest, dest.duration)
+    var made := ZenClipOps.paste(dest, clip, 2.0)
+    check(made.size() == 1 and (made[0] as ZenElement).elem_name == "box_2", "pasting a taken name renames it")
+    for tt in [0.1, 0.6, 1.2]:
+        check_near(_samp(dest, "box_2:pos_x", 2.0 + tt), _samp(src, "box:pos_x", 0.5 + tt),
+                   "the pasted curve is the source shifted (%.1f)" % tt, 1e-4)
+    check_near(dest.duration, 3.3, "pasting past the end lengthens the clip", 1e-4)
+    check_near(dest.outro_start, dest.duration, "...and an end-of-clip outro stays at the end", 1e-4)
+
+    # Key-only copy: exactly the picked keys, the rest dropped.
+    var one := ZenClipOps.copy(src, [box], {"box|pos_x|1": true, "box|pos_x|3": true})
+    var ok := ZenKeyOps.keys(one, ZenElemOps.find(one, "box"), "pos_x")
+    check(ok.size() == 2 and absf(float(ok[0]["t"])) < 1e-5 and absf(float(ok[1]["t"]) - 0.8) < 1e-4,
+          "a key copy carries only the picked keys: %s" % [ok])
+    check(not ZenKeyOps.has_track(one, ZenElemOps.find(one, "box"), "alpha"), "...and not the other props")
+    check_near(float(ok[1]["v"]), 0.9, "...with their values")
+
+    # Merge onto an existing element: keys interleave, the same time replaces.
+    var d2 := _authoring_canvas({"pos_x": [_k(0.0, 0.5), _k(2.0, 0.5)]})
+    var tgt: ZenElement = d2.get_node("box")
+    ZenClipOps.paste(d2, one, 0.5, tgt)
+    var mk := ZenKeyOps.keys(d2, tgt, "pos_x")
+    check(mk.map(func(k): return snappedf(float(k["t"]), 0.01)) == [0.0, 0.5, 1.3, 2.0],
+          "merged keys are in time order: %s" % [mk.map(func(k): return k["t"])])
+    check_near(float(mk[1]["v"]), 0.8, "the merged key's value")
+    check_near(float(mk[3]["v"]), 0.5, "an untouched key keeps its value")
+    check_near(_samp(d2, "box:pos_x", 0.0), 0.5, "the key before the merge is untouched")
+
+    # Relative merge: position re-based to where the target is at the paste time.
+    var d3 := _authoring_canvas({"pos_x": [_k(0.0, 0.1), _k(2.0, 0.1)]})
+    ZenClipOps.paste(d3, one, 1.0, d3.get_node("box"), true)
+    check_near(_samp(d3, "box:pos_x", 1.0), 0.1, "relative: the first key starts at the target's own value")
+    check_near(_samp(d3, "box:pos_x", 1.8), 0.1 + (0.9 - 0.8), "relative: the offset carries to the later key", 1e-4)
+
+    # Text: the words follow into the destination pool, whatever its indices.
+    var sc := _authoring_canvas({})
+    var tx := ZenElemOps.add(sc, "text", "label")
+    var i0 := ZenStringOps.add(sc, "ALPHA")
+    var i1 := ZenStringOps.add(sc, "BETA")
+    ZenKeyOps.insert(sc, tx, "string", 0.0, float(i0))
+    ZenKeyOps.insert(sc, tx, "string", 1.0, float(i1))
+    var tclip := ZenClipOps.copy(sc, [tx])
+    var dc := _authoring_canvas({})
+    ZenStringOps.add(dc, "OTHER")
+    var pasted := ZenClipOps.paste(dc, tclip, 0.5)
+    var pk := ZenKeyOps.keys(dc, pasted[0], "string")
+    var pool := ZenStringOps.pool(dc)
+    check(pk.size() == 2 and pool.at(int(pk[0]["v"])) == "ALPHA" and pool.at(int(pk[1]["v"])) == "BETA",
+          "string keys point at the same words in the new pool")
+    check(absf(float(pk[0]["t"]) - 0.5) < 1e-4 and absf(float(pk[1]["t"]) - 1.5) < 1e-4,
+          "...at the shifted times")
+    check((pasted[0] as ZenText).strings == pool, "a pasted text uses the destination's pool")
+
+    # The clip is a scene: it survives save and open.
+    var path := ZenSceneOps.save(clip, "zz_test_clip")
+    var back := ZenSceneOps.open(path)
+    check(back != null and ZenKeyOps.keys(back, ZenElemOps.find(back, "box"), "pos_x").size() == 4,
+          "a clip round-trips as a scene")
+    if back != null: back.free()
+    ZenSceneOps.delete("zz_test_clip")
+    for c in [src, clip, one, dest, d2, d3, sc, tclip, dc]: c.free()
 
 
 func test_scene_ops_roundtrip() -> void:
