@@ -115,7 +115,7 @@ const DEMO_POSE_T := {"sig_end_once": 2.0, "sig_starfall": 2.0}
 
 func _demo_sheets() -> void:
 	for nm in DEMOS:
-		var st := _stage("res://anims/%s.tscn" % nm)
+		var st := _stage(ZenSceneOps.path_of(nm))
 		var canvas: ZenCanvas = st["canvas"]
 		var sv: SubViewport = st["sv"]
 		await get_tree().process_frame

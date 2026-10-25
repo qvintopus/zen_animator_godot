@@ -1,16 +1,16 @@
 [gd_scene format=3]
 
-[ext_resource type="Script" path="res://addons/zen/runtime/zen_canvas.gd" id="1_5pjsn"]
-[ext_resource type="Script" path="res://addons/zen/runtime/zen_strings.gd" id="2_n0uph"]
-[ext_resource type="Script" path="res://addons/zen/runtime/zen_text.gd" id="3_d7csh"]
-[ext_resource type="Script" path="res://addons/zen/runtime/zen_shape.gd" id="4_rg804"]
-[ext_resource type="Script" path="res://addons/zen/runtime/zen_signal_bus.gd" id="5_vv2pj"]
+[ext_resource type="Script" path="res://addons/zen/runtime/zen_canvas.gd" id="1_gheuo"]
+[ext_resource type="Script" path="res://addons/zen/runtime/zen_strings.gd" id="2_jnbjg"]
+[ext_resource type="Script" path="res://addons/zen/runtime/zen_text.gd" id="3_ljv70"]
+[ext_resource type="Script" path="res://addons/zen/runtime/zen_shape.gd" id="4_dgt5c"]
+[ext_resource type="Script" path="res://addons/zen/runtime/zen_signal_bus.gd" id="5_xylmv"]
 
-[sub_resource type="Resource" id="Resource_j5bj2"]
-script = ExtResource("2_n0uph")
+[sub_resource type="Resource" id="Resource_jo246"]
+script = ExtResource("2_jnbjg")
 entries = PackedStringArray("CLICK: WINDUP > LAUNCH > LAND", "THEN")
 
-[sub_resource type="Animation" id="Animation_33ydc"]
+[sub_resource type="Animation" id="Animation_nqr0t"]
 length = 2.0
 step = 0.0166667
 markers = [{
@@ -56,12 +56,12 @@ tracks/2/keys = {
 "values": ["linear", "sineInOut", "sineInOut"]
 }
 
-[sub_resource type="AnimationLibrary" id="AnimationLibrary_phgsm"]
+[sub_resource type="AnimationLibrary" id="AnimationLibrary_6qetq"]
 _data = {
-&"zen": SubResource("Animation_33ydc")
+&"zen": SubResource("Animation_nqr0t")
 }
 
-[sub_resource type="Animation" id="Animation_wlxja"]
+[sub_resource type="Animation" id="Animation_j2hss"]
 length = 0.9
 step = 0.0166667
 tracks/0/type = "bezier"
@@ -91,7 +91,7 @@ metadata/zen_capture = {
 "rocket:pos_y": [0.018000000000000002, 0.0]
 }
 
-[sub_resource type="Animation" id="Animation_noilx"]
+[sub_resource type="Animation" id="Animation_00pkn"]
 length = 0.6
 step = 0.0166667
 tracks/0/type = "bezier"
@@ -217,7 +217,7 @@ metadata/zen_capture = {
 "rocket:w": [0.012, 0.0]
 }
 
-[sub_resource type="Animation" id="Animation_wcmes"]
+[sub_resource type="Animation" id="Animation_tw6qh"]
 length = 0.35
 step = 0.0166667
 tracks/0/type = "bezier"
@@ -295,33 +295,33 @@ metadata/zen_capture = {
 "rocket:w": [0.006999999999999999, 0.0]
 }
 
-[sub_resource type="AnimationLibrary" id="AnimationLibrary_of1j8"]
+[sub_resource type="AnimationLibrary" id="AnimationLibrary_wj3lb"]
 _data = {
-&"land": SubResource("Animation_wlxja"),
-&"launch": SubResource("Animation_noilx"),
-&"windup": SubResource("Animation_wcmes")
+&"land": SubResource("Animation_j2hss"),
+&"launch": SubResource("Animation_00pkn"),
+&"windup": SubResource("Animation_tw6qh")
 }
 
-[node name="sig_then_chain" type="Node2D" unique_id=23985436]
-script = ExtResource("1_5pjsn")
+[node name="sig_then_chain" type="Node2D" unique_id=108225853]
+script = ExtResource("1_gheuo")
 loop_smooth = true
-strings = SubResource("Resource_j5bj2")
+strings = SubResource("Resource_jo246")
 clear_color = Color(0.07, 0.08, 0.12, 1)
 loop_play = true
 
-[node name="hint" type="Node2D" parent="." unique_id=2013165550]
-script = ExtResource("3_d7csh")
-strings = SubResource("Resource_j5bj2")
+[node name="hint" type="Node2D" parent="." unique_id=2053199710]
+script = ExtResource("3_ljv70")
+strings = SubResource("Resource_jo246")
 size_frac = Vector2(10, 10)
 color_base = Color(0.55, 0.6, 0.7, 1)
 elem_name = "hint"
 unit_abs = true
 pos_frac = Vector2(0.5, 0.93)
 
-[node name="title" type="Node2D" parent="." unique_id=1774064075]
+[node name="title" type="Node2D" parent="." unique_id=1008927215]
 z_index = 1
-script = ExtResource("3_d7csh")
-strings = SubResource("Resource_j5bj2")
+script = ExtResource("3_ljv70")
+strings = SubResource("Resource_jo246")
 string_base = 1
 size_frac = Vector2(10, 10)
 color_base = Color(0.96, 0.96, 0.96, 1)
@@ -329,18 +329,18 @@ elem_name = "title"
 unit_abs = true
 pos_frac = Vector2(0.5, 0.1)
 
-[node name="ground" type="Node2D" parent="." unique_id=1556002030]
+[node name="ground" type="Node2D" parent="." unique_id=1467565096]
 z_index = 2
-script = ExtResource("4_rg804")
+script = ExtResource("4_dgt5c")
 size_frac = Vector2(0.5, 0.006)
 color_base = Color(0.55, 0.6, 0.7, 1)
 outline_color_base = Color(0, 0, 0, 0)
 elem_name = "ground"
 pos_frac = Vector2(0.5, 0.82)
 
-[node name="flame" type="Node2D" parent="." unique_id=1457019874]
+[node name="flame" type="Node2D" parent="." unique_id=1303492802]
 z_index = 3
-script = ExtResource("4_rg804")
+script = ExtResource("4_dgt5c")
 shape_kind = 4
 size_frac = Vector2(8, 12)
 color_base = Color(1, 0.8, 0.35, 0)
@@ -350,9 +350,9 @@ unit_abs = true
 pos_frac = Vector2(0.5, 0.82)
 rot_base = 180.0
 
-[node name="rocket" type="Node2D" parent="." unique_id=1209242559]
+[node name="rocket" type="Node2D" parent="." unique_id=656940531]
 z_index = 4
-script = ExtResource("4_rg804")
+script = ExtResource("4_dgt5c")
 shape_kind = 4
 size_frac = Vector2(14, 24)
 color_base = Color(0.96, 0.96, 0.96, 1)
@@ -361,8 +361,8 @@ elem_name = "rocket"
 unit_abs = true
 pos_frac = Vector2(0.5, 0.72)
 
-[node name="Signals" type="Node" parent="." unique_id=1280430714]
-script = ExtResource("5_vv2pj")
+[node name="Signals" type="Node" parent="." unique_id=2114061933]
+script = ExtResource("5_xylmv")
 signals_data = [{
 "every_loop": false,
 "length": 0.35,
@@ -449,7 +449,7 @@ signals_data = [{
 "uses_seq": false
 }]
 
-[node name="AnimationPlayer" type="AnimationPlayer" parent="." unique_id=92481127]
+[node name="AnimationPlayer" type="AnimationPlayer" parent="." unique_id=363538170]
 callback_mode_method = 1
-libraries/ = SubResource("AnimationLibrary_phgsm")
-libraries/sig = SubResource("AnimationLibrary_of1j8")
+libraries/ = SubResource("AnimationLibrary_6qetq")
+libraries/sig = SubResource("AnimationLibrary_wj3lb")

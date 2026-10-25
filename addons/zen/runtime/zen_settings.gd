@@ -42,6 +42,7 @@ static var _export: Dictionary = EXPORT_DEFAULTS.duplicate()
 static var _play_intro := true
 static var _play_loop := true
 static var _editor: Dictionary = {}
+static var _open_folders: Array = []
 
 
 static func _ensure_loaded() -> void:
@@ -61,6 +62,7 @@ static func _ensure_loaded() -> void:
         _export = EXPORT_DEFAULTS.duplicate()
         _export.merge(saved, true)
         _editor = cfg.get_value(SECTION, "editor", {})
+        _open_folders = cfg.get_value(SECTION, "open_folders", [])
 
 
 static func font_name() -> String:
@@ -161,6 +163,18 @@ static func set_editor_state(d: Dictionary) -> void:
     _save()
 
 
+## The gallery folders shown expanded; every other folder starts collapsed.
+static func open_folders() -> Array:
+    _ensure_loaded()
+    return _open_folders.duplicate()
+
+
+static func set_open_folders(names: Array) -> void:
+    _ensure_loaded()
+    _open_folders = names.duplicate()
+    _save()
+
+
 static func _save() -> void:
     var cfg := ConfigFile.new()
     cfg.set_value(SECTION, "font_name", _font_name)
@@ -171,6 +185,7 @@ static func _save() -> void:
     cfg.set_value(SECTION, "play_intro", _play_intro)
     cfg.set_value(SECTION, "play_loop", _play_loop)
     cfg.set_value(SECTION, "editor", _editor)
+    cfg.set_value(SECTION, "open_folders", _open_folders)
     cfg.save(CFG_PATH)
 
 

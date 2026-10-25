@@ -28,6 +28,18 @@ it, and a finished one-shot replays after holding its last frame, so the gallery
 shows motion. A **terminal** signal (pause_menu's `exit`) holds the pose it ends on - it no
 longer snaps back to the timeline - and then the whole animation restarts.
 
+**Folders and search.** A folder is a plain subdirectory of `anims/` (one level deep), e.g.
+`anims/signal_demo/`; scenes not in one stay at the top level. Folder rows fold and unfold
+(ENTER, double-click, **Left/Right**), and which are open is remembered. **M** moves the
+selected animations into a folder (a new name creates it, an empty one moves them back to
+the top level), **Ctrl+Shift+N** makes an empty folder, **F2** on a folder renames it and
+**DEL** trashes it once it is empty. **N** with the cursor in a folder saves the new scene
+there. A scene's file name stays its id across folders - names are unique - so
+`--anim=`, export chains and everything else that goes by name ignore folders.
+**/** or **Ctrl+F** focuses the search, which filters as you type like the font search in
+Options: it matches animation and folder names, opens every folder holding a match, and
+**UP/DOWN** step through matches, **ENTER** plays one, **ESC** clears then leaves it.
+
 **zen_toggle_intro** (I) and **zen_toggle_loop** (L) are viewer toggles, persisted in
 `ZenSettings` and shown as `[INTRO ..] [LOOP ..]` badges in the status line: intro off
 starts playback at `intro_end`; loop off plays once and holds the last frame (no wrap, no
@@ -363,7 +375,8 @@ tools/                 zen_gallery.gd, zen_options.gd (font picker), zen_shape_e
                        gen_input_map.gd (regenerates project.godot's [input] section)
 assets/shapes/         pixel-shape assets (ZenPixelShape .tres)
 assets/easings.tres    the custom easings (ZenEasingSet)
-anims/                 authored Godot scenes (source of truth)
+anims/                 authored Godot scenes (source of truth); subdirectories are
+                       gallery folders (anims/signal_demo/: the signal demos)
 tests/                 run_tests.gd + the generated easing reference
 ```
 
@@ -531,7 +544,8 @@ the one before it, so `launch` → `land` hands the rocket over without a flash 
 timeline pose. That makes the move-then-respawn shape the natural one for a signal that
 moves something.
 
-**Demo scenes.** One `anims/sig_*` scene per feature, playable in the gallery (click,
+**Demo scenes.** One `anims/signal_demo/sig_*` scene per feature, in the gallery's
+`signal_demo` folder, playable there (click,
 release, digit keys 1-9 fire signals at the mouse):
 
 | scene | shows | try |

@@ -1,16 +1,16 @@
 [gd_scene format=3]
 
-[ext_resource type="Script" path="res://addons/zen/runtime/zen_canvas.gd" id="1_53l7n"]
-[ext_resource type="Script" path="res://addons/zen/runtime/zen_strings.gd" id="2_bjk0h"]
-[ext_resource type="Script" path="res://addons/zen/runtime/zen_text.gd" id="3_e5aac"]
-[ext_resource type="Script" path="res://addons/zen/runtime/zen_shape.gd" id="4_ejgup"]
-[ext_resource type="Script" path="res://addons/zen/runtime/zen_signal_bus.gd" id="5_nrvd6"]
+[ext_resource type="Script" path="res://addons/zen/runtime/zen_canvas.gd" id="1_30vno"]
+[ext_resource type="Script" path="res://addons/zen/runtime/zen_strings.gd" id="2_svmwr"]
+[ext_resource type="Script" path="res://addons/zen/runtime/zen_text.gd" id="3_vnfwl"]
+[ext_resource type="Script" path="res://addons/zen/runtime/zen_shape.gd" id="4_4y1ba"]
+[ext_resource type="Script" path="res://addons/zen/runtime/zen_signal_bus.gd" id="5_ce2pi"]
 
-[sub_resource type="Resource" id="Resource_i0pjb"]
-script = ExtResource("2_bjk0h")
+[sub_resource type="Resource" id="Resource_0ro82"]
+script = ExtResource("2_svmwr")
 entries = PackedStringArray("RELEASE: THE BALL SEEKS THE MOUSE-UP", "SEEK")
 
-[sub_resource type="Animation" id="Animation_isesh"]
+[sub_resource type="Animation" id="Animation_uloar"]
 length = 1.2
 step = 0.0166667
 markers = [{
@@ -79,12 +79,12 @@ tracks/4/keys = {
 "values": ["linear", "sineOut", "sineIn"]
 }
 
-[sub_resource type="AnimationLibrary" id="AnimationLibrary_ega30"]
+[sub_resource type="AnimationLibrary" id="AnimationLibrary_bsyfv"]
 _data = {
-&"zen": SubResource("Animation_isesh")
+&"zen": SubResource("Animation_uloar")
 }
 
-[sub_resource type="Animation" id="Animation_1nqmw"]
+[sub_resource type="Animation" id="Animation_5vc2f"]
 length = 0.7
 step = 0.0166667
 tracks/0/type = "bezier"
@@ -162,31 +162,31 @@ metadata/zen_capture = {
 "ball:w": [0.013999999999999999, 0.0]
 }
 
-[sub_resource type="AnimationLibrary" id="AnimationLibrary_rd5ie"]
+[sub_resource type="AnimationLibrary" id="AnimationLibrary_j5nm7"]
 _data = {
-&"throw": SubResource("Animation_1nqmw")
+&"throw": SubResource("Animation_5vc2f")
 }
 
-[node name="sig_release_seek" type="Node2D" unique_id=907857455]
-script = ExtResource("1_53l7n")
+[node name="sig_release_seek" type="Node2D" unique_id=1162164050]
+script = ExtResource("1_30vno")
 loop_smooth = true
-strings = SubResource("Resource_i0pjb")
+strings = SubResource("Resource_0ro82")
 clear_color = Color(0.07, 0.08, 0.12, 1)
 loop_play = true
 
-[node name="hint" type="Node2D" parent="." unique_id=1574576594]
-script = ExtResource("3_e5aac")
-strings = SubResource("Resource_i0pjb")
+[node name="hint" type="Node2D" parent="." unique_id=124884367]
+script = ExtResource("3_vnfwl")
+strings = SubResource("Resource_0ro82")
 size_frac = Vector2(10, 10)
 color_base = Color(0.55, 0.6, 0.7, 1)
 elem_name = "hint"
 unit_abs = true
 pos_frac = Vector2(0.5, 0.93)
 
-[node name="title" type="Node2D" parent="." unique_id=29563594]
+[node name="title" type="Node2D" parent="." unique_id=1016997455]
 z_index = 1
-script = ExtResource("3_e5aac")
-strings = SubResource("Resource_i0pjb")
+script = ExtResource("3_vnfwl")
+strings = SubResource("Resource_0ro82")
 string_base = 1
 size_frac = Vector2(10, 10)
 color_base = Color(0.96, 0.96, 0.96, 1)
@@ -194,18 +194,18 @@ elem_name = "title"
 unit_abs = true
 pos_frac = Vector2(0.5, 0.1)
 
-[node name="pad" type="Node2D" parent="." unique_id=1498453776]
+[node name="pad" type="Node2D" parent="." unique_id=1446126782]
 z_index = 2
-script = ExtResource("4_ejgup")
+script = ExtResource("4_4y1ba")
 size_frac = Vector2(0.14, 0.03)
 color_base = Color(0.55, 0.6, 0.7, 1)
 outline_color_base = Color(0, 0, 0, 0)
 elem_name = "pad"
 pos_frac = Vector2(0.5, 0.83)
 
-[node name="ball" type="Node2D" parent="." unique_id=1345754885]
+[node name="ball" type="Node2D" parent="." unique_id=1308772419]
 z_index = 3
-script = ExtResource("4_ejgup")
+script = ExtResource("4_4y1ba")
 shape_kind = 1
 size_frac = Vector2(16, 16)
 color_base = Color(1, 0.4, 0.6, 1)
@@ -214,8 +214,8 @@ elem_name = "ball"
 unit_abs = true
 pos_frac = Vector2(0.5, 0.74)
 
-[node name="Signals" type="Node" parent="." unique_id=712341944]
-script = ExtResource("5_nrvd6")
+[node name="Signals" type="Node" parent="." unique_id=855429727]
+script = ExtResource("5_ce2pi")
 signals_data = [{
 "every_loop": false,
 "length": 0.7,
@@ -249,7 +249,7 @@ signals_data = [{
 "uses_seq": false
 }]
 
-[node name="AnimationPlayer" type="AnimationPlayer" parent="." unique_id=787197546]
+[node name="AnimationPlayer" type="AnimationPlayer" parent="." unique_id=954799379]
 callback_mode_method = 1
-libraries/ = SubResource("AnimationLibrary_ega30")
-libraries/sig = SubResource("AnimationLibrary_rd5ie")
+libraries/ = SubResource("AnimationLibrary_bsyfv")
+libraries/sig = SubResource("AnimationLibrary_j5nm7")

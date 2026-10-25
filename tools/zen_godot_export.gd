@@ -32,7 +32,6 @@ enum Mode { STANDALONE, PLUGIN }
 const ADDON := "res://addons/zen/"
 const RUNTIME_DIR := "res://addons/zen/runtime"
 const FONTS_DIR := "res://addons/zen/fonts"
-const ANIMS_DIR := "res://anims"
 
 ## The "this project" destination: a stub Godot project inside exports/ (so
 ## git ignores it) to F6-test an export in and copy its subfolder from. The
@@ -317,8 +316,9 @@ static func ship(s: Settings, files: Array) -> String:
 ## painted, and the Options font override pinned on each text that would
 ## have picked it up (the target has no Options screen).
 static func scene_text(anim: String) -> Dictionary:
-    var path := ANIMS_DIR.path_join(anim + ".tscn")
-    var ps := load(path) as PackedScene
+    # By name, so an animation in a gallery folder exports like any other.
+    var path := ZenSceneOps.path_of(anim)
+    var ps := load(path) as PackedScene if not path.is_empty() else null
     if ps == null: return {"error": "no such animation: %s" % anim}
     var canvas := ps.instantiate() as ZenCanvas
     if canvas == null: return {"error": "%s is not a Zen animation" % anim}

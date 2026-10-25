@@ -1,16 +1,16 @@
 [gd_scene format=3]
 
-[ext_resource type="Script" path="res://addons/zen/runtime/zen_canvas.gd" id="1_0uxei"]
-[ext_resource type="Script" path="res://addons/zen/runtime/zen_strings.gd" id="2_mm8fe"]
-[ext_resource type="Script" path="res://addons/zen/runtime/zen_text.gd" id="3_3erwh"]
-[ext_resource type="Script" path="res://addons/zen/runtime/zen_shape.gd" id="4_3weuf"]
-[ext_resource type="Script" path="res://addons/zen/runtime/zen_signal_bus.gd" id="5_ukqhu"]
+[ext_resource type="Script" path="res://addons/zen/runtime/zen_canvas.gd" id="1_h2mci"]
+[ext_resource type="Script" path="res://addons/zen/runtime/zen_strings.gd" id="2_bck5e"]
+[ext_resource type="Script" path="res://addons/zen/runtime/zen_text.gd" id="3_iwbcx"]
+[ext_resource type="Script" path="res://addons/zen/runtime/zen_shape.gd" id="4_mumhi"]
+[ext_resource type="Script" path="res://addons/zen/runtime/zen_signal_bus.gd" id="5_x0bvn"]
 
-[sub_resource type="Resource" id="Resource_atolm"]
-script = ExtResource("2_mm8fe")
+[sub_resource type="Resource" id="Resource_vglb6"]
+script = ExtResource("2_bck5e")
 entries = PackedStringArray("HOLD TO GRAB - RELEASE TO DROP", "FOLLOW")
 
-[sub_resource type="Animation" id="Animation_wv40e"]
+[sub_resource type="Animation" id="Animation_hbr8i"]
 length = 1.6
 step = 0.0166667
 markers = [{
@@ -79,12 +79,12 @@ tracks/4/keys = {
 "values": ["linear", "sineInOut", "sineInOut"]
 }
 
-[sub_resource type="AnimationLibrary" id="AnimationLibrary_ipc4s"]
+[sub_resource type="AnimationLibrary" id="AnimationLibrary_2oc0m"]
 _data = {
-&"zen": SubResource("Animation_wv40e")
+&"zen": SubResource("Animation_hbr8i")
 }
 
-[sub_resource type="Animation" id="Animation_2qqqu"]
+[sub_resource type="Animation" id="Animation_tvp45"]
 length = 0.45
 step = 0.0166667
 tracks/0/type = "bezier"
@@ -162,7 +162,7 @@ metadata/zen_capture = {
 "orb:w": [0.009000000000000001, 0.0]
 }
 
-[sub_resource type="Animation" id="Animation_g3yrm"]
+[sub_resource type="Animation" id="Animation_3ai6g"]
 length = 0.3
 step = 0.0166667
 tracks/0/type = "bezier"
@@ -192,7 +192,7 @@ metadata/zen_capture = {
 "orb:zen_scale": [0.006, 0.0]
 }
 
-[sub_resource type="Animation" id="Animation_75uek"]
+[sub_resource type="Animation" id="Animation_csxnw"]
 length = 0.5
 step = 0.0166667
 tracks/0/type = "bezier"
@@ -246,33 +246,33 @@ metadata/zen_capture = {
 "orb:zen_scale": [0.01, 1.0]
 }
 
-[sub_resource type="AnimationLibrary" id="AnimationLibrary_wy0w7"]
+[sub_resource type="AnimationLibrary" id="AnimationLibrary_cqpcm"]
 _data = {
-&"drop": SubResource("Animation_2qqqu"),
-&"grab": SubResource("Animation_g3yrm"),
-&"respawn": SubResource("Animation_75uek")
+&"drop": SubResource("Animation_tvp45"),
+&"grab": SubResource("Animation_3ai6g"),
+&"respawn": SubResource("Animation_csxnw")
 }
 
-[node name="sig_follow" type="Node2D" unique_id=262881436]
-script = ExtResource("1_0uxei")
+[node name="sig_follow" type="Node2D" unique_id=790172416]
+script = ExtResource("1_h2mci")
 loop_smooth = true
-strings = SubResource("Resource_atolm")
+strings = SubResource("Resource_vglb6")
 clear_color = Color(0.07, 0.08, 0.12, 1)
 loop_play = true
 
-[node name="hint" type="Node2D" parent="." unique_id=1761525671]
-script = ExtResource("3_3erwh")
-strings = SubResource("Resource_atolm")
+[node name="hint" type="Node2D" parent="." unique_id=598871552]
+script = ExtResource("3_iwbcx")
+strings = SubResource("Resource_vglb6")
 size_frac = Vector2(10, 10)
 color_base = Color(0.55, 0.6, 0.7, 1)
 elem_name = "hint"
 unit_abs = true
 pos_frac = Vector2(0.5, 0.93)
 
-[node name="title" type="Node2D" parent="." unique_id=277950114]
+[node name="title" type="Node2D" parent="." unique_id=648692843]
 z_index = 1
-script = ExtResource("3_3erwh")
-strings = SubResource("Resource_atolm")
+script = ExtResource("3_iwbcx")
+strings = SubResource("Resource_vglb6")
 string_base = 1
 size_frac = Vector2(10, 10)
 color_base = Color(0.96, 0.96, 0.96, 1)
@@ -280,9 +280,9 @@ elem_name = "title"
 unit_abs = true
 pos_frac = Vector2(0.5, 0.1)
 
-[node name="home" type="Node2D" parent="." unique_id=721904980]
+[node name="home" type="Node2D" parent="." unique_id=813043797]
 z_index = 2
-script = ExtResource("4_3weuf")
+script = ExtResource("4_mumhi")
 shape_kind = 1
 size_frac = Vector2(30, 30)
 color_base = Color(0, 0, 0, 0)
@@ -292,9 +292,9 @@ elem_name = "home"
 unit_abs = true
 pos_frac = Vector2(0.5, 0.55)
 
-[node name="orb" type="Node2D" parent="." unique_id=1485398313]
+[node name="orb" type="Node2D" parent="." unique_id=1197241564]
 z_index = 3
-script = ExtResource("4_3weuf")
+script = ExtResource("4_mumhi")
 shape_kind = 1
 size_frac = Vector2(18, 18)
 color_base = Color(0.45, 0.95, 0.55, 1)
@@ -303,8 +303,8 @@ elem_name = "orb"
 unit_abs = true
 pos_frac = Vector2(0.5, 0.55)
 
-[node name="Signals" type="Node" parent="." unique_id=737508946]
-script = ExtResource("5_ukqhu")
+[node name="Signals" type="Node" parent="." unique_id=637530308]
+script = ExtResource("5_x0bvn")
 signals_data = [{
 "every_loop": false,
 "length": 0.3,
@@ -385,7 +385,7 @@ signals_data = [{
 "uses_seq": false
 }]
 
-[node name="AnimationPlayer" type="AnimationPlayer" parent="." unique_id=2060775209]
+[node name="AnimationPlayer" type="AnimationPlayer" parent="." unique_id=1925550346]
 callback_mode_method = 1
-libraries/ = SubResource("AnimationLibrary_ipc4s")
-libraries/sig = SubResource("AnimationLibrary_wy0w7")
+libraries/ = SubResource("AnimationLibrary_2oc0m")
+libraries/sig = SubResource("AnimationLibrary_cqpcm")

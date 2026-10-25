@@ -21,6 +21,8 @@ extends SceneTree
 
 const SIZE := Vector2(320, 180)
 const BG := Color(0.07, 0.08, 0.12, 1)
+## The gallery folder the demos live in (anims/signal_demo/).
+const FOLDER := "signal_demo"
 const U0 := 0.02
 const WHITE := Color(0.96, 0.96, 0.96, 1)
 const DIM := Color(0.55, 0.6, 0.7, 1)
@@ -384,6 +386,6 @@ func _save(doc: Dictionary) -> String:
     canvas.design_size = SIZE
     canvas.clear_color = BG
     canvas.sync_from_animation()
-    var path := ZenSceneOps.save(canvas, String(doc["name"]))
+    var path := ZenSceneOps.save(canvas, String(doc["name"]), FOLDER)
     canvas.free()
     return path

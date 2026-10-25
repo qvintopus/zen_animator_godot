@@ -1,16 +1,16 @@
 [gd_scene format=3]
 
-[ext_resource type="Script" path="res://addons/zen/runtime/zen_canvas.gd" id="1_6s46r"]
-[ext_resource type="Script" path="res://addons/zen/runtime/zen_strings.gd" id="2_j5tam"]
-[ext_resource type="Script" path="res://addons/zen/runtime/zen_text.gd" id="3_gy8l1"]
-[ext_resource type="Script" path="res://addons/zen/runtime/zen_shape.gd" id="4_t2gak"]
-[ext_resource type="Script" path="res://addons/zen/runtime/zen_signal_bus.gd" id="5_naivt"]
+[ext_resource type="Script" path="res://addons/zen/runtime/zen_canvas.gd" id="1_pvq50"]
+[ext_resource type="Script" path="res://addons/zen/runtime/zen_strings.gd" id="2_nsjt4"]
+[ext_resource type="Script" path="res://addons/zen/runtime/zen_text.gd" id="3_nfrng"]
+[ext_resource type="Script" path="res://addons/zen/runtime/zen_shape.gd" id="4_g10ox"]
+[ext_resource type="Script" path="res://addons/zen/runtime/zen_signal_bus.gd" id="5_uj2en"]
 
-[sub_resource type="Resource" id="Resource_13cph"]
-script = ExtResource("2_j5tam")
-entries = PackedStringArray("EVERY LOOP: LAP ON EACH WRAP", "LAP!")
+[sub_resource type="Resource" id="Resource_wpqgg"]
+script = ExtResource("2_nsjt4")
+entries = PackedStringArray("FIRST LOOP ONLY: ONE LAP SIGNAL", "FIRST LAP!")
 
-[sub_resource type="Animation" id="Animation_4fkq1"]
+[sub_resource type="Animation" id="Animation_ry26k"]
 length = 1.5
 step = 0.0166667
 markers = [{
@@ -56,12 +56,12 @@ tracks/2/keys = {
 "values": ["linear", "sineInOut"]
 }
 
-[sub_resource type="AnimationLibrary" id="AnimationLibrary_pefeb"]
+[sub_resource type="AnimationLibrary" id="AnimationLibrary_fhedk"]
 _data = {
-&"zen": SubResource("Animation_4fkq1")
+&"zen": SubResource("Animation_ry26k")
 }
 
-[sub_resource type="Animation" id="Animation_g1iq7"]
+[sub_resource type="Animation" id="Animation_elgmk"]
 length = 0.8
 step = 0.0166667
 tracks/0/type = "bezier"
@@ -211,49 +211,49 @@ metadata/zen_capture = {
 "ring:zen_scale": [0.016, 0.0]
 }
 
-[sub_resource type="AnimationLibrary" id="AnimationLibrary_fwpau"]
+[sub_resource type="AnimationLibrary" id="AnimationLibrary_ftpr4"]
 _data = {
-&"lap": SubResource("Animation_g1iq7")
+&"lap": SubResource("Animation_elgmk")
 }
 
-[node name="sig_end_every_loop" type="Node2D" unique_id=210162923]
-script = ExtResource("1_6s46r")
+[node name="sig_end_first_loop" type="Node2D" unique_id=1384932432]
+script = ExtResource("1_pvq50")
 loop_smooth = true
 loop_blend = 0.0
-strings = SubResource("Resource_13cph")
+strings = SubResource("Resource_wpqgg")
 clear_color = Color(0.07, 0.08, 0.12, 1)
 loop_play = true
 
-[node name="hint" type="Node2D" parent="." unique_id=1905300718]
-script = ExtResource("3_gy8l1")
-strings = SubResource("Resource_13cph")
+[node name="hint" type="Node2D" parent="." unique_id=709590982]
+script = ExtResource("3_nfrng")
+strings = SubResource("Resource_wpqgg")
 size_frac = Vector2(10, 10)
 color_base = Color(0.55, 0.6, 0.7, 1)
 elem_name = "hint"
 unit_abs = true
 pos_frac = Vector2(0.5, 0.93)
 
-[node name="lane" type="Node2D" parent="." unique_id=2101878570]
+[node name="lane" type="Node2D" parent="." unique_id=441299586]
 z_index = 1
-script = ExtResource("4_t2gak")
+script = ExtResource("4_g10ox")
 size_frac = Vector2(0.8, 0.005)
 color_base = Color(0.55, 0.6, 0.7, 1)
 outline_color_base = Color(0, 0, 0, 0)
 elem_name = "lane"
 pos_frac = Vector2(0.5, 0.55)
 
-[node name="goal" type="Node2D" parent="." unique_id=1566924464]
+[node name="goal" type="Node2D" parent="." unique_id=700627497]
 z_index = 2
-script = ExtResource("4_t2gak")
+script = ExtResource("4_g10ox")
 size_frac = Vector2(0.006, 0.16)
 color_base = Color(0.96, 0.96, 0.96, 1)
 outline_color_base = Color(0, 0, 0, 0)
 elem_name = "goal"
 pos_frac = Vector2(0.1, 0.55)
 
-[node name="ring" type="Node2D" parent="." unique_id=983105769]
+[node name="ring" type="Node2D" parent="." unique_id=978016538]
 z_index = 3
-script = ExtResource("4_t2gak")
+script = ExtResource("4_g10ox")
 shape_kind = 1
 size_frac = Vector2(40, 40)
 color_base = Color(0, 0, 0, 0)
@@ -263,9 +263,9 @@ elem_name = "ring"
 unit_abs = true
 pos_frac = Vector2(0.1, 0.55)
 
-[node name="runner" type="Node2D" parent="." unique_id=933885866]
+[node name="runner" type="Node2D" parent="." unique_id=1508532730]
 z_index = 4
-script = ExtResource("4_t2gak")
+script = ExtResource("4_g10ox")
 shape_kind = 1
 size_frac = Vector2(10, 10)
 color_base = Color(1, 0.8, 0.35, 1)
@@ -274,10 +274,10 @@ elem_name = "runner"
 unit_abs = true
 pos_frac = Vector2(0.1, 0.55)
 
-[node name="lap_word" type="Node2D" parent="." unique_id=1242662892]
+[node name="lap_word" type="Node2D" parent="." unique_id=109169185]
 z_index = 5
-script = ExtResource("3_gy8l1")
-strings = SubResource("Resource_13cph")
+script = ExtResource("3_nfrng")
+strings = SubResource("Resource_wpqgg")
 string_base = 1
 size_frac = Vector2(20, 20)
 color_base = Color(1, 0.8, 0.35, 0)
@@ -285,10 +285,10 @@ elem_name = "lap_word"
 unit_abs = true
 pos_frac = Vector2(0.5, 0.32)
 
-[node name="Signals" type="Node" parent="." unique_id=927131152]
-script = ExtResource("5_naivt")
+[node name="Signals" type="Node" parent="." unique_id=1349873272]
+script = ExtResource("5_uj2en")
 signals_data = [{
-"every_loop": true,
+"every_loop": false,
 "length": 0.8,
 "name": "lap",
 "point": "none",
@@ -325,7 +325,7 @@ signals_data = [{
 "uses_seq": false
 }]
 
-[node name="AnimationPlayer" type="AnimationPlayer" parent="." unique_id=1982667585]
+[node name="AnimationPlayer" type="AnimationPlayer" parent="." unique_id=27660906]
 callback_mode_method = 1
-libraries/ = SubResource("AnimationLibrary_pefeb")
-libraries/sig = SubResource("AnimationLibrary_fwpau")
+libraries/ = SubResource("AnimationLibrary_fhedk")
+libraries/sig = SubResource("AnimationLibrary_ftpr4")

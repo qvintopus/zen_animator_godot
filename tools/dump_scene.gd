@@ -10,8 +10,8 @@ extends SceneTree
 func _init() -> void:
     var args := OS.get_cmdline_user_args()
     var name := String(args[0]) if args.size() > 0 else "mouse_ripple"
-    var path := "res://anims/%s.tscn" % name
-    if not ResourceLoader.exists(path):
+    var path := ZenSceneOps.path_of(name)
+    if path.is_empty() or not ResourceLoader.exists(path):
         print("no such scene: ", path)
         quit(1)
         return

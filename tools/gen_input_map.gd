@@ -25,6 +25,13 @@ const ACTIONS := {
     "zen_tab": [KEY_TAB],
     "zen_help": [KEY_H],      # toggles the hotkey sheet (ZenHotkeyHelp)
     "zen_delete": [KEY_DELETE],   # gallery: trash the selected rows
+    # Gallery folders: collapse / expand the folder under the cursor, and
+    # move the selected animations into a folder.
+    "zen_fold": [KEY_LEFT],
+    "zen_unfold": [KEY_RIGHT],
+    "zen_move": [KEY_M],
+    # Gallery: focus the animation search (Ctrl+F is added below).
+    "zen_search": [KEY_SLASH],
     # Shape editor. Several share a key with a gallery action (1-3, R, L):
     # the editor is an overlay that consumes its keys first, and the gallery
     # ignores every key but ESC while it is open.
@@ -82,6 +89,9 @@ func _init() -> void:
     # Ctrl+Shift+Z satisfy the Ctrl+Z action too.
     _set_action("zen_edit_redo", [KEY_Z], true, true)
     _add_event("zen_edit_redo", KEY_Y, true)
+    _add_event("zen_search", KEY_F, true)
+    # Checked before zen_new (N), which a non-exact match also satisfies.
+    _set_action("zen_new_folder", [KEY_N], true, true)
     ProjectSettings.save()
     print("input map written")
     quit()

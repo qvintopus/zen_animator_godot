@@ -20,8 +20,9 @@ extends Control
 ##
 
 ## Where animations are found: res://anims, plus user://anims for scenes an
-## exported build saved (ZenSceneOps.DIRS). Scanned at startup, so dropping a
-## new .tscn in makes it appear with no code change.
+## exported build saved (ZenSceneOps.DIRS), each with one level of folders.
+## Scanned at startup, so dropping a new .tscn in makes it appear with no code
+## change.
 const ANIM_DIR := "res://anims"
 
 enum View { GALLERY, PLAYING, OPTIONS, EXPORT, SHAPE_EDITOR, SCENE_EDITOR }
@@ -39,11 +40,20 @@ const SCENE_EDITOR_SCENE := "res://tools/zen_scene_editor.tscn"
 const NEW_ASSET_ROW := "+ new asset..."
 
 var _view: View = View.GALLERY
-var _entries: Array = []            # [{path, name, canvas_data...}]
-var _sel := 0                       # the cursor row; mirrors _anim_sel.cursor
+var _entries: Array = []            # [{path, name, folder, canvas_data...}]
+## What the animations list shows, one per row: {folder, open, count} for a
+## folder header, {entry} (an index into _entries) for an animation. Rows
+## change with folding and the search; _entries does not.
+var _rows: Array = []
+## Every folder (ZenSceneOps.folders), and the ones shown expanded.
+var _folders: Array = []
+var _open := {}
+var _sel := 0                       # the cursor ROW; mirrors _anim_sel.cursor
 ## Shift/Ctrl multi-selection of animations (delete, export as a chain).
 var _anim_sel := ZenListSelection.new()
 var _playing: ZenCanvas = null
+## The entry being played, so a replay or restart survives the list changing.
+var _playing_entry: Dictionary = {}
 var _sub: SubViewport = null
 var _options: Control = null
 var _export_dialog: Control = null
@@ -54,6 +64,8 @@ var _name_dialog: ConfirmationDialog
 var _name_edit: LineEdit
 var _name_error: Label
 var _name_action := Callable()
+## (raw text) -> [ok, message]: what the open prompt accepts.
+var _name_check := Callable()
 var _section: Section = Section.ANIMS
 ## [{name, path}] from ZenAssets, sorted. Asset ROW i is _assets[i - 1]; row 0
 ## is NEW_ASSET_ROW.
@@ -77,6 +89,7 @@ var _replay_hold := 0.0
 @onready var _list: VBoxContainer = $Margin/Rows/Body/Left/ListScroll/List
 @onready var _list_scroll: ScrollContainer = $Margin/Rows/Body/Left/ListScroll
 @onready var _anim_header: Button = $Margin/Rows/Body/Left/AnimHeader
+@onready var _search: LineEdit = $Margin/Rows/Body/Left/Search
 @onready var _asset_header: Button = $Margin/Rows/Body/Left/AssetHeader
 @onready var _asset_scroll: ScrollContainer = $Margin/Rows/Body/Left/AssetScroll
 @onready var _asset_list: VBoxContainer = $Margin/Rows/Body/Left/AssetScroll/AssetList
@@ -112,6 +125,9 @@ func _ready() -> void:
 	_screen.gui_input.connect(_on_screen_input)
 	_anim_header.pressed.connect(_set_section.bind(Section.ANIMS))
 	_asset_header.pressed.connect(_set_section.bind(Section.ASSETS))
+	_search.text_changed.connect(func(_t): _on_search_changed())
+	_search.text_submitted.connect(func(_t): _on_search_submitted())
+	for f in ZenSettings.open_folders(): _open[String(f)] = true
 	_scan()
 	_build_list()
 	_scan_assets()
@@ -129,6 +145,7 @@ func _scan() -> void:
 	names.sort()
 	for base in names:
 		_entries.append(_describe(String(paths[base]), base))
+	_folders = ZenSceneOps.folders()
 
 
 ## Read an animation's metadata WITHOUT playing it.
@@ -139,7 +156,7 @@ func _scan() -> void:
 ## cleared first - this instance must never build a clock, it exists only to be
 ## measured. It is also never added to the tree, so _ready() does not run at all.
 func _describe(path: String, base: String) -> Dictionary:
-	var info := {"path": path, "name": base, "ok": false}
+	var info := {"path": path, "name": base, "folder": ZenSceneOps.folder_of_path(path), "ok": false}
 	var ps := load(path) as PackedScene
 	if ps == null: return info
 	var c := ps.instantiate() as ZenCanvas
@@ -199,7 +216,91 @@ func _describe(path: String, base: String) -> Dictionary:
 
 
 func _build_list() -> void:
-	ZenUI.fill_list(_list, _entries.map(func(e): return e["name"]), _on_row, _on_row_double)
+	_rows = list_rows(_entries, _folders, _open, _search.text)
+	ZenUI.fill_list(_list, _rows.map(_row_label), _on_row, _on_row_double)
+	for i in _rows.size():
+		if _rows[i].has("folder"):
+			(_list.get_child(i) as Button).add_theme_color_override("font_color", ZenUI.LABEL)
+	_anim_sel.resize(_rows.size())
+	_update_anim_header()
+
+
+## The rows of the animations list: each folder (A-Z) with its animations
+## under it when open, then the top-level animations. A search (`query`,
+## ZenSceneOps.filter) hides what does not match and opens every folder that
+## holds a match, without touching which folders `open` remembers.
+static func list_rows(entries: Array, folders: Array, open: Dictionary, query: String) -> Array:
+	var searching := not query.strip_edges().is_empty()
+	var by_folder := {}
+	for i in ZenSceneOps.filter(entries, query):
+		var f := String((entries[i] as Dictionary).get("folder", ""))
+		if not by_folder.has(f): by_folder[f] = []
+		(by_folder[f] as Array).append(i)
+	var all_folders := folders.duplicate()
+	for f in by_folder:
+		if f != "" and not all_folders.has(f): all_folders.append(f)
+	var rows: Array = []
+	for f in all_folders:
+		var kids: Array = by_folder.get(f, [])
+		if searching and kids.is_empty(): continue
+		var is_open := searching or open.has(f)
+		rows.append({"folder": String(f), "open": is_open, "count": kids.size()})
+		if is_open:
+			for i in kids: rows.append({"entry": i, "in": String(f)})
+	for i in by_folder.get("", []): rows.append({"entry": i})
+	return rows
+
+
+func _row_label(r: Dictionary) -> String:
+	if r.has("folder"):
+		return "%s %s  (%d)" % ["▾" if bool(r["open"]) else "▸", String(r["folder"]), int(r["count"])]
+	var nm := String(_entries[int(r["entry"])]["name"])
+	return ("   " + nm) if r.has("in") else nm
+
+
+## The entry on list row `row`; {} for a folder row (or no such row).
+func _entry_at(row: int) -> Dictionary:
+	if row < 0 or row >= _rows.size() or not _rows[row].has("entry"): return {}
+	return _entries[int(_rows[row]["entry"])]
+
+
+func _cur_entry() -> Dictionary:
+	return _entry_at(_sel)
+
+
+## The folder of the cursor row: a folder header's own, or the folder the
+## animation under the cursor sits in ("" at the top level).
+func _cur_folder() -> String:
+	if _sel < 0 or _sel >= _rows.size(): return ""
+	var r: Dictionary = _rows[_sel]
+	if r.has("folder"): return String(r["folder"])
+	return String(_cur_entry().get("folder", ""))
+
+
+func _folder_row(row: int) -> String:
+	if row < 0 or row >= _rows.size() or not _rows[row].has("folder"): return ""
+	return String(_rows[row]["folder"])
+
+
+func _row_of(nm: String) -> int:
+	for i in _rows.size():
+		if not nm.is_empty() and String(_entry_at(i).get("name", "")) == nm: return i
+	return -1
+
+
+func _row_of_folder(f: String) -> int:
+	for i in _rows.size():
+		if _folder_row(i) == f: return i
+	return -1
+
+
+func _update_anim_header() -> void:
+	var anims := _section == Section.ANIMS
+	var n := _entries.size()
+	var count := "%d" % n
+	if not _search.text.strip_edges().is_empty():
+		count = "%d of %d" % [ZenSceneOps.filter(_entries, _search.text).size(), n]
+	_anim_header.text = "%s animations (%s)" % ["▾" if anims else "▸", count]
 
 
 ## A row click selects. While something is already playing it also SWITCHES to
@@ -213,42 +314,147 @@ func _on_row(i: int) -> void:
 	var m := ZenUI.held_modifiers()
 	var was_playing := _view == View.PLAYING
 	_select(i, m["shift"], m["ctrl"])
-	if was_playing and not (m["shift"] or m["ctrl"]):
+	if was_playing and not (m["shift"] or m["ctrl"]) and not _entry_at(i).is_empty():
 		_play(i)
 
 
 ## Double-click anywhere on a row plays it, which is what a gallery is expected
 ## to do. Single click still just selects, so the metadata can be read without
 ## committing to playback.
+## On a folder row it folds or unfolds the folder instead.
 func _on_row_double(i: int) -> void:
 	_select(i)
-	_play(i)
+	if _entry_at(i).is_empty(): _toggle_folder(_folder_row(i))
+	else: _play(i)
 
 
+## Folder rows can hold the cursor but are never marked: a selection is of
+## animations, so a range across a folder header simply skips it.
 func _select(i: int, shift := false, ctrl := false) -> void:
-	if _entries.is_empty(): return
-	_anim_sel.resize(_entries.size())
+	if _rows.is_empty():
+		_refresh_anim_selection()
+		return
+	_anim_sel.resize(_rows.size())
 	_anim_sel.pick(i, shift, ctrl)
+	for r in _anim_sel.marks.keys():
+		if _entry_at(int(r)).is_empty(): _anim_sel.marks.erase(r)
 	_refresh_anim_selection()
 
 
 ## Redraw the animations selection without changing it.
 func _refresh_anim_selection() -> void:
-	if _entries.is_empty(): return
-	_anim_sel.resize(_entries.size())
+	if _rows.is_empty():
+		if _section == Section.ANIMS: _info.text = "[color=#5c6370]no animation matches[/color]"
+		return
+	_anim_sel.resize(_rows.size())
 	_sel = _anim_sel.cursor
 	ZenUI.show_selection(_list, _anim_sel)
 	if _section == Section.ANIMS:
-		_info.text = _render_multi_info() if _anim_sel.is_multi() else _render_info(_entries[_sel])
+		if _anim_sel.is_multi(): _info.text = _render_multi_info()
+		elif _cur_entry().is_empty(): _info.text = _render_folder_info(_folder_row(_sel))
+		else: _info.text = _render_info(_cur_entry())
 		if _view == View.GALLERY: _hint.text = _gallery_hint()
 	ZenUI.scroll_to(_list_scroll, _list, _sel)
 
 
-## The marked animations' names, in list order.
+## The marked animations' names, in list order. With nothing marked (the
+## cursor on a folder) it is empty.
 func _marked_anims() -> Array[String]:
 	var out: Array[String] = []
-	for r in _anim_sel.rows(): out.append(String(_entries[r]["name"]))
+	for r in _anim_sel.rows():
+		var e := _entry_at(r)
+		if not e.is_empty(): out.append(String(e["name"]))
 	return out
+
+
+# ---------------------------------------------------------------- folders
+
+## Fold or unfold folder `f`, remembered across runs. The cursor stays on
+## the folder's row. A search shows every matching folder open, so folding
+## then waits for the search to clear.
+func _toggle_folder(f: String, open := -1) -> void:
+	if f.is_empty(): return
+	var now := open == 1 or (open == -1 and not _open.has(f))
+	if now: _open[f] = true
+	else: _open.erase(f)
+	ZenSettings.set_open_folders(_open.keys())
+	_build_list()
+	_select(maxi(_row_of_folder(f), 0))
+
+
+## LEFT on an animation inside a folder folds that folder, cursor on it.
+func _fold_cursor(open: bool) -> void:
+	var f := _cur_folder()
+	if not f.is_empty(): _toggle_folder(f, 1 if open else 0)
+
+
+func _render_folder_info(f: String) -> String:
+	var names: Array = []
+	for e in _entries:
+		if String(e.get("folder", "")) == f: names.append(String(e["name"]))
+	var L: Array = []
+	L.append("[b][color=#e5c07b]%s[/color][/b]  [color=#5c6370]folder[/color]" % f)
+	for root in ZenSceneOps.DIRS:
+		if DirAccess.dir_exists_absolute("%s/%s" % [root, f]):
+			L.append("[color=#5c6370]%s/%s[/color]" % [root, f])
+	L.append("")
+	L.append("[color=#61afef]animations[/color]  %s" % (str(names.size()) if not names.is_empty()
+			 else "[color=#5c6370]none - %s moves animations here[/color]" % ZenHotkeyHelp.key("zen_move")))
+	for nm in names: L.append("  " + nm)
+	L.append("")
+	L.append("    [color=#5c6370]%s or %s / %s to open or close, %s rename, %s trash it (when empty)[/color]"
+			 % [ZenHotkeyHelp.key("zen_play"), ZenHotkeyHelp.key("zen_fold"),
+				ZenHotkeyHelp.key("zen_unfold"), ZenHotkeyHelp.key("zen_rename"),
+				ZenHotkeyHelp.key("zen_delete")])
+	return "\n".join(L)
+
+
+# ---------------------------------------------------------------- search
+
+## Typing narrows the list at once, like the font search in Options. The
+## cursor stays on the same animation while it still matches, else it lands
+## on the first match.
+func _on_search_changed() -> void:
+	var keep := String(_cur_entry().get("name", ""))
+	_build_list()
+	var row := _row_of(keep)
+	if row < 0:
+		for i in _rows.size():
+			if not _entry_at(i).is_empty(): row = i; break
+	_select(maxi(row, 0))
+
+
+## ENTER in the search plays the match under the cursor and hands the keys
+## back to the gallery, so 1-9 fire signals rather than typing digits.
+func _on_search_submitted() -> void:
+	_search.release_focus()
+	if not _cur_entry().is_empty(): _play(_sel)
+	elif not _rows.is_empty(): _toggle_folder(_folder_row(_sel))
+
+
+func _focus_search() -> void:
+	if _section != Section.ANIMS: _set_section(Section.ANIMS)
+	_search.grab_focus()
+	_search.select_all()
+
+
+## _input, not _unhandled_input: the focused search field would swallow the
+## arrows and ESC before they got there (the same reason as ZenOptions).
+func _input(ev: InputEvent) -> void:
+	if not _search.has_focus() or not (ev is InputEventKey) or not ev.is_pressed(): return
+	if ev.is_action_pressed("zen_back") and not ev.is_echo():
+		if _search.text != "":
+			_search.clear()
+			_on_search_changed()
+		else:
+			_search.release_focus()
+		get_viewport().set_input_as_handled()
+	elif ev.is_action_pressed("zen_prev", true):
+		_select(_sel - 1, (ev as InputEventKey).shift_pressed)
+		get_viewport().set_input_as_handled()
+	elif ev.is_action_pressed("zen_next", true):
+		_select(_sel + 1, (ev as InputEventKey).shift_pressed)
+		get_viewport().set_input_as_handled()
 
 
 ## The marked assets' names, in list order.
@@ -265,7 +471,9 @@ func _marked_assets() -> Array[String]:
 func _set_section(sec: Section) -> void:
 	_section = sec
 	var anims := sec == Section.ANIMS
-	_anim_header.text = "%s animations (%d)" % ["▾" if anims else "▸", _entries.size()]
+	_update_anim_header()
+	_search.visible = anims
+	if not anims: _search.release_focus()
 	_asset_header.text = "%s assets (visual) (%d)" % ["▸" if anims else "▾", _assets.size()]
 	_list_scroll.visible = anims
 	_asset_scroll.visible = not anims
@@ -365,7 +573,7 @@ func _render_multi_info() -> String:
 	var L: Array = ["[b][color=#e5c07b]%d animations selected[/color][/b]" % names.size(), ""]
 	var sizes := {}
 	for r in _anim_sel.rows():
-		var e: Dictionary = _entries[r]
+		var e := _entry_at(r)
 		var d: Vector2 = e.get("design", Vector2.ZERO)
 		sizes[d] = true
 		L.append("  %s  [color=#5c6370]%d x %d, %.2fs[/color]" % [String(e["name"]),
@@ -475,10 +683,13 @@ func _gallery_hint() -> String:
 				["zen_help", "help"], ["zen_back", "quit"]])
 	if _anim_sel.is_multi():
 		var n := _anim_sel.marks.size()
-		return ZenHotkeyHelp.footer([["zen_export", "export %d" % n], ["zen_delete", "delete %d" % n],
-				["zen_help", "help"], ["zen_back", "clear selection"]])
+		return ZenHotkeyHelp.footer([["zen_export", "export %d" % n], ["zen_move", "move %d" % n],
+				["zen_delete", "delete %d" % n], ["zen_help", "help"], ["zen_back", "clear selection"]])
+	if _cur_entry().is_empty():
+		return ZenHotkeyHelp.footer([["zen_play", "open / close"], ["zen_rename", "rename"],
+				["zen_search", "search"], ["zen_help", "help"], ["zen_back", "quit"]])
 	return ZenHotkeyHelp.footer([["zen_play", "play"], ["zen_edit_scene", "edit"], ["zen_new", "new"],
-			["zen_tab", "assets"], ["zen_help", "help"], ["zen_back", "quit"]])
+			["zen_search", "search"], ["zen_tab", "assets"], ["zen_help", "help"], ["zen_back", "quit"]])
 
 
 ## Whether the playing footer currently advertises "continue".
@@ -525,7 +736,10 @@ func _show_help() -> void:
 	var anims: Array = [["zen_play", "play"], ["double-click", "play"],
 		["zen_edit_scene", "edit in the scene editor"], ["zen_new", "new animation"],
 		["zen_rename", "rename"], ["zen_duplicate", "duplicate"],
-		["zen_prev", "previous"], ["zen_next", "next"]]
+		["zen_prev", "previous"], ["zen_next", "next"],
+		["zen_search", "search (ESC clears, ENTER plays)"],
+		["zen_fold", "close the folder"], ["zen_unfold", "open the folder"],
+		["zen_move", "move the selection to a folder"], ["zen_new_folder", "new folder"]]
 	anims.append_array(multi)
 	anims.append_array([["zen_delete", "delete the selected animations"],
 		["zen_tab", "switch to assets"],
@@ -570,11 +784,17 @@ func _queue_suffix() -> String:
 ## a TextureRect with nearest-neighbour filtering, so the pixel grid stays
 ## honest at any window size. Stretching it with a Control layout instead would
 ## reposition every element, because Zen geometry is fractional.
-func _play(i: int) -> void:
+func _play(row: int) -> void:
+	var e := _entry_at(row)
+	if e.is_empty(): return            # a folder row
+	_play_entry(e)
+
+
+func _play_entry(e: Dictionary) -> void:
 	_stop()
 	if _section != Section.ANIMS: _set_section(Section.ANIMS)
-	var e: Dictionary = _entries[i]
 	if not bool(e.get("ok", false)): return
+	_playing_entry = e
 	var ps := load(String(e["path"])) as PackedScene
 	if ps == null: return
 	_playing = ps.instantiate() as ZenCanvas
@@ -618,15 +838,11 @@ func _stop() -> void:
 ## window shows up without leaving the app.
 func _restart() -> void:
 	if _view == View.PLAYING:
-		_play(_sel)
+		_play_entry(_playing_entry)
 	else:
-		var keep := _sel
-		_scan()
-		_build_list()
-		_scan_assets()
-		_build_asset_list()
-		_set_section(_section)
-		_select(keep)
+		var sec := _section
+		_reselect(String(_cur_entry().get("name", "")), _folder_row(_sel))
+		_set_section(sec)
 		_status.text = "%d animations, %d assets  [reloaded]" % [_entries.size(), _assets.size()]
 
 
@@ -710,8 +926,10 @@ func _open_scene_editor(new_scene := false) -> void:
 	_scene_editor = (load(SCENE_EDITOR_SCENE) as PackedScene).instantiate()
 	_scene_editor.closed.connect(_close_scene_editor)
 	add_child(_scene_editor)
-	var path := "" if new_scene or _entries.is_empty() else String(_entries[_sel]["path"])
-	_scene_editor.open(path)
+	var path := "" if new_scene else String(_cur_entry().get("path", ""))
+	if path.is_empty() and not new_scene: new_scene = true
+	# A new scene saves into the folder the cursor is in.
+	_scene_editor.open(path, _cur_folder() if new_scene else "")
 	_view = View.SCENE_EDITOR
 
 
@@ -725,17 +943,24 @@ func _close_scene_editor() -> void:
 	_reselect(nm)
 
 
-## Rescan everything and put the cursor on animation `nm` (or keep it near).
-func _reselect(nm: String) -> void:
+## Rescan everything and put the cursor on animation `nm`, opening its
+## folder so a scene just saved or moved is in view - or on folder `folder`,
+## or near where it was.
+func _reselect(nm: String, folder := "") -> void:
 	var keep := _sel
 	_scan()
+	for e in _entries:
+		var f := String(e.get("folder", ""))
+		if String(e["name"]) == nm and f != "" and not _open.has(f):
+			_open[f] = true
+			ZenSettings.set_open_folders(_open.keys())
 	_build_list()
 	_scan_assets()
 	_build_asset_list()
 	_set_section(Section.ANIMS)
-	var row := mini(keep, _entries.size() - 1)
-	for i in _entries.size():
-		if String(_entries[i]["name"]) == nm: row = i
+	var row := _row_of(nm)
+	if row < 0 and folder != "": row = _row_of_folder(folder)
+	if row < 0: row = mini(keep, _rows.size() - 1)
 	_select(maxi(row, 0))
 
 
@@ -754,10 +979,11 @@ func _build_name_dialog() -> void:
 	add_child(_name_dialog)
 
 
-func _ask_name(title: String, initial: String, fn: Callable) -> void:
+func _ask_name(title: String, initial: String, fn: Callable, check := _scene_name_check) -> void:
 	_name_dialog.title = title
 	_name_edit.text = initial
 	_name_action = fn
+	_name_check = check
 	_validate_name()
 	_name_dialog.popup_centered()
 	_name_edit.grab_focus()
@@ -765,15 +991,34 @@ func _ask_name(title: String, initial: String, fn: Callable) -> void:
 
 
 func _validate_name() -> bool:
-	var n := ZenSceneOps.clean_name(_name_edit.text)
-	var err := ""
-	if n.is_empty(): err = "type a name"
-	elif not ZenSceneOps.is_name_free(n): err = "an animation called %s already exists" % n
-	elif n != _name_edit.text.strip_edges(): err = "will be named %s" % n
-	_name_error.text = err
-	var ok := not n.is_empty() and ZenSceneOps.is_name_free(n)
-	_name_dialog.get_ok_button().disabled = not ok
-	return ok
+	var r: Array = _name_check.call(_name_edit.text)
+	_name_error.text = String(r[1])
+	_name_dialog.get_ok_button().disabled = not bool(r[0])
+	return bool(r[0])
+
+
+func _scene_name_check(raw: String) -> Array:
+	var n := ZenSceneOps.clean_name(raw)
+	if n.is_empty(): return [false, "type a name"]
+	if not ZenSceneOps.is_name_free(n): return [false, "an animation called %s already exists" % n]
+	return [true, "will be named %s" % n if n != raw.strip_edges() else ""]
+
+
+## A folder to move into: "" is the top level, an existing folder is fine,
+## a new name creates it.
+func _move_folder_check(raw: String) -> Array:
+	var n := ZenSceneOps.clean_name(raw)
+	if n.is_empty(): return [true, "moves to the top level"]
+	if _folders.has(n): return [true, "into %s" % n]
+	return [true, "creates folder %s" % n]
+
+
+## A name for a new folder, or a renamed one (`old` may keep its name).
+func _new_folder_check(raw: String, old := "") -> Array:
+	var n := ZenSceneOps.clean_name(raw)
+	if n.is_empty(): return [false, "type a folder name"]
+	if n != old and _folders.has(n): return [false, "a folder called %s already exists" % n]
+	return [true, "will be named %s" % n if n != raw.strip_edges() else ""]
 
 
 func _on_name_ok() -> void:
@@ -784,8 +1029,10 @@ func _on_name_ok() -> void:
 
 ## F2: rename the animation's scene file.
 func _ask_rename() -> void:
-	if _entries.is_empty(): return
-	var old := String(_entries[_sel]["name"])
+	if _cur_entry().is_empty():
+		_ask_rename_folder(_folder_row(_sel))
+		return
+	var old := String(_cur_entry()["name"])
 	_ask_name("Rename animation", old, func(n):
 		var err := ZenSceneOps.rename(old, n)
 		_reselect(n if err == OK else old)
@@ -794,12 +1041,54 @@ func _ask_rename() -> void:
 
 ## Ctrl+D: copy the animation to a new scene.
 func _ask_duplicate() -> void:
-	if _entries.is_empty(): return
-	var src := String(_entries[_sel]["name"])
+	if _cur_entry().is_empty(): return
+	var src := String(_cur_entry()["name"])
 	_ask_name("Duplicate animation", ZenSceneOps.unique_name(src + "_copy"), func(n):
 		var err := ZenSceneOps.duplicate_scene(src, n)
 		_reselect(n if err == OK else src)
 		_status.text = "duplicated %s as %s" % [src, n] if err == OK else "could not duplicate %s" % src)
+
+
+func _ask_rename_folder(old: String) -> void:
+	if old.is_empty(): return
+	var fn := func(n: String) -> void:
+		if n == old: return
+		var err := ZenSceneOps.rename_folder(old, n)
+		if err == OK and _open.has(old):
+			_open.erase(old)
+			_open[n] = true
+			ZenSettings.set_open_folders(_open.keys())
+		_reselect("", n if err == OK else old)
+		_status.text = "renamed folder %s -> %s" % [old, n] if err == OK \
+					   else "could not rename folder %s" % old
+	_ask_name("Rename folder", old, fn, _new_folder_check.bind(old))
+
+
+## Ctrl+Shift+N: a new, empty folder.
+func _ask_new_folder() -> void:
+	var fn := func(n: String) -> void:
+		var err := ZenSceneOps.make_folder(n)
+		_open[n] = true
+		ZenSettings.set_open_folders(_open.keys())
+		_reselect("", n)
+		_status.text = "new folder %s" % n if err == OK else "could not create folder %s" % n
+	_ask_name("New folder", "", fn, _new_folder_check)
+
+
+## M: move the selected animations (or the one under the cursor) into a
+## folder - typed, so a new name makes the folder; empty is the top level.
+func _ask_move() -> void:
+	var names := _marked_anims()
+	if names.is_empty(): return
+	var what := names[0] if names.size() == 1 else "%d animations" % names.size()
+	var fn := func(f: String) -> void:
+		var failed: Array = []
+		for nm in names:
+			if ZenSceneOps.move(nm, f) != OK: failed.append(nm)
+		_reselect(names[0])
+		_status.text = "moved %s to %s" % [what, f if f != "" else "the top level"]
+		if not failed.is_empty(): _status.text = "could not move %s" % ", ".join(failed)
+	_ask_name("Move %s to folder" % what, _cur_folder(), fn, _move_folder_check)
 
 
 ## Export is the same overlay-child pattern as Options - opening it from
@@ -816,7 +1105,7 @@ func _open_export() -> void:
 		chain = _marked_anims().slice(0, ZenExport.MAX_CHAIN)
 	elif chain.is_empty():
 		var current := _playing.scene_file_path.get_file().get_basename() \
-					   if _playing != null else String(_entries[_sel].get("name", ""))
+					   if _playing != null else String(_cur_entry().get("name", ""))
 		if current != "": chain = [current]
 	_prev_view = _view if _view in [View.GALLERY, View.PLAYING] else View.GALLERY
 	_export_dialog.open(_entries, chain)
@@ -847,7 +1136,7 @@ func _queue_current() -> void:
 		return
 	var nm := _playing.scene_file_path.get_file().get_basename() \
 			  if _view == View.PLAYING and _playing != null \
-			  else String(_entries[_sel].get("name", "")) if not _entries.is_empty() else ""
+			  else String(_cur_entry().get("name", ""))
 	if nm != "": _queue_name(nm)
 
 
@@ -888,7 +1177,9 @@ func _ask_delete() -> void:
 	var L: Array = []
 	if _section == Section.ANIMS:
 		var names := _marked_anims()
-		if names.is_empty(): return
+		if names.is_empty():
+			_ask_delete_folder(_folder_row(_sel))
+			return
 		for nm in names:
 			files.append(ZenSceneOps.path_of(nm))
 		L.append("Move %s to the trash?" % ("animation %s" % names[0] if names.size() == 1
@@ -910,6 +1201,23 @@ func _ask_delete() -> void:
 	for f in files: L.append("  " + f)
 	_confirm.dialog_text = "\n".join(L)
 	_confirm_action = _delete_files.bind(files)
+	_confirm.popup_centered()
+
+
+## A folder is only trashed once it is empty: deleting the animations inside
+## is a separate, listed choice, never a side effect of removing a folder.
+func _ask_delete_folder(f: String) -> void:
+	if f.is_empty(): return
+	if not ZenSceneOps.scenes_in(f).is_empty():
+		_status.text = "folder %s is not empty - move or delete its animations first" % f
+		return
+	_confirm.dialog_text = "Move the empty folder %s to the trash?" % f
+	_confirm_action = func():
+		var err := ZenSceneOps.delete_folder(f)
+		_open.erase(f)
+		ZenSettings.set_open_folders(_open.keys())
+		_reselect("")
+		_status.text = "deleted folder %s" % f if err == OK else "could not delete folder %s" % f
 	_confirm.popup_centered()
 
 
@@ -1015,7 +1323,7 @@ func _update_status() -> void:
 		if extra == "": extra = "   [ended]"
 		if ZenSettings.play_loop() and _replay_hold >= REPLAY_HOLD:
 			_replay_hold = 0.0
-			_play(_sel)
+			_play_entry(_playing_entry)
 			return
 	else:
 		_replay_hold = 0.0
@@ -1027,7 +1335,7 @@ func _update_status() -> void:
 func _toggle(which: String) -> void:
 	if which == "intro": ZenSettings.set_play_intro(not ZenSettings.play_intro())
 	else: ZenSettings.set_play_loop(not ZenSettings.play_loop())
-	if _view == View.PLAYING: _play(_sel)
+	if _view == View.PLAYING: _play_entry(_playing_entry)
 	else: _show_gallery()
 
 
@@ -1093,6 +1401,23 @@ func _unhandled_input(ev: InputEvent) -> void:
 		if _view == View.GALLERY and _section == Section.ANIMS:
 			_ask_duplicate()
 			get_viewport().set_input_as_handled()
+	elif ev.is_action_pressed("zen_search"):
+		if _view in [View.GALLERY, View.PLAYING]:
+			_focus_search()
+			get_viewport().set_input_as_handled()
+	elif ev.is_action_pressed("zen_new_folder"):
+		# Before zen_new: Ctrl+Shift+N also satisfies the plain N action.
+		if _view == View.GALLERY and _section == Section.ANIMS:
+			_ask_new_folder()
+			get_viewport().set_input_as_handled()
+	elif ev.is_action_pressed("zen_move"):
+		if _view == View.GALLERY and _section == Section.ANIMS:
+			_ask_move()
+			get_viewport().set_input_as_handled()
+	elif ev.is_action_pressed("zen_fold") or ev.is_action_pressed("zen_unfold"):
+		if _view == View.GALLERY and _section == Section.ANIMS:
+			_fold_cursor(ev.is_action_pressed("zen_unfold"))
+			get_viewport().set_input_as_handled()
 	elif ev.is_action_pressed("zen_new"):
 		if _view == View.GALLERY:
 			if _section == Section.ASSETS:
@@ -1107,6 +1432,7 @@ func _unhandled_input(ev: InputEvent) -> void:
 	elif ev.is_action_pressed("zen_play"):
 		if _view == View.GALLERY:
 			if _section == Section.ASSETS: _open_shape_editor()
+			elif _cur_entry().is_empty(): _toggle_folder(_folder_row(_sel))
 			else: _play(_sel)
 			get_viewport().set_input_as_handled()
 	elif ev.is_action_pressed("zen_prev"):

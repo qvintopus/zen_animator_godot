@@ -58,6 +58,8 @@ const RANGES := {
 
 var _canvas: ZenCanvas = null
 var _name := ""                         ## the scene's name; "" until first saved
+## The gallery folder a first save (or Save As) lands in; "" = top level.
+var _folder := ""
 var _undo := UndoRedo.new()
 var _saved_version := 0
 var _sel: Array[String] = []            ## selected elem_names, in pick order
@@ -150,12 +152,14 @@ func _exit_tree() -> void:
 
 # ---------------------------------------------------------------- open / state
 
-## Edit the scene at `path`, or a new one when "".
-func open(path: String) -> void:
+## Edit the scene at `path`, or a new one when "" (saved into `folder`).
+func open(path: String, folder := "") -> void:
     var c: ZenCanvas = null
+    _folder = folder
     if path != "":
         c = ZenSceneOps.open(path)
         _name = path.get_file().get_basename()
+        _folder = ZenSceneOps.folder_of_path(path)
     if c == null:
         _name = ""
         c = ZenSceneOps.new_canvas("untitled")
@@ -2111,7 +2115,7 @@ func _save() -> void:
         return
     _stop()
     _canvas.name = ZenElemFactory.node_name(_name)
-    var path := ZenSceneOps.save(_canvas, _name)
+    var path := ZenSceneOps.save(_canvas, _name, _folder)
     if path.is_empty():
         _set_status("could not save %s" % _name)
         return

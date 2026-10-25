@@ -29,15 +29,28 @@ const NEW_BLEND := 0.3
 
 
 ## Every scene name mapped to the path that wins (user over shipped).
+##
+## FOLDERS are plain subdirectories of a root, one level deep
+## (res://anims/signal_demo/sig_code.tscn). The basename stays the scene's id
+## across folders - is_name_free checks every folder - so everything that
+## goes by name (path_of, rename, the export chain, --anim=) ignores them.
 static func scene_paths() -> Dictionary:
     var out := {}
-    for dir in DIRS:
-        var d := DirAccess.open(dir)
-        if d == null: continue
-        for f in d.get_files():
-            var file := f.trim_suffix(".remap")
-            if not file.ends_with(".tscn"): continue
-            out[file.get_basename()] = "%s/%s" % [dir, file]
+    for root in DIRS:
+        for dir in _scan_dirs(root):
+            for f in DirAccess.get_files_at(dir):
+                var file := f.trim_suffix(".remap")
+                if not file.ends_with(".tscn"): continue
+                out[file.get_basename()] = "%s/%s" % [dir, file]
+    return out
+
+
+## `root` and its direct subdirectories (the folders).
+static func _scan_dirs(root: String) -> Array:
+    if not DirAccess.dir_exists_absolute(root): return []
+    var out: Array = [root]
+    for sub in DirAccess.get_directories_at(root):
+        if not sub.begins_with("."): out.append("%s/%s" % [root, sub])
     return out
 
 
@@ -45,10 +58,46 @@ static func path_of(nm: String) -> String:
     return String(scene_paths().get(nm, ""))
 
 
-## Where a save of `nm` goes: the shipped root when writable, else user://.
-static func save_path(nm: String) -> String:
-    var dir: String = DIRS[0] if OS.has_feature("editor") else DIRS[1]
-    return "%s/%s.tscn" % [dir, nm]
+## The folder a scene path sits in, "" at a root's top level.
+static func folder_of_path(path: String) -> String:
+    var dir := path.get_base_dir()
+    return "" if DIRS.has(dir) else dir.get_file()
+
+
+static func folder_of(nm: String) -> String:
+    var p := path_of(nm)
+    return "" if p.is_empty() else folder_of_path(p)
+
+
+## Every folder in either root, empty ones too, sorted.
+static func folders() -> Array:
+    var uniq := {}
+    for root in DIRS:
+        for dir in _scan_dirs(root):
+            if dir != root: uniq[String(dir).get_file()] = true
+    var out := uniq.keys()
+    out.sort_custom(func(a, b): return String(a).naturalnocasecmp_to(String(b)) < 0)
+    return out
+
+
+## The root saves go to: the shipped one when writable, else user://.
+static func write_root() -> String:
+    return DIRS[0] if OS.has_feature("editor") else DIRS[1]
+
+
+static func _dir(root: String, folder: String) -> String:
+    return root if folder.is_empty() else "%s/%s" % [root, folder]
+
+
+## Where a save of `nm` goes. An existing scene in the writable root saves in
+## place, so editing never pulls it out of its folder; anything else lands in
+## `folder` of the writable root.
+static func save_path(nm: String, folder := "") -> String:
+    var cur := path_of(nm)
+    if not cur.is_empty() and cur.begins_with(write_root() + "/"):
+        return cur
+    if not cur.is_empty() and folder.is_empty(): folder = folder_of_path(cur)
+    return "%s/%s.tscn" % [_dir(write_root(), folder), nm]
 
 
 ## A file-safe scene name ("My Intro!" -> "my_intro_").
@@ -187,8 +236,8 @@ static func _own(canvas: ZenCanvas) -> void:
 
 ## Save `canvas` as scene `nm`, replacing any cached copy so the gallery plays
 ## the saved version. Returns the path written, or "".
-static func save(canvas: ZenCanvas, nm: String) -> String:
-    var path := save_path(nm)
+static func save(canvas: ZenCanvas, nm: String, folder := "") -> String:
+    var path := save_path(nm, folder)
     DirAccess.make_dir_recursive_absolute(path.get_base_dir())
     _own(canvas)
     # The editor runs its canvas with live playback off; the saved scene must
@@ -222,7 +271,7 @@ static func duplicate_scene(from: String, to: String) -> Error:
     var canvas := open(src)
     if canvas == null: return ERR_CANT_OPEN
     canvas.name = ZenElemFactory.node_name(to)
-    var ok := not save(canvas, to).is_empty()
+    var ok := not save(canvas, to, folder_of_path(src)).is_empty()
     canvas.free()
     return OK if ok else ERR_CANT_CREATE
 
@@ -232,3 +281,76 @@ static func delete(nm: String) -> Error:
     var p := path_of(nm)
     if p.is_empty(): return ERR_FILE_NOT_FOUND
     return ZenAssets.trash(p)
+
+
+# ---------------------------------------------------------------------------
+#  Folders
+# ---------------------------------------------------------------------------
+
+## Move scene `nm` into `folder` ("" = the top level) of its own root.
+static func move(nm: String, folder: String) -> Error:
+    var src := path_of(nm)
+    if src.is_empty(): return ERR_FILE_NOT_FOUND
+    if folder_of_path(src) == folder: return OK
+    var root := String(DIRS[0]) if src.begins_with(DIRS[0] + "/") else String(DIRS[1])
+    var dir := _dir(root, folder)
+    DirAccess.make_dir_recursive_absolute(dir)
+    var dst := "%s/%s" % [dir, src.get_file()]
+    var err := DirAccess.rename_absolute(ProjectSettings.globalize_path(src),
+        ProjectSettings.globalize_path(dst))
+    if err == OK and ResourceLoader.has_cached(src):
+        # The cached PackedScene still answers to the old path.
+        (load(src) as Resource).take_over_path(dst)
+    return err
+
+
+static func make_folder(folder: String) -> Error:
+    if folder.is_empty(): return ERR_INVALID_PARAMETER
+    return DirAccess.make_dir_recursive_absolute(_dir(write_root(), folder))
+
+
+## Rename `from` to `to` in every root that has it. Fails when `to` exists.
+static func rename_folder(from: String, to: String) -> Error:
+    if from.is_empty() or to.is_empty(): return ERR_INVALID_PARAMETER
+    if folders().has(to): return ERR_ALREADY_EXISTS
+    var err := ERR_FILE_NOT_FOUND
+    for root in DIRS:
+        var src := _dir(root, from)
+        if not DirAccess.dir_exists_absolute(src): continue
+        err = DirAccess.rename_absolute(ProjectSettings.globalize_path(src),
+            ProjectSettings.globalize_path(_dir(root, to)))
+        if err != OK: return err
+    return err
+
+
+## The scene names inside `folder`, across both roots.
+static func scenes_in(folder: String) -> Array:
+    var paths := scene_paths()
+    return paths.keys().filter(func(n): return folder_of_path(String(paths[n])) == folder)
+
+
+## Trash an EMPTY folder; one still holding scenes is refused (ERR_BUSY).
+static func delete_folder(folder: String) -> Error:
+    if folder.is_empty(): return ERR_INVALID_PARAMETER
+    if not scenes_in(folder).is_empty(): return ERR_BUSY
+    var err := ERR_FILE_NOT_FOUND
+    for root in DIRS:
+        var d := _dir(root, folder)
+        if not DirAccess.dir_exists_absolute(d): continue
+        var g := ProjectSettings.globalize_path(d)
+        err = OK if OS.move_to_trash(g) == OK else DirAccess.remove_absolute(g)
+        if err != OK: return err
+    return err
+
+
+## Indices of `entries` ({name, folder}) whose name or folder contains `query`,
+## case-insensitively - the gallery search, like ZenOptions.filter_fonts.
+static func filter(entries: Array, query: String) -> Array[int]:
+    var q := query.strip_edges().to_lower()
+    var out: Array[int] = []
+    for i in entries.size():
+        var e: Dictionary = entries[i]
+        if q.is_empty() or String(e.get("name", "")).to_lower().contains(q) \
+                or String(e.get("folder", "")).to_lower().contains(q):
+            out.append(i)
+    return out

@@ -119,6 +119,8 @@ func _run() -> void:
     test_raylib_font()
     test_list_selection()
     await test_gallery_multi_select()
+    test_scene_folders()
+    await test_gallery_folders()
     await test_shape_editor()
     test_zen_settings()
     test_export_dialog_preview()
@@ -3043,14 +3045,102 @@ func test_list_selection() -> void:
     check(not s.is_multi() and s.rows() == [1], "collapse keeps only the cursor")
 
 
+## Folders are subdirectories of an anims root; a scene's name stays its id.
+func test_scene_folders() -> void:
+    var paths := ZenSceneOps.scene_paths()
+    check(String(paths.get("sig_code", "")).ends_with("/signal_demo/sig_code.tscn"),
+          "scene_paths finds scenes in a folder")
+    check(ZenSceneOps.folder_of("sig_code") == "signal_demo" and ZenSceneOps.folder_of("main_menu") == "",
+          "folder_of: the folder, or empty at the top level")
+    check(ZenSceneOps.folders().has("signal_demo"), "folders() lists signal_demo")
+    check(not ZenSceneOps.is_name_free("sig_code"), "names stay unique across folders")
+
+    var root := ZenSceneOps.write_root()
+    var f := "zz_test_folder"
+    var nm := "zz_test_folder_scene"
+    check(ZenSceneOps.make_folder(f) == OK and ZenSceneOps.folders().has(f), "make_folder adds an empty folder")
+    var c := ZenSceneOps.new_canvas(nm)
+    check(ZenSceneOps.save(c, nm, f) == "%s/%s/%s.tscn" % [root, f, nm], "a new scene saves into its folder")
+    check(ZenSceneOps.save(c, nm) == "%s/%s/%s.tscn" % [root, f, nm], "a later save stays in place")
+    check(ZenSceneOps.delete_folder(f) == ERR_BUSY, "a folder holding scenes is not deleted")
+    check(ZenSceneOps.move(nm, "") == OK and ZenSceneOps.folder_of(nm) == "", "move to the top level")
+    check(ZenSceneOps.move(nm, f) == OK and ZenSceneOps.folder_of(nm) == f, "move back into the folder")
+    check(ZenSceneOps.rename_folder(f, f + "2") == OK and ZenSceneOps.folder_of(nm) == f + "2",
+          "renaming a folder carries its scenes")
+    check(ZenSceneOps.rename_folder(f + "2", "signal_demo") == ERR_ALREADY_EXISTS,
+          "a folder cannot be renamed onto another")
+    check(ZenSceneOps.duplicate_scene(nm, nm + "_b") == OK and ZenSceneOps.folder_of(nm + "_b") == f + "2",
+          "a duplicate lands next to its source")
+    for n in [nm, nm + "_b"]:
+        DirAccess.remove_absolute(ProjectSettings.globalize_path(ZenSceneOps.path_of(n)))
+    check(ZenSceneOps.scenes_in(f + "2").is_empty(), "the folder is empty again")
+    DirAccess.remove_absolute(ProjectSettings.globalize_path("%s/%s2" % [root, f]))
+    check(not ZenSceneOps.folders().has(f + "2"), "and gone")
+    c.free()
+
+    var es := [{"name": "main_menu", "folder": ""}, {"name": "sig_code", "folder": "signal_demo"},
+               {"name": "sig_follow", "folder": "signal_demo"}]
+    check(ZenSceneOps.filter(es, "") == [0, 1, 2], "an empty search matches everything")
+    check(ZenSceneOps.filter(es, "FOLL") == [2], "search matches names, case-insensitively")
+    check(ZenSceneOps.filter(es, "demo") == [1, 2], "search matches the folder too")
+
+
+## The gallery list: folders fold, the search narrows, folder rows are
+## never part of a selection.
+func test_gallery_folders() -> void:
+    var saved := ZenSettings.open_folders()
+    var g: Node = (load("res://zen_gallery.tscn") as PackedScene).instantiate()
+    root.add_child(g)
+    await process_frame
+    g._open = {}
+    g._build_list()
+    var top := 0
+    for e in g._entries: if String(e["folder"]) == "": top += 1
+    check(g._rows.size() == top + 1 and g._folder_row(0) == "signal_demo",
+          "collapsed: the folder row, then the top-level animations")
+    check(String(g._list.get_child(0).text).contains("signal_demo  (9)"), "the folder row counts its animations")
+    g._select(0)
+    check(g._marked_anims().is_empty() and String(g._info.text).contains("folder"),
+          "a folder row selects nothing and describes the folder")
+    g._play(0)
+    check(g._playing == null, "playing a folder row does nothing")
+    g._toggle_folder("signal_demo")
+    check(g._rows.size() == top + 10 and g._entry_at(1)["name"] == "sig_code", "expanding shows its nine")
+    check(ZenSettings.open_folders() == ["signal_demo"], "the open folder is remembered")
+    g._select(0)
+    g._select(3, true)
+    check(g._marked_anims().size() == 3, "a range over the folder row takes only animations")
+    g._select(2)
+    g._fold_cursor(false)
+    check(g._rows.size() == top + 1 and g._sel == 0, "LEFT inside a folder folds it, cursor on the folder")
+
+    g._search.text = "seek"
+    g._on_search_changed()
+    check(g._rows.size() == 2 and g._cur_entry().get("name", "") == "sig_release_seek",
+          "a search shows the match under its (opened) folder, cursor on it")
+    check(String(g._anim_header.text).contains("1 of"), "the header counts the matches")
+    g._search.text = "zzzz"
+    g._on_search_changed()
+    check(g._rows.is_empty() and String(g._info.text).contains("no animation"), "no match: an empty list says so")
+    g._search.text = ""
+    g._on_search_changed()
+    check(g._rows.size() == top + 1, "clearing the search restores the folded view")
+    g.queue_free()
+    await process_frame
+    ZenSettings.set_open_folders(saved)
+
+
 ## The gallery's selection drives export and delete: a multi-selection
 ## becomes the export chain, and DEL lists exactly the selected files.
 func test_gallery_multi_select() -> void:
     var g: Node = (load("res://zen_gallery.tscn") as PackedScene).instantiate()
     root.add_child(g)
     await process_frame
-    g._select(0)
-    g._select(2, true)
+    # Row 0 is the signal_demo folder: start on the first animation after it.
+    g._open = {}
+    g._build_list()
+    g._select(1)
+    g._select(3, true)
     check(g._marked_anims().size() == 3, "shift+click marks a range of animations")
     check(String(g._hint.text).contains("export 3"), "the footer offers the selection's keys")
     g._ask_delete()

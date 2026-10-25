@@ -83,6 +83,11 @@ theme_override_colors/font_pressed_color = Color(0.38, 0.686, 0.937, 1)
 theme_override_colors/font_focus_color = Color(0.38, 0.686, 0.937, 1)
 text = "▾ animations"
 
+[node name="Search" type="LineEdit" parent="Margin/Rows/Body/Left"]
+layout_mode = 2
+placeholder_text = "search  ( / )"
+clear_button_enabled = true
+
 [node name="ListScroll" type="ScrollContainer" parent="Margin/Rows/Body/Left"]
 layout_mode = 2
 size_flags_vertical = 3

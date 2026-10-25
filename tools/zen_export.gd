@@ -285,8 +285,8 @@ static func _args(s: Settings, w: int, h: int, out_path: String) -> PackedString
 ## `host` must be a Node already in the tree; the new SubViewport is added
 ## under it. Returns {} when there is no such animation.
 static func build_link(host: Node, name: String, transparent: bool) -> Dictionary:
-    var path := "res://anims/%s.tscn" % name
-    if not ResourceLoader.exists(path):
+    var path := ZenSceneOps.path_of(name)
+    if path.is_empty() or not ResourceLoader.exists(path):
         return {}
 
     var canvas: ZenCanvas = (load(path) as PackedScene).instantiate()

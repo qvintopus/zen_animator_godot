@@ -1,16 +1,16 @@
 [gd_scene format=3]
 
-[ext_resource type="Script" path="res://addons/zen/runtime/zen_canvas.gd" id="1_ndimq"]
-[ext_resource type="Script" path="res://addons/zen/runtime/zen_strings.gd" id="2_erxak"]
-[ext_resource type="Script" path="res://addons/zen/runtime/zen_text.gd" id="3_snj53"]
-[ext_resource type="Script" path="res://addons/zen/runtime/zen_shape.gd" id="4_8hp60"]
-[ext_resource type="Script" path="res://addons/zen/runtime/zen_signal_bus.gd" id="5_1ri4s"]
+[ext_resource type="Script" path="res://addons/zen/runtime/zen_canvas.gd" id="1_ax5ke"]
+[ext_resource type="Script" path="res://addons/zen/runtime/zen_strings.gd" id="2_wu6jp"]
+[ext_resource type="Script" path="res://addons/zen/runtime/zen_text.gd" id="3_cq4jv"]
+[ext_resource type="Script" path="res://addons/zen/runtime/zen_shape.gd" id="4_rtkqx"]
+[ext_resource type="Script" path="res://addons/zen/runtime/zen_signal_bus.gd" id="5_i0bcf"]
 
-[sub_resource type="Resource" id="Resource_raxqj"]
-script = ExtResource("2_erxak")
+[sub_resource type="Resource" id="Resource_wu8ak"]
+script = ExtResource("2_wu6jp")
 entries = PackedStringArray("PRESS: BURST BORN AT THE CLICK", "ANCHOR")
 
-[sub_resource type="Animation" id="Animation_g4ix6"]
+[sub_resource type="Animation" id="Animation_a5tx4"]
 length = 2.0
 step = 0.0166667
 markers = [{
@@ -56,12 +56,12 @@ tracks/2/keys = {
 "values": ["linear", "sineInOut", "sineInOut"]
 }
 
-[sub_resource type="AnimationLibrary" id="AnimationLibrary_nmu1l"]
+[sub_resource type="AnimationLibrary" id="AnimationLibrary_a6ap6"]
 _data = {
-&"zen": SubResource("Animation_g4ix6")
+&"zen": SubResource("Animation_a5tx4")
 }
 
-[sub_resource type="Animation" id="Animation_jhndw"]
+[sub_resource type="Animation" id="Animation_j8hwu"]
 length = 0.9
 step = 0.0166667
 tracks/0/type = "bezier"
@@ -211,31 +211,31 @@ metadata/zen_capture = {
 "ring:zen_scale": [0.018000000000000002, 0.0]
 }
 
-[sub_resource type="AnimationLibrary" id="AnimationLibrary_2twhq"]
+[sub_resource type="AnimationLibrary" id="AnimationLibrary_4nf5v"]
 _data = {
-&"burst": SubResource("Animation_jhndw")
+&"burst": SubResource("Animation_j8hwu")
 }
 
-[node name="sig_press_anchor" type="Node2D" unique_id=2034178541]
-script = ExtResource("1_ndimq")
+[node name="sig_press_anchor" type="Node2D" unique_id=1473640958]
+script = ExtResource("1_ax5ke")
 loop_smooth = true
-strings = SubResource("Resource_raxqj")
+strings = SubResource("Resource_wu8ak")
 clear_color = Color(0.07, 0.08, 0.12, 1)
 loop_play = true
 
-[node name="hint" type="Node2D" parent="." unique_id=1069203357]
-script = ExtResource("3_snj53")
-strings = SubResource("Resource_raxqj")
+[node name="hint" type="Node2D" parent="." unique_id=1594590465]
+script = ExtResource("3_cq4jv")
+strings = SubResource("Resource_wu8ak")
 size_frac = Vector2(10, 10)
 color_base = Color(0.55, 0.6, 0.7, 1)
 elem_name = "hint"
 unit_abs = true
 pos_frac = Vector2(0.5, 0.93)
 
-[node name="title" type="Node2D" parent="." unique_id=157470293]
+[node name="title" type="Node2D" parent="." unique_id=432154642]
 z_index = 1
-script = ExtResource("3_snj53")
-strings = SubResource("Resource_raxqj")
+script = ExtResource("3_cq4jv")
+strings = SubResource("Resource_wu8ak")
 string_base = 1
 size_frac = Vector2(10, 10)
 color_base = Color(0.96, 0.96, 0.96, 1)
@@ -243,9 +243,9 @@ elem_name = "title"
 unit_abs = true
 pos_frac = Vector2(0.5, 0.1)
 
-[node name="ring" type="Node2D" parent="." unique_id=1005998604]
+[node name="ring" type="Node2D" parent="." unique_id=1394615160]
 z_index = 2
-script = ExtResource("4_8hp60")
+script = ExtResource("4_rtkqx")
 shape_kind = 1
 size_frac = Vector2(64, 64)
 color_base = Color(0.35, 0.85, 1, 0)
@@ -254,9 +254,9 @@ outline_base = 3.0
 elem_name = "ring"
 unit_abs = true
 
-[node name="core" type="Node2D" parent="." unique_id=1172359902]
+[node name="core" type="Node2D" parent="." unique_id=1212718946]
 z_index = 3
-script = ExtResource("4_8hp60")
+script = ExtResource("4_rtkqx")
 shape_kind = 3
 size_frac = Vector2(18, 18)
 color_base = Color(0.96, 0.96, 0.96, 0)
@@ -264,9 +264,9 @@ outline_color_base = Color(0, 0, 0, 0)
 elem_name = "core"
 unit_abs = true
 
-[node name="dot" type="Node2D" parent="." unique_id=1394156205]
+[node name="dot" type="Node2D" parent="." unique_id=480237594]
 z_index = 4
-script = ExtResource("4_8hp60")
+script = ExtResource("4_rtkqx")
 shape_kind = 1
 size_frac = Vector2(6, 6)
 color_base = Color(1, 0.8, 0.35, 0)
@@ -274,8 +274,8 @@ outline_color_base = Color(0, 0, 0, 0)
 elem_name = "dot"
 unit_abs = true
 
-[node name="Signals" type="Node" parent="." unique_id=1236807967]
-script = ExtResource("5_1ri4s")
+[node name="Signals" type="Node" parent="." unique_id=1000329135]
+script = ExtResource("5_i0bcf")
 signals_data = [{
 "every_loop": false,
 "length": 0.9,
@@ -327,7 +327,7 @@ signals_data = [{
 "uses_seq": false
 }]
 
-[node name="AnimationPlayer" type="AnimationPlayer" parent="." unique_id=305514432]
+[node name="AnimationPlayer" type="AnimationPlayer" parent="." unique_id=839747003]
 callback_mode_method = 1
-libraries/ = SubResource("AnimationLibrary_nmu1l")
-libraries/sig = SubResource("AnimationLibrary_2twhq")
+libraries/ = SubResource("AnimationLibrary_a6ap6")
+libraries/sig = SubResource("AnimationLibrary_4nf5v")
