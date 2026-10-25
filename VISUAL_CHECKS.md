@@ -136,7 +136,7 @@ authored tail; without it, it is a seamless loop.
 
 ### 3. A pause marker freezes the export
 
-`ma_prog_01` has four pause markers (`pause_1`.. in its `zen` animation); another is
+`ma_prog_01_intro` has four pause markers (`pause_1`.. in its `zen` animation); another is
 added by dragging/adding a `pause_N` marker in the scene editor's timeline or Godot's
 animation panel. In the gallery, playback holds at a marker and SPACE
 continues. At `--fps=30 --pause_hold=2` the output should grow by
@@ -454,7 +454,7 @@ Not yet run by eye - added 2026-10-20 with the editor. Work on a copy: open a sc
 - **Elements = node tree.** +shape adds `shape` at the centre, frontmost. Drag a row in
   the Elements list to reorder; draw order follows. Double-click (or F2) renames, and its
   keys keep playing. Delete removes it and its keys.
-- **String pool.** Open `ma_prog_01` and press 5: thirteen entries, each with its usage
+- **String pool.** Open `ma_prog_01_intro` and press 5: thirteen entries, each with its usage
   count. Select `t1`: the Inspector's words picker shows #0 at 0s and #3 after
   scrubbing past 2.45s, and the `string` lane steps at 2.45 / 4.62 / 6.60. Type in the
   words box: the canvas updates as you type, and an entry used twice shows "used by 2"

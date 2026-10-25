@@ -2399,7 +2399,7 @@ func test_anim_player_markers() -> void:
           "intro_end 0 means no marker at all")
 
     # Pause markers: pause_N[_once], read back in time order.
-    var pg: ZenCanvas = (load("res://anims/ma_prog/ma_prog_01.tscn") as PackedScene).instantiate()
+    var pg: ZenCanvas = (load("res://anims/ma_prog/ma_prog_01_intro.tscn") as PackedScene).instantiate()
     check(pg.pauses.size() == 4, "ma_prog_01's four pauses come back from markers (%d)" % pg.pauses.size())
     var pa := _zen_anim(pg)
     var first_t := float(pg.pauses[0]["t"])
@@ -2538,7 +2538,7 @@ func test_signal_capture_segment() -> void:
 
 ## SPACE's job: release a held pause and keep playing INSIDE the section.
 func test_release_pause_keeps_section() -> void:
-    var c: ZenCanvas = (load("res://anims/ma_prog/ma_prog_01.tscn") as PackedScene).instantiate()
+    var c: ZenCanvas = (load("res://anims/ma_prog/ma_prog_01_intro.tscn") as PackedScene).instantiate()
     c.loop_smooth = false
     root.add_child(c)
     await process_frame
@@ -3607,7 +3607,7 @@ func test_scene_ops_roundtrip() -> void:
 ## the canvas and every text, entries at stable indices, and the stepped
 ## `string` track switches the label that game code reads.
 func test_string_pool_scenes() -> void:
-    var c: ZenCanvas = (load("res://anims/ma_prog/ma_prog_01.tscn") as PackedScene).instantiate()
+    var c: ZenCanvas = (load("res://anims/ma_prog/ma_prog_01_intro.tscn") as PackedScene).instantiate()
     c.live_playback = false
     var texts := ZenStringOps.texts(c)
     check(c.strings != null and texts.size() == 3, "ma_prog_01 has a pool and three texts")
@@ -3629,7 +3629,7 @@ func test_string_pool_scenes() -> void:
     check(seen.size() == 1, "no text_changed while the words stay")
     c.pose(7.0)
     check(t1.text == "coding w/ ai", "...and again at 6.6s")
-    check(not FileAccess.get_file_as_string("res://anims/ma_prog/ma_prog_01.tscn").contains("\ntext = "),
+    check(not FileAccess.get_file_as_string("res://anims/ma_prog/ma_prog_01_intro.tscn").contains("\ntext = "),
           "the label is not stored in the scene")
     c.free()
 
@@ -3637,8 +3637,8 @@ func test_string_pool_scenes() -> void:
     c2.live_playback = false
     check(c2.strings.at(9) == "coding" and c2.strings.at(13) == "CODE", "a full pool keeps its indices")
     var t2 := ZenElemOps.find(c2, "t2") as ZenText
-    check(t2.string_base == 14 and c2.strings.at(14).begins_with("so does AI"),
-          "t2's own words are entry #14 (%d)" % t2.string_base)
+    check(t2.string_base == 9 and c2.strings.entries.size() == 14,
+          "t2 rests on 'coding' and the pool has no stray entry (%d)" % t2.string_base)
     check(ZenStringOps.holes(c2).is_empty(), "a full pool has no holes (%d)" % ZenStringOps.holes(c2).size())
     c2.free()
 
@@ -3704,8 +3704,8 @@ func test_string_ops() -> void:
 ## The pool is ONE instance per canvas through every copy the editor makes:
 ## open, snapshot/restore, element duplicate and save/load.
 func test_string_pool_shared() -> void:
-    var cached: ZenCanvas = (load("res://anims/ma_prog/ma_prog_01.tscn") as PackedScene).instantiate()
-    var o := ZenSceneOps.open("res://anims/ma_prog/ma_prog_01.tscn")
+    var cached: ZenCanvas = (load("res://anims/ma_prog/ma_prog_01_intro.tscn") as PackedScene).instantiate()
+    var o := ZenSceneOps.open("res://anims/ma_prog/ma_prog_01_intro.tscn")
     var shared_by := func(c: ZenCanvas) -> bool:
         return ZenStringOps.texts(c).all(func(t): return (t as ZenText).strings == c.strings)
     check(o.strings != cached.strings and shared_by.call(o), "open gives the canvas its own shared pool")
@@ -4121,7 +4121,7 @@ func test_canvas_game_api() -> void:
     c.queue_free()
 
     # Pause markers: resume() releases the hold.
-    var p: ZenCanvas = (load("res://anims/ma_prog/ma_prog_01.tscn") as PackedScene).instantiate()
+    var p: ZenCanvas = (load("res://anims/ma_prog/ma_prog_01_intro.tscn") as PackedScene).instantiate()
     root.add_child(p)
     await process_frame
     p.advance_pauses(0.0, float(p.pauses[0]["t"]))
@@ -4226,9 +4226,9 @@ func test_godot_export_files() -> void:
     f.close()
     var s := ZenGodotExport.Settings.new()
     s.target_dir = dir
-    var r := ZenGodotExport.export_chain(["ma_prog_01", "pause_menu"], s)
+    var r := ZenGodotExport.export_chain(["ma_prog_01_intro", "pause_menu"], s)
     check(bool(r["ok"]), "godot export: standalone chain exports (%s)" % r["error"])
-    var scene := FileAccess.get_file_as_string(dir.path_join("zen/ma_prog_01.tscn"))
+    var scene := FileAccess.get_file_as_string(dir.path_join("zen/ma_prog_01_intro.tscn"))
     check(scene.contains("res://zen/shapes/ai_icon_128.tres"), "godot export: shapes re-pathed into the subfolder")
     check(FileAccess.file_exists(dir.path_join("zen/shapes/ai_icon_128.tres")), "godot export: and copied")
     check(FileAccess.file_exists(dir.path_join("zen/zen_runtime/runtime/zen_canvas.gd")), "godot export: runtime copied")
@@ -4247,14 +4247,14 @@ func test_godot_export_files() -> void:
         if leaks:
             check(false, "godot export: %s still points into this project" % path)
     var notes := FileAccess.get_file_as_string(dir.path_join("zen/README.txt"))
-    check(notes.contains("res://zen/ma_prog_01.tscn") and notes.contains("res://zen/pause_menu.tscn")
+    check(notes.contains("res://zen/ma_prog_01_intro.tscn") and notes.contains("res://zen/pause_menu.tscn")
           and notes.contains(ZenGodotExport.extends_line(s)) and notes.contains("nothing to copy"),
           "godot export: README.txt lists the scenes, the extends line and the steps")
     check(notes.contains("pause marker(s)"), "godot export: README.txt notes pause_menu's pause marker")
     check(notes.contains("exit - from code only, ends the scene"),
           "godot export: README.txt says what triggers each signal")
     var count := (r["files"] as Array).size()
-    var r2 := ZenGodotExport.export_chain(["ma_prog_01", "pause_menu"], s)
+    var r2 := ZenGodotExport.export_chain(["ma_prog_01_intro", "pause_menu"], s)
     check((r2["files"] as Array).size() == count, "godot export: re-export rewrites the same files")
 
     s.mode = ZenGodotExport.Mode.PLUGIN

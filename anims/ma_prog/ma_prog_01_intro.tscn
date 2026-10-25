@@ -10,7 +10,7 @@
 
 [sub_resource type="Resource" id="Resource_n8gkq"]
 script = ExtResource("2_v5427")
-entries = PackedStringArray("What Is Programming?", "What Is AI-assisted coding?", "in how many ways you can do each?", "Just like a tree grows its branches", "so can coding be in any direction", "> from low-level to high-level\n> with electronics or with websites\n> data warehouses or proxy services\n> consultation or solution implementation", "       Just like a cup of water\ncan be filled to different amounts", "so does AI-assistance is\nused at various amounts", "AI can assist with:\n> searching a knowledge base\n> learning to solve a problem\n> finding a problem    > solving the problem\n> never letting you see a problem\n> forgetting codebase", "coding", "coding w/ ai", "one fully done by someones hands and mind\n                while the other\n either partially or fully done by algorithm", "   let\'s start by explaining\n       \"What is coding?\"\n\"programming\" \"development\"")
+entries = PackedStringArray("What Is Programming?", "What Is AI-assisted coding?", "in how many ways can you do each?", "Just like a tree grows its branches", "so can coding be in any direction", "> from low-level to high-level\n> with electronics or with websites\n> data warehouses or proxy services\n> consultation or solution implementation", "       Just like a cup of water\ncan be filled to different amounts", "so AI-assistance is\nused at various amounts", "AI can assist with:\n> searching a knowledge base\n> learning to solve a problem\n> finding a problem    > solving the problem\n> never letting you see a problem\n> forgetting codebase", "coding", "coding w/ ai", "one fully done by someone's hands and mind\n                while the other\n either partially or fully done by algorithm", "   let\'s start by explaining\n       \"What is coding?\"\n\"programming\" \"development\"")
 
 [sub_resource type="Animation" id="Animation_y6s6d"]
 length = 12.0
@@ -1336,7 +1336,7 @@ _data = {
 &"enter": SubResource("Animation_a1g1b")
 }
 
-[node name="ma_prog_01" type="Node2D" unique_id=1562597034]
+[node name="ma_prog_01_intro" type="Node2D" unique_id=1562597034]
 script = ExtResource("1_7ib76")
 strings = SubResource("Resource_n8gkq")
 clear_color = Color(0.1, 0.12, 0.16, 1)

@@ -15,7 +15,7 @@
 
 [sub_resource type="Resource" id="Resource_50n0l"]
 script = ExtResource("2_gxjjr")
-entries = PackedStringArray("code (text)", "              code\n(text, as a set of instructions)", "           A NEED &\nA PROBLEM TO BE SOLVED", "But why? And for whom?", "     For users! \nFor solving problems!", "USERS", "   let\'s start by explaining\n       \"What is coding?\"\n\"programming\" \"development\"", "       someone has to \ntranslate the need to code...\n           but who?", "a programmer", "coding", "coding w/ ai", "codebase", "NEED", "CODE", "so does AI-assistance is\nused at various amounts")
+entries = PackedStringArray("code (text)", "              code\n(text, as a set of instructions)", "           A NEED &\nA PROBLEM TO BE SOLVED", "But why? And for whom?", "     For users! \nFor solving problems!", "USERS", "   let\'s start by explaining\n       \"What is coding?\"\n\"programming\" \"development\"", "       someone has to \ntranslate the need to code...\n           but who?", "a programmer", "coding", "coding w/ ai", "codebase", "NEED", "CODE")
 
 [sub_resource type="Animation" id="Animation_sv8v5"]
 length = 18.0
@@ -36,6 +36,10 @@ markers = [{
 "color": Color(1, 1, 1, 1),
 "name": &"pause_3",
 "time": 11.975283
+}, {
+"color": Color(1, 1, 1, 1),
+"name": &"pause_4",
+"time": 16.0
 }]
 tracks/0/type = "method"
 tracks/0/imported = false
@@ -1978,7 +1982,7 @@ pos_frac = Vector2(0.5, 0.1)
 z_index = 1
 script = ExtResource("3_jtfem")
 strings = SubResource("Resource_50n0l")
-string_base = 14
+string_base = 9
 size_frac = Vector2(0.12, 0.1)
 color_base = Color(0.9607843, 0.9607843, 0.9607843, 1)
 elem_name = "t2"
