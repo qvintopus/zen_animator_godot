@@ -952,6 +952,51 @@ func _duplicate_elements() -> void:
     _on_selection_changed(true)
 
 
+## Ctrl+C: the picked keys if any are picked, else the selected elements.
+func _copy_selection() -> void:
+    var elems: Array = []
+    if not _key_sel.is_empty():
+        for id in _key_sel:
+            var node := _canvas.get_node_or_null(String(ZenKeyPanel.split_id(id)[0]).get_slice("|", 0))
+            if node is ZenElement and not elems.has(ZenElemOps.row_of(_canvas, node)):
+                elems.append(ZenElemOps.row_of(_canvas, node))
+    else:
+        elems = _selected_nodes()
+    if elems.is_empty():
+        _set_status("nothing to copy: select elements or keys")
+        return
+    var clip := ZenClipOps.copy(_canvas, elems, _key_sel)
+    if clip == null:
+        _set_status("nothing to copy")
+        return
+    ZenClipOps.set_clipboard(clip)
+    _set_status("copied %s (%.2fs)" % [
+        ("%d keys" % _key_sel.size()) if not _key_sel.is_empty() else "%d element(s)" % elems.size(),
+        clip.duration])
+
+
+## Ctrl+V pastes new elements at the playhead; `onto` merges the clip into the
+## selected element instead, `relative` re-basing its positions onto that element.
+func _paste_clip(onto := false, relative := false) -> void:
+    var clip := ZenClipOps.clipboard
+    if clip == null or not is_instance_valid(clip):
+        _set_status("the clipboard is empty: Ctrl+C copies")
+        return
+    var target := _primary() if onto else null
+    if onto and (target == null or ZenElemOps.rows(clip).size() != 1):
+        _set_status("paste onto needs one selected element and a one-element clip")
+        return
+    var made: Array = []
+    # A lambda captures `made` by value: fill the array, do not reassign it.
+    _command("paste", func(): made.assign(ZenClipOps.paste(_canvas, clip, _t, target, relative)))
+    if made.is_empty(): return
+    if not onto:
+        var out: Array[String] = []
+        for el in made: out.append((el as ZenElement).elem_name)
+        _sel = out
+    _on_selection_changed(true)
+
+
 func _delete_elements() -> void:
     var ns := _selected_nodes()
     if ns.is_empty(): return
@@ -1837,6 +1882,12 @@ func _on_context_ruler(t: float, at: Vector2) -> void:
     if _sig_edit != "":
         _ctx_show(at)
         return
+    var clip := ZenClipOps.clipboard
+    if clip != null and is_instance_valid(clip):
+        _ctx_add("paste here", func(): _paste_clip())
+        if _primary() != null and ZenElemOps.rows(clip).size() == 1:
+            _ctx_add("paste onto selection (relative)", func(): _paste_clip(true, true))
+            _ctx_add("paste onto selection (absolute)", func(): _paste_clip(true, false))
     _ctx_add("add pause here", func(): _command("add pause", func(): ZenDocOps.add_pause(_canvas, t)))
     _ctx_add("add pause (once) here", func(): _command("add pause", func(): ZenDocOps.add_pause(_canvas, t, true)))
     _ctx_add("intro ends here", func(): _command("intro_end", func(): ZenDocOps.set_intro_end(_canvas, t)))
@@ -2259,6 +2310,9 @@ func _show_help() -> void:
             ["zen_edit_fit", "fit the view (mouse over the canvas)"],
             ["zen_delete", "delete the selected elements"],
             ["zen_duplicate", "duplicate the selected elements"],
+            ["zen_copy", "copy the picked keys, else the selected elements"],
+            ["zen_paste", "paste at the playhead as new elements"],
+            ["zen_paste_onto", "paste onto the selected element (positions relative)"],
             ["zen_rename", "rename the selected element"]]},
         {"name": "Timeline & keys", "rows": [
             ["zen_edit_key_prev", "playhead to the previous key (picks the keys there)"],
@@ -2327,6 +2381,12 @@ func _unhandled_input(ev: InputEvent) -> void:
         if not echo: _duplicate_elements()
     elif ev.is_action_pressed("zen_edit_select_all"):
         if not echo: _select_all_keys()
+    elif ev.is_action_pressed("zen_copy"):
+        if not echo: _copy_selection()
+    elif ev.is_action_pressed("zen_paste_onto"):
+        if not echo: _paste_clip(true, true)
+    elif ev.is_action_pressed("zen_paste"):
+        if not echo: _paste_clip()
     elif (ev as InputEventKey).ctrl_pressed: pass
     elif ev.is_action_pressed("zen_play"):
         if not echo: _toggle_play()

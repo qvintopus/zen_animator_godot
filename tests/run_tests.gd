@@ -139,6 +139,7 @@ func _run() -> void:
     test_string_pool_shared()
     await test_scene_editor()
     await test_scene_editor_strings()
+    await test_scene_editor_clip()
     await test_canvas_game_api()
     test_godot_export_rewrite()
     test_godot_export_vendor_source()
@@ -3829,6 +3830,58 @@ func test_string_pool_shared() -> void:
     check(shared_by.call(back) and back.strings.at(0) == "later", "it loads back shared, with the edit")
     DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
     for x in [cached, o, snap, back]: x.free()
+
+
+## Ctrl+C / Ctrl+V through the editor's own handlers, on a real scene.
+func test_scene_editor_clip() -> void:
+    var user_state := ZenSettings.editor_state()
+    ZenSettings.set_editor_state({})
+    ZenClipOps.set_clipboard(null)
+    var ed: ZenSceneEditor = (load("res://tools/zen_scene_editor.tscn") as PackedScene).instantiate()
+    root.add_child(ed)
+    await process_frame
+    ed.open("res://anims/ma_prog/ma_prog_02_coding.tscn")
+    await process_frame
+    var n0 := ZenElemOps.rows(ed._canvas).size()
+    ed._paste_clip()
+    check(ZenElemOps.rows(ed._canvas).size() == n0, "pasting an empty clipboard does nothing")
+
+    ed._sel.assign(["sh_book"])
+    ed._copy_selection()
+    check(ZenClipOps.clipboard != null and ZenElemOps.find(ZenClipOps.clipboard, "sh_book") != null,
+          "Ctrl+C puts the selection on the clipboard")
+    var dur: float = ed._canvas.duration
+    ed._t = 1.0
+    ed._paste_clip()
+    var made := ZenElemOps.find(ed._canvas, "sh_book_2")
+    check(made != null and ed._sel.size() == 1 and ed._sel[0] == "sh_book_2", "Ctrl+V adds the copy and selects it (%s)" % [ed._sel])
+    var src := ZenElemOps.find(ed._canvas, "sh_book")
+    var a := ZenKeyOps.keys(ed._canvas, src, "pos_x")
+    var b := ZenKeyOps.keys(ed._canvas, made, "pos_x")
+    check(a.size() == b.size() and not a.is_empty(), "the copy has the same keys (%d)" % b.size())
+    if not a.is_empty():
+        check_near(float(b[0]["t"]), 1.0, "...starting at the playhead", 1e-4)
+        check_near(float(b[b.size() - 1]["t"]) - float(b[0]["t"]),
+                   float(a[a.size() - 1]["t"]) - float(a[0]["t"]), "...with the same spacing", 1e-4)
+    check(ed._canvas.duration >= dur, "the scene is not shortened by a paste")
+    ed._do_undo()
+    check(ZenElemOps.find(ed._canvas, "sh_book_2") == null, "one undo removes the paste")
+
+    # A key copy, merged onto another element.
+    var ks := ZenKeyOps.keys(ed._canvas, src, "pos_x")
+    var id := "%s|pos_x|0" % src.name
+    ed._key_sel = {id: true}
+    ed._copy_selection()
+    ed._sel.assign(["sh_page1"])
+    ed._t = 2.0
+    ed._paste_clip(true, false)
+    var pk := ZenKeyOps.keys(ed._canvas, ZenElemOps.find(ed._canvas, "sh_page1"), "pos_x")
+    check(pk.any(func(k): return absf(float(k["t"]) - 2.0) < 1e-4), "a one-key clip merges onto the selection")
+    check(ks.size() > 0, "(the source keys exist)")
+    ed.queue_free()
+    await process_frame
+    ZenClipOps.set_clipboard(null)
+    ZenSettings.set_editor_state(user_state)
 
 
 ## The Strings panel and the text inspector, driven through their handlers.

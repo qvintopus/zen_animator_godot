@@ -17,6 +17,10 @@ extends RefCounted
 ## Signals are not carried: a clip is timeline keys and elements only.
 ##
 
+## The editor's clipboard: the last copied clip, kept across scenes (the editor
+## reopens per scene) for the length of the session.
+static var clipboard: ZenCanvas = null
+
 ## Props a RELATIVE merge re-bases onto the target's own position.
 const RELATIVE := ["pos_x", "pos_y"]
 const T_EPS := ZenKeyOps.T_EPS
@@ -96,6 +100,13 @@ static func last_t(model: Array) -> float:
 # ---------------------------------------------------------------------------
 #  Copy
 # ---------------------------------------------------------------------------
+
+## Replace the clipboard (freeing the old clip). `clip` may be null to clear it.
+static func set_clipboard(clip: ZenCanvas) -> void:
+    if clipboard != null and is_instance_valid(clipboard) and clipboard != clip:
+        clipboard.free()
+    clipboard = clip
+
 
 ## Build a clip from `elems` (rows of `canvas`). `key_ids` ("node|prop|idx", the
 ## editor's key selection) restricts it to exactly those keys; empty copies every
