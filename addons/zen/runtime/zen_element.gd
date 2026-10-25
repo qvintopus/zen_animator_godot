@@ -213,6 +213,12 @@ func plain_prop_color(prop_name: String, t: float, base: Color, alpha: float) ->
     return track_or_base_color(prop_name, t, base, alpha)
 
 
+## Did the last pose let a signal shape `prop_name` (override or offset)?
+func signal_shaped(prop_name: String) -> bool:
+    return _sig_value.has(prop_name) or _sig_color.has(prop_name) \
+        or _sig_offset.has(prop_name)
+
+
 ## The plain colour read, RGB only. See track_or_base.
 func track_or_base_color(prop_name: String, t: float, base: Color, alpha: float) -> Color:
     var tl := _tl()

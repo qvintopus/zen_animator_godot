@@ -13,6 +13,7 @@ func _ready() -> void:
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(OUT))
 	await _crumble_strip()
 	await _ripple_strip()
+	await _demo_sheets()
 	print("OK  wrote ", ProjectSettings.globalize_path(OUT))
 	get_tree().quit()
 
@@ -84,3 +85,73 @@ func _ripple_strip() -> void:
 		canvas.pose(t)
 		await _shot(sv, "ripple_at_%.2f_%.2f" % [p.x, p.y])
 		sv.queue_free()
+
+
+## The sig_* demos (tools/gen_signal_demos.gd), each driven through a short
+## script of pointer events and signal clock steps, one contact sheet per demo.
+## A step is [action, arg]: press/release/move at a canvas fraction, fire a
+## signal by name, end (the end trigger, arg = wrap count), or wait seconds -
+## every wait is followed by a frame.
+const DEMOS := {
+	"sig_press_anchor": [["press", Vector2(0.3, 0.4)], ["wait", 0.08], ["wait", 0.2],
+		["wait", 0.3], ["press", Vector2(0.75, 0.6)], ["wait", 0.15]],
+	"sig_release_seek": [["wait", 0.0], ["release", Vector2(0.2, 0.25)], ["wait", 0.15],
+		["wait", 0.25], ["wait", 0.25], ["wait", 0.1]],
+	"sig_follow": [["move", Vector2(0.8, 0.3)], ["press", Vector2(0.8, 0.3)], ["wait", 0.15],
+		["wait", 0.3], ["move", Vector2(0.2, 0.7)], ["wait", 0.1], ["release", Vector2(0.2, 0.7)],
+		["wait", 0.2], ["wait", 0.3], ["wait", 0.2]],
+	"sig_code": [["fire", "flash"], ["wait", 0.05], ["move", Vector2(0.3, 0.6)],
+		["fire", "ping"], ["wait", 0.15], ["wait", 0.5], ["wait", 0.6]],
+	"sig_end_once": [["wait", 0.0], ["end", 0], ["wait", 0.15], ["wait", 0.5]],
+	"sig_end_every_loop": [["end", 1], ["wait", 0.1], ["wait", 0.4], ["end", 2], ["wait", 0.1]],
+	"sig_end_first_loop": [["end", 1], ["wait", 0.1], ["wait", 0.4], ["end", 2], ["wait", 0.1]],
+	"sig_then_chain": [["press", Vector2(0.5, 0.5)], ["wait", 0.3], ["wait", 0.2],
+		["wait", 0.3], ["wait", 0.3], ["wait", 0.4], ["wait", 0.6]],
+	"sig_starfall": [["wait", 0.0], ["press", Vector2(0.4, 0.7)], ["wait", 0.15],
+		["wait", 0.4], ["wait", 0.25], ["wait", 0.3], ["wait", 0.5], ["end", 1], ["wait", 0.3]],
+}
+const DEMO_POSE_T := {"sig_end_once": 2.0, "sig_starfall": 2.0}
+
+
+func _demo_sheets() -> void:
+	for nm in DEMOS:
+		var st := _stage("res://anims/%s.tscn" % nm)
+		var canvas: ZenCanvas = st["canvas"]
+		var sv: SubViewport = st["sv"]
+		await get_tree().process_frame
+		var t := float(DEMO_POSE_T.get(nm, 0.5))
+		var bus: ZenSignalBus = canvas.bus()
+		canvas.pose(t)
+		var frames: Array = []
+		for step in DEMOS[nm]:
+			var arg: Variant = step[1]
+			match String(step[0]):
+				"press", "release", "move": canvas.pointer(String(step[0]), arg)
+				"fire": bus.fire(String(arg))
+				"end": bus.trigger("end", null, int(arg))
+				"wait":
+					bus.advance(float(arg))
+					bus.set_process(false)
+					canvas.pose(t)
+					sv.render_target_update_mode = SubViewport.UPDATE_ONCE
+					await RenderingServer.frame_post_draw
+					frames.append(sv.get_texture().get_image())
+			bus.set_process(false)
+		_save_sheet(frames, nm)
+		sv.queue_free()
+
+
+## Frames in rows of three at 2x, with a 4px gutter.
+func _save_sheet(frames: Array, nm: String) -> void:
+	var fw: int = frames[0].get_width() * 2
+	var fh: int = frames[0].get_height() * 2
+	var cols := mini(3, frames.size())
+	var rows := ceili(frames.size() / 3.0)
+	var sheet := Image.create(cols * (fw + 4), rows * (fh + 4), false, Image.FORMAT_RGBA8)
+	sheet.fill(Color(0.4, 0.4, 0.4))
+	for i in frames.size():
+		var img: Image = frames[i]
+		img.convert(Image.FORMAT_RGBA8)
+		img.resize(fw, fh, Image.INTERPOLATE_NEAREST)
+		sheet.blit_rect(img, Rect2i(0, 0, fw, fh), Vector2i((i % 3) * (fw + 4), (i / 3) * (fh + 4)))
+	sheet.save_png("%s/demo_%s.png" % [OUT, nm])

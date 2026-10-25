@@ -1,0 +1,248 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://addons/zen/runtime/zen_canvas.gd" id="1_cqen5"]
+[ext_resource type="Script" path="res://addons/zen/runtime/zen_strings.gd" id="2_hkl06"]
+[ext_resource type="Script" path="res://addons/zen/runtime/zen_text.gd" id="3_4ickf"]
+[ext_resource type="Script" path="res://addons/zen/runtime/zen_shape.gd" id="4_5fqd3"]
+[ext_resource type="Script" path="res://addons/zen/runtime/zen_signal_bus.gd" id="5_8yvma"]
+
+[sub_resource type="Resource" id="Resource_2kipr"]
+script = ExtResource("2_hkl06")
+entries = PackedStringArray("ONE-SHOT: END FIRES WHEN IT RUNS OUT", "DONE")
+
+[sub_resource type="Animation" id="Animation_6je4p"]
+length = 2.0
+step = 0.0166667
+markers = [{
+"color": Color(1, 1, 1, 1),
+"name": &"outro_start",
+"time": 2.0
+}]
+tracks/0/type = "method"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath(".")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"values": [{
+"args": [false],
+"method": &"_anim_pose"
+}]
+}
+tracks/1/type = "bezier"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath("bar:w")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"handle_modes": PackedInt32Array(0, 0, 0, 0, 0, 0, 0),
+"points": PackedFloat32Array(0, 0, 0, 0.083333336, 8.881784e-13, 0.02283614, -0.083333336, -0.015028287, 0.083333336, 0.015028287, 0.08786797, -0.083333336, -0.027766451, 0.16666667, 0.055532902, 0.3, -0.16666667, -0.07854402, 0.16666667, 0.07854402, 0.51213205, -0.16666667, -0.055536628, 0.083333336, 0.027768314, 0.5771639, -0.083333336, -0.015035272, 0.083333336, 0.015035272, 0.6, -0.083333336, 1.4901161e-05, 0, 0),
+"times": PackedFloat32Array(0, 0.25, 0.5, 1, 1.5, 1.75, 2)
+}
+tracks/2/type = "value"
+tracks/2/imported = false
+tracks/2/enabled = true
+tracks/2/path = NodePath("bar:zen_ease_w")
+tracks/2/interp = 0
+tracks/2/loop_wrap = true
+tracks/2/keys = {
+"times": PackedFloat32Array(0, 2),
+"transitions": PackedFloat32Array(1, 1),
+"update": 1,
+"values": ["linear", "sineInOut"]
+}
+
+[sub_resource type="AnimationLibrary" id="AnimationLibrary_6t5uh"]
+_data = {
+&"zen": SubResource("Animation_6je4p")
+}
+
+[sub_resource type="Animation" id="Animation_0x7lh"]
+length = 0.5
+step = 0.0166667
+tracks/0/type = "bezier"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("stamp:alpha")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"handle_modes": PackedInt32Array(0, 0, 0),
+"points": PackedFloat32Array(1, 0, 0, 0.0033333334, -0.3333333, 0, -0.0033333334, 0.333488, 0.06333333, 0.3333333, 1, -0.06333333, -0.333488, 0, 0),
+"times": PackedFloat32Array(0, 0.01, 0.2)
+}
+tracks/1/type = "value"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath("stamp:zen_ease_alpha")
+tracks/1/interp = 0
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"times": PackedFloat32Array(0, 0.01, 0.2),
+"transitions": PackedFloat32Array(1, 1, 1),
+"update": 1,
+"values": ["linear", "linear", "linear"]
+}
+tracks/2/type = "bezier"
+tracks/2/imported = false
+tracks/2/enabled = true
+tracks/2/path = NodePath("stamp:size")
+tracks/2/interp = 1
+tracks/2/loop_wrap = true
+tracks/2/keys = {
+"handle_modes": PackedInt32Array(0, 0, 0),
+"points": PackedFloat32Array(0, 0, 0, 0.0033333334, 13.333333, 40, -0.0033333334, -13.3395195, 0.16333333, -31.350056, 20, -0.16333333, 0.003973643, 0, 0),
+"times": PackedFloat32Array(0, 0.01, 0.5)
+}
+tracks/3/type = "value"
+tracks/3/imported = false
+tracks/3/enabled = true
+tracks/3/path = NodePath("stamp:zen_ease_size")
+tracks/3/interp = 0
+tracks/3/loop_wrap = true
+tracks/3/keys = {
+"times": PackedFloat32Array(0, 0.01, 0.5),
+"transitions": PackedFloat32Array(1, 1, 1),
+"update": 1,
+"values": ["linear", "linear", "backOut"]
+}
+tracks/4/type = "bezier"
+tracks/4/imported = false
+tracks/4/enabled = true
+tracks/4/path = NodePath("bar:color:r")
+tracks/4/interp = 1
+tracks/4/loop_wrap = true
+tracks/4/keys = {
+"handle_modes": PackedInt32Array(0, 0, 0, 0, 0, 0),
+"points": PackedFloat32Array(0, 0, 0, 0.0033333334, 0.32, 0.96, -0.0033333334, -0.32014847, 0.04083333, -0.06675884, 0.7648314, -0.04083333, 0.061677024, 0.04083333, -0.061677024, 0.59937555, -0.04083333, 0.047206134, 0.04083333, -0.047206134, 0.48882145, -0.04083333, 0.025547296, 0.04083333, -0.025547296, 0.45, -0.04083333, -1.2665987e-05, 0, 0),
+"times": PackedFloat32Array(0, 0.01, 0.1325, 0.255, 0.3775, 0.5)
+}
+tracks/5/type = "bezier"
+tracks/5/imported = false
+tracks/5/enabled = true
+tracks/5/path = NodePath("bar:color:g")
+tracks/5/interp = 1
+tracks/5/loop_wrap = true
+tracks/5/keys = {
+"handle_modes": PackedInt32Array(0, 0, 0, 0, 0, 0),
+"points": PackedFloat32Array(0, 0, 0, 0.0033333334, 0.32, 0.96, -0.0033333334, -0.32014847, 0.04083333, -0.0013089956, 0.9561731, -0.04083333, 0.0012093523, 0.04083333, -0.0012093523, 0.9529289, -0.04083333, 0.0009256096, 0.04083333, -0.0009256096, 0.9507612, -0.04083333, 0.00050092686, 0.04083333, -0.00050092686, 0.95, -0.04083333, -2.4835245e-07, 0, 0),
+"times": PackedFloat32Array(0, 0.01, 0.1325, 0.255, 0.3775, 0.5)
+}
+tracks/6/type = "bezier"
+tracks/6/imported = false
+tracks/6/enabled = true
+tracks/6/path = NodePath("bar:color:b")
+tracks/6/interp = 1
+tracks/6/loop_wrap = true
+tracks/6/keys = {
+"handle_modes": PackedInt32Array(0, 0, 0, 0, 0, 0),
+"points": PackedFloat32Array(0, 0, 0, 0.0033333334, 0.32, 0.96, -0.0033333334, -0.32014847, 0.04083333, -0.053668868, 0.8030998, -0.04083333, 0.049583487, 0.04083333, -0.049583487, 0.6700862, -0.04083333, 0.037950028, 0.04083333, -0.037950028, 0.5812094, -0.04083333, 0.02053802, 0.04083333, -0.02053802, 0.55, -0.04083333, -1.0182459e-05, 0, 0),
+"times": PackedFloat32Array(0, 0.01, 0.1325, 0.255, 0.3775, 0.5)
+}
+tracks/7/type = "value"
+tracks/7/imported = false
+tracks/7/enabled = true
+tracks/7/path = NodePath("bar:zen_ease_color")
+tracks/7/interp = 0
+tracks/7/loop_wrap = true
+tracks/7/keys = {
+"times": PackedFloat32Array(0, 0.01, 0.5),
+"transitions": PackedFloat32Array(1, 1, 1),
+"update": 1,
+"values": ["linear", "linear", "sineOut"]
+}
+metadata/zen_capture = {
+"bar:color:b": [0.01, 0.0],
+"bar:color:g": [0.01, 0.0],
+"bar:color:r": [0.01, 0.0],
+"stamp:alpha": [0.01, 1.0],
+"stamp:size": [0.01, 0.0]
+}
+
+[sub_resource type="AnimationLibrary" id="AnimationLibrary_4vshw"]
+_data = {
+&"done": SubResource("Animation_0x7lh")
+}
+
+[node name="sig_end_once" type="Node2D" unique_id=902326973]
+script = ExtResource("1_cqen5")
+strings = SubResource("Resource_2kipr")
+clear_color = Color(0.07, 0.08, 0.12, 1)
+
+[node name="hint" type="Node2D" parent="." unique_id=1465930377]
+script = ExtResource("3_4ickf")
+strings = SubResource("Resource_2kipr")
+size_frac = Vector2(10, 10)
+color_base = Color(0.55, 0.6, 0.7, 1)
+elem_name = "hint"
+unit_abs = true
+pos_frac = Vector2(0.5, 0.93)
+
+[node name="track" type="Node2D" parent="." unique_id=881497258]
+z_index = 1
+script = ExtResource("4_5fqd3")
+size_frac = Vector2(0.6, 0.04)
+color_base = Color(0, 0, 0, 0)
+outline_color_base = Color(0.55, 0.6, 0.7, 1)
+outline_base = 0.006
+elem_name = "track"
+
+[node name="bar" type="Node2D" parent="." unique_id=440368500]
+z_index = 2
+script = ExtResource("4_5fqd3")
+size_frac = Vector2(0, 0.04)
+color_base = Color(0.35, 0.85, 1, 1)
+outline_color_base = Color(0, 0, 0, 0)
+elem_name = "bar"
+
+[node name="stamp" type="Node2D" parent="." unique_id=1562400276]
+z_index = 3
+script = ExtResource("3_4ickf")
+strings = SubResource("Resource_2kipr")
+string_base = 1
+size_frac = Vector2(20, 20)
+color_base = Color(0.45, 0.95, 0.55, 0)
+elem_name = "stamp"
+unit_abs = true
+pos_frac = Vector2(0.5, 0.3)
+
+[node name="Signals" type="Node" parent="." unique_id=1671770802]
+script = ExtResource("5_8yvma")
+signals_data = [{
+"every_loop": false,
+"length": 0.5,
+"name": "done",
+"point": "none",
+"point_ease": "sineOut",
+"point_elems": [],
+"replay": false,
+"seq_keys": [],
+"seq_mult": 0.0,
+"seq_targets": [],
+"targets": [{
+"elem": "stamp",
+"keys": [],
+"prop": "alpha"
+}, {
+"elem": "stamp",
+"keys": [],
+"prop": "size"
+}, {
+"elem": "bar",
+"keys": [],
+"prop": "color"
+}],
+"terminal": true,
+"then": "",
+"trigger": "end",
+"uses_seq": false
+}]
+
+[node name="AnimationPlayer" type="AnimationPlayer" parent="." unique_id=1964326311]
+callback_mode_method = 1
+libraries/ = SubResource("AnimationLibrary_6t5uh")
+libraries/sig = SubResource("AnimationLibrary_4vshw")

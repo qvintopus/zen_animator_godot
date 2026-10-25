@@ -1,0 +1,331 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://addons/zen/runtime/zen_canvas.gd" id="1_gdf77"]
+[ext_resource type="Script" path="res://addons/zen/runtime/zen_strings.gd" id="2_a30hm"]
+[ext_resource type="Script" path="res://addons/zen/runtime/zen_text.gd" id="3_cak4h"]
+[ext_resource type="Script" path="res://addons/zen/runtime/zen_shape.gd" id="4_nrpju"]
+[ext_resource type="Script" path="res://addons/zen/runtime/zen_signal_bus.gd" id="5_l3ebl"]
+
+[sub_resource type="Resource" id="Resource_se00l"]
+script = ExtResource("2_a30hm")
+entries = PackedStringArray("FIRST LOOP ONLY: ONE LAP SIGNAL", "FIRST LAP!")
+
+[sub_resource type="Animation" id="Animation_fv34h"]
+length = 1.5
+step = 0.0166667
+markers = [{
+"color": Color(1, 1, 1, 1),
+"name": &"outro_start",
+"time": 1.5
+}]
+tracks/0/type = "method"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath(".")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"values": [{
+"args": [true],
+"method": &"_anim_pose"
+}]
+}
+tracks/1/type = "bezier"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath("runner:pos_x")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"handle_modes": PackedInt32Array(0, 0, 0, 0, 0, 0, 0),
+"points": PackedFloat32Array(0.1, 0, 0, 0.0625, 1.1842379e-12, 0.13044819, -0.0625, -0.020037716, 0.0625, 0.020037716, 0.21715729, -0.0625, -0.037021935, 0.125, 0.07404387, 0.5, -0.125, -0.10472536, 0.125, 0.10472536, 0.78284276, -0.125, -0.07404884, 0.0625, 0.03702442, 0.8695518, -0.0625, -0.02004703, 0.0625, 0.02004703, 0.9, -0.0625, 1.9868216e-05, 0, 0),
+"times": PackedFloat32Array(0, 0.1875, 0.375, 0.75, 1.125, 1.3125, 1.5)
+}
+tracks/2/type = "value"
+tracks/2/imported = false
+tracks/2/enabled = true
+tracks/2/path = NodePath("runner:zen_ease_pos_x")
+tracks/2/interp = 0
+tracks/2/loop_wrap = true
+tracks/2/keys = {
+"times": PackedFloat32Array(0, 1.5),
+"transitions": PackedFloat32Array(1, 1),
+"update": 1,
+"values": ["linear", "sineInOut"]
+}
+
+[sub_resource type="AnimationLibrary" id="AnimationLibrary_yjra3"]
+_data = {
+&"zen": SubResource("Animation_fv34h")
+}
+
+[sub_resource type="Animation" id="Animation_o4nj0"]
+length = 0.8
+step = 0.0166667
+tracks/0/type = "bezier"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("ring:outline_alpha")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"handle_modes": PackedInt32Array(0, 0, 0),
+"points": PackedFloat32Array(0, 0, 0, 0.0053333333, 0.3333333, 1, -0.0053333333, -0.333488, 0.26133335, 0, 0, -0.26133335, 0.66707534, 0, 0),
+"times": PackedFloat32Array(0, 0.016, 0.8)
+}
+tracks/1/type = "value"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath("ring:zen_ease_outline_alpha")
+tracks/1/interp = 0
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"times": PackedFloat32Array(0, 0.016, 0.8),
+"transitions": PackedFloat32Array(1, 1, 1),
+"update": 1,
+"values": ["linear", "linear", "quadIn"]
+}
+tracks/2/type = "bezier"
+tracks/2/imported = false
+tracks/2/enabled = true
+tracks/2/path = NodePath("ring:zen_scale")
+tracks/2/interp = 1
+tracks/2/loop_wrap = true
+tracks/2/keys = {
+"handle_modes": PackedInt32Array(0, 0, 0, 0),
+"points": PackedFloat32Array(0, 0, 0, 0.0053333333, 0.06666666, 0.2, -0.0053333333, -0.0666976, 0.13066667, 0.40026507, 0.9, -0.13066667, -0.100016594, 0.13066667, 0.100016594, 1, -0.13066667, 0, 0, 0),
+"times": PackedFloat32Array(0, 0.016, 0.408, 0.8)
+}
+tracks/3/type = "value"
+tracks/3/imported = false
+tracks/3/enabled = true
+tracks/3/path = NodePath("ring:zen_ease_scale")
+tracks/3/interp = 0
+tracks/3/loop_wrap = true
+tracks/3/keys = {
+"times": PackedFloat32Array(0, 0.016, 0.8),
+"transitions": PackedFloat32Array(1, 1, 1),
+"update": 1,
+"values": ["linear", "linear", "cubicOut"]
+}
+tracks/4/type = "bezier"
+tracks/4/imported = false
+tracks/4/enabled = true
+tracks/4/path = NodePath("goal:color:r")
+tracks/4/interp = 1
+tracks/4/loop_wrap = true
+tracks/4/keys = {
+"handle_modes": PackedInt32Array(0, 0, 0),
+"points": PackedFloat32Array(0, 0, 0, 0.0053333333, 0.3333333, 1, -0.0053333333, -0.333488, 0.26133335, -0.01333334, 0.96, -0.26133335, 0.013339527, 0, 0),
+"times": PackedFloat32Array(0, 0.016, 0.8)
+}
+tracks/5/type = "bezier"
+tracks/5/imported = false
+tracks/5/enabled = true
+tracks/5/path = NodePath("goal:color:g")
+tracks/5/interp = 1
+tracks/5/loop_wrap = true
+tracks/5/keys = {
+"handle_modes": PackedInt32Array(0, 0, 0),
+"points": PackedFloat32Array(0, 0, 0, 0.0053333333, 0.26666665, 0.8, -0.0053333333, -0.2667904, 0.26133335, 0.05333332, 0.96, -0.26133335, -0.053358067, 0, 0),
+"times": PackedFloat32Array(0, 0.016, 0.8)
+}
+tracks/6/type = "bezier"
+tracks/6/imported = false
+tracks/6/enabled = true
+tracks/6/path = NodePath("goal:color:b")
+tracks/6/interp = 1
+tracks/6/loop_wrap = true
+tracks/6/keys = {
+"handle_modes": PackedInt32Array(0, 0, 0),
+"points": PackedFloat32Array(0, 0, 0, 0.0053333333, 0.11666666, 0.35, -0.0053333333, -0.116720796, 0.26133335, 0.20333332, 0.96, -0.26133335, -0.20342767, 0, 0),
+"times": PackedFloat32Array(0, 0.016, 0.8)
+}
+tracks/7/type = "value"
+tracks/7/imported = false
+tracks/7/enabled = true
+tracks/7/path = NodePath("goal:zen_ease_color")
+tracks/7/interp = 0
+tracks/7/loop_wrap = true
+tracks/7/keys = {
+"times": PackedFloat32Array(0, 0.016, 0.8),
+"transitions": PackedFloat32Array(1, 1, 1),
+"update": 1,
+"values": ["linear", "linear", "linear"]
+}
+tracks/8/type = "bezier"
+tracks/8/imported = false
+tracks/8/enabled = true
+tracks/8/path = NodePath("lap_word:alpha")
+tracks/8/interp = 1
+tracks/8/loop_wrap = true
+tracks/8/keys = {
+"handle_modes": PackedInt32Array(0, 0, 0, 0),
+"points": PackedFloat32Array(0, 0, 0, 0.0053333333, 0.3333333, 1, -0.0053333333, -0.333488, 0.15466666, 0, 1, -0.15466666, 0, 0.10666667, -0.3333333, 0, -0.10666667, 0.333488, 0, 0),
+"times": PackedFloat32Array(0, 0.016, 0.48, 0.8)
+}
+tracks/9/type = "value"
+tracks/9/imported = false
+tracks/9/enabled = true
+tracks/9/path = NodePath("lap_word:zen_ease_alpha")
+tracks/9/interp = 0
+tracks/9/loop_wrap = true
+tracks/9/keys = {
+"times": PackedFloat32Array(0, 0.016, 0.48, 0.8),
+"transitions": PackedFloat32Array(1, 1, 1, 1),
+"update": 1,
+"values": ["linear", "linear", "linear", "linear"]
+}
+tracks/10/type = "bezier"
+tracks/10/imported = false
+tracks/10/enabled = true
+tracks/10/path = NodePath("lap_word:pos_y")
+tracks/10/interp = 1
+tracks/10/loop_wrap = true
+tracks/10/keys = {
+"handle_modes": PackedInt32Array(0, 0, 0, 0),
+"points": PackedFloat32Array(0, 0, 0, 0.0053333333, 0.12, 0.36, -0.0053333333, -0.120055676, 0.13066667, -0.03001988, 0.3075, -0.13066667, 0.0075012445, 0.13066667, -0.0075012445, 0.3, -0.13066667, 0, 0, 0),
+"times": PackedFloat32Array(0, 0.016, 0.408, 0.8)
+}
+tracks/11/type = "value"
+tracks/11/imported = false
+tracks/11/enabled = true
+tracks/11/path = NodePath("lap_word:zen_ease_pos_y")
+tracks/11/interp = 0
+tracks/11/loop_wrap = true
+tracks/11/keys = {
+"times": PackedFloat32Array(0, 0.016, 0.8),
+"transitions": PackedFloat32Array(1, 1, 1),
+"update": 1,
+"values": ["linear", "linear", "cubicOut"]
+}
+metadata/zen_capture = {
+"goal:color:b": [0.016, 0.0],
+"goal:color:g": [0.016, 0.0],
+"goal:color:r": [0.016, 0.0],
+"lap_word:alpha": [0.016, 0.0],
+"lap_word:pos_y": [0.016, 0.0],
+"ring:outline_alpha": [0.016, 0.0],
+"ring:zen_scale": [0.016, 0.0]
+}
+
+[sub_resource type="AnimationLibrary" id="AnimationLibrary_kqrcl"]
+_data = {
+&"lap": SubResource("Animation_o4nj0")
+}
+
+[node name="sig_end_first_loop" type="Node2D" unique_id=1894292478]
+script = ExtResource("1_gdf77")
+loop_smooth = true
+loop_blend = 0.0
+strings = SubResource("Resource_se00l")
+clear_color = Color(0.07, 0.08, 0.12, 1)
+loop_play = true
+
+[node name="hint" type="Node2D" parent="." unique_id=460365858]
+script = ExtResource("3_cak4h")
+strings = SubResource("Resource_se00l")
+size_frac = Vector2(10, 10)
+color_base = Color(0.55, 0.6, 0.7, 1)
+elem_name = "hint"
+unit_abs = true
+pos_frac = Vector2(0.5, 0.93)
+
+[node name="lane" type="Node2D" parent="." unique_id=342628308]
+z_index = 1
+script = ExtResource("4_nrpju")
+size_frac = Vector2(0.8, 0.005)
+color_base = Color(0.55, 0.6, 0.7, 1)
+outline_color_base = Color(0, 0, 0, 0)
+elem_name = "lane"
+pos_frac = Vector2(0.5, 0.55)
+
+[node name="goal" type="Node2D" parent="." unique_id=1590346536]
+z_index = 2
+script = ExtResource("4_nrpju")
+size_frac = Vector2(0.006, 0.16)
+color_base = Color(0.96, 0.96, 0.96, 1)
+outline_color_base = Color(0, 0, 0, 0)
+elem_name = "goal"
+pos_frac = Vector2(0.1, 0.55)
+
+[node name="ring" type="Node2D" parent="." unique_id=255569266]
+z_index = 3
+script = ExtResource("4_nrpju")
+shape_kind = 1
+size_frac = Vector2(40, 40)
+color_base = Color(0, 0, 0, 0)
+outline_color_base = Color(1, 0.8, 0.35, 0)
+outline_base = 2.0
+elem_name = "ring"
+unit_abs = true
+pos_frac = Vector2(0.1, 0.55)
+
+[node name="runner" type="Node2D" parent="." unique_id=2097759172]
+z_index = 4
+script = ExtResource("4_nrpju")
+shape_kind = 1
+size_frac = Vector2(10, 10)
+color_base = Color(1, 0.8, 0.35, 1)
+outline_color_base = Color(0, 0, 0, 0)
+elem_name = "runner"
+unit_abs = true
+pos_frac = Vector2(0.1, 0.55)
+
+[node name="lap_word" type="Node2D" parent="." unique_id=1100799288]
+z_index = 5
+script = ExtResource("3_cak4h")
+strings = SubResource("Resource_se00l")
+string_base = 1
+size_frac = Vector2(20, 20)
+color_base = Color(1, 0.8, 0.35, 0)
+elem_name = "lap_word"
+unit_abs = true
+pos_frac = Vector2(0.5, 0.32)
+
+[node name="Signals" type="Node" parent="." unique_id=385233312]
+script = ExtResource("5_l3ebl")
+signals_data = [{
+"every_loop": false,
+"length": 0.8,
+"name": "lap",
+"point": "none",
+"point_ease": "sineOut",
+"point_elems": [],
+"replay": false,
+"seq_keys": [],
+"seq_mult": 0.0,
+"seq_targets": [],
+"targets": [{
+"elem": "ring",
+"keys": [],
+"prop": "outline_alpha"
+}, {
+"elem": "ring",
+"keys": [],
+"prop": "scale"
+}, {
+"elem": "goal",
+"keys": [],
+"prop": "color"
+}, {
+"elem": "lap_word",
+"keys": [],
+"prop": "alpha"
+}, {
+"elem": "lap_word",
+"keys": [],
+"prop": "pos_y"
+}],
+"terminal": false,
+"then": "",
+"trigger": "end",
+"uses_seq": false
+}]
+
+[node name="AnimationPlayer" type="AnimationPlayer" parent="." unique_id=1666452070]
+callback_mode_method = 1
+libraries/ = SubResource("AnimationLibrary_yjra3")
+libraries/sig = SubResource("AnimationLibrary_kqrcl")

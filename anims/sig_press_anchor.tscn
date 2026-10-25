@@ -1,0 +1,333 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://addons/zen/runtime/zen_canvas.gd" id="1_ndimq"]
+[ext_resource type="Script" path="res://addons/zen/runtime/zen_strings.gd" id="2_erxak"]
+[ext_resource type="Script" path="res://addons/zen/runtime/zen_text.gd" id="3_snj53"]
+[ext_resource type="Script" path="res://addons/zen/runtime/zen_shape.gd" id="4_8hp60"]
+[ext_resource type="Script" path="res://addons/zen/runtime/zen_signal_bus.gd" id="5_1ri4s"]
+
+[sub_resource type="Resource" id="Resource_raxqj"]
+script = ExtResource("2_erxak")
+entries = PackedStringArray("PRESS: BURST BORN AT THE CLICK", "ANCHOR")
+
+[sub_resource type="Animation" id="Animation_g4ix6"]
+length = 2.0
+step = 0.0166667
+markers = [{
+"color": Color(1, 1, 1, 1),
+"name": &"outro_start",
+"time": 2.0
+}]
+tracks/0/type = "method"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath(".")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"values": [{
+"args": [true],
+"method": &"_anim_pose"
+}]
+}
+tracks/1/type = "bezier"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath("title:alpha")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"handle_modes": PackedInt32Array(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
+"points": PackedFloat32Array(0.6, 0, 0, 0.020833334, 5.9211896e-13, 0.6152241, -0.020833334, -0.010018858, 0.020833334, 0.010018858, 0.65857863, -0.020833334, -0.018510967, 0.041666668, 0.037021935, 0.8, -0.041666668, -0.05236268, 0.041666668, 0.05236268, 0.9414214, -0.041666668, -0.03702442, 0.020833334, 0.01851221, 0.9847759, -0.020833334, -0.010023515, 0.020833334, 0.010023515, 1, -0.020833334, 9.934108e-06, 0.020833334, -5.9211896e-13, 0.9847759, -0.020833334, 0.010018858, 0.020833334, -0.010018858, 0.94142133, -0.020833334, 0.018510967, 0.041666668, -0.037021935, 0.8, -0.041666668, 0.05236268, 0.041666668, -0.05236268, 0.65857863, -0.041666668, 0.03702442, 0.020833334, -0.01851221, 0.6152241, -0.020833334, 0.010023515, 0.020833334, -0.010023515, 0.6, -0.020833334, -9.934108e-06, 0, 0),
+"times": PackedFloat32Array(0, 0.0625, 0.125, 0.25, 0.375, 0.4375, 0.5, 0.5625, 0.625, 0.75, 0.875, 0.9375, 1)
+}
+tracks/2/type = "value"
+tracks/2/imported = false
+tracks/2/enabled = true
+tracks/2/path = NodePath("title:zen_ease_alpha")
+tracks/2/interp = 0
+tracks/2/loop_wrap = true
+tracks/2/keys = {
+"times": PackedFloat32Array(0, 0.5, 1),
+"transitions": PackedFloat32Array(1, 1, 1),
+"update": 1,
+"values": ["linear", "sineInOut", "sineInOut"]
+}
+
+[sub_resource type="AnimationLibrary" id="AnimationLibrary_nmu1l"]
+_data = {
+&"zen": SubResource("Animation_g4ix6")
+}
+
+[sub_resource type="Animation" id="Animation_jhndw"]
+length = 0.9
+step = 0.0166667
+tracks/0/type = "bezier"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("ring:zen_scale")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"handle_modes": PackedInt32Array(0, 0, 0, 0),
+"points": PackedFloat32Array(0, 0, 0, 0.006, 0.016666666, 0.05, -0.006, -0.0166744, 0.147, 0.47531477, 0.88125, -0.147, -0.118769705, 0.147, 0.118769705, 1, -0.147, 0, 0, 0),
+"times": PackedFloat32Array(0, 0.018, 0.459, 0.9)
+}
+tracks/1/type = "value"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath("ring:zen_ease_scale")
+tracks/1/interp = 0
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"times": PackedFloat32Array(0, 0.018, 0.9),
+"transitions": PackedFloat32Array(1, 1, 1),
+"update": 1,
+"values": ["linear", "linear", "cubicOut"]
+}
+tracks/2/type = "bezier"
+tracks/2/imported = false
+tracks/2/enabled = true
+tracks/2/path = NodePath("ring:outline_alpha")
+tracks/2/interp = 1
+tracks/2/loop_wrap = true
+tracks/2/keys = {
+"handle_modes": PackedInt32Array(0, 0, 0),
+"points": PackedFloat32Array(0, 0, 0, 0.006, 0.3333333, 1, -0.006, -0.333488, 0.294, 0, 0, -0.294, 0.66707534, 0, 0),
+"times": PackedFloat32Array(0, 0.018, 0.9)
+}
+tracks/3/type = "value"
+tracks/3/imported = false
+tracks/3/enabled = true
+tracks/3/path = NodePath("ring:zen_ease_outline_alpha")
+tracks/3/interp = 0
+tracks/3/loop_wrap = true
+tracks/3/keys = {
+"times": PackedFloat32Array(0, 0.018, 0.9),
+"transitions": PackedFloat32Array(1, 1, 1),
+"update": 1,
+"values": ["linear", "linear", "quadIn"]
+}
+tracks/4/type = "bezier"
+tracks/4/imported = false
+tracks/4/enabled = true
+tracks/4/path = NodePath("core:alpha")
+tracks/4/interp = 1
+tracks/4/loop_wrap = true
+tracks/4/keys = {
+"handle_modes": PackedInt32Array(0, 0, 0, 0, 0, 0, 0),
+"points": PackedFloat32Array(0, 0, 0, 0.006, 0.3333333, 1, -0.006, -0.333488, 0.144, 0, 1, -0.144, 0, 0.0375, 0, 0.9238795, -0.0375, 0.05008963, 0.0375, -0.05008963, 0.70710677, -0.0375, 0.092561044, 0.0375, -0.092561044, 0.38268346, -0.0375, 0.120972596, 0.0375, -0.120972596, 0, -0.0375, 0.1309812, 0, 0),
+"times": PackedFloat32Array(0, 0.018, 0.45, 0.5625, 0.675, 0.7875, 0.9)
+}
+tracks/5/type = "value"
+tracks/5/imported = false
+tracks/5/enabled = true
+tracks/5/path = NodePath("core:zen_ease_alpha")
+tracks/5/interp = 0
+tracks/5/loop_wrap = true
+tracks/5/keys = {
+"times": PackedFloat32Array(0, 0.018, 0.45, 0.9),
+"transitions": PackedFloat32Array(1, 1, 1, 1),
+"update": 1,
+"values": ["linear", "linear", "linear", "sineIn"]
+}
+tracks/6/type = "bezier"
+tracks/6/imported = false
+tracks/6/enabled = true
+tracks/6/path = NodePath("core:rot")
+tracks/6/interp = 1
+tracks/6/loop_wrap = true
+tracks/6/keys = {
+"handle_modes": PackedInt32Array(0, 0, 0, 0),
+"points": PackedFloat32Array(1, 0, 0, 0.006, -0.3333333, 0, -0.006, 0.333488, 0.147, 135.08946, 236.25, -0.147, -33.7556, 0.147, 33.7556, 270, -0.147, 0, 0, 0),
+"times": PackedFloat32Array(0, 0.018, 0.459, 0.9)
+}
+tracks/7/type = "value"
+tracks/7/imported = false
+tracks/7/enabled = true
+tracks/7/path = NodePath("core:zen_ease_rot")
+tracks/7/interp = 0
+tracks/7/loop_wrap = true
+tracks/7/keys = {
+"times": PackedFloat32Array(0, 0.018, 0.9),
+"transitions": PackedFloat32Array(1, 1, 1),
+"update": 1,
+"values": ["linear", "linear", "cubicOut"]
+}
+tracks/8/type = "bezier"
+tracks/8/imported = false
+tracks/8/enabled = true
+tracks/8/path = NodePath("core:zen_scale")
+tracks/8/interp = 1
+tracks/8/loop_wrap = true
+tracks/8/keys = {
+"handle_modes": PackedInt32Array(0, 0, 0),
+"points": PackedFloat32Array(0, 0, 0, 0.006, 0.5333333, 1.6, -0.006, -0.5335808, 0.294, 2.8800665e-08, 0, -0.294, 2.5080044, 0, 0),
+"times": PackedFloat32Array(0, 0.018, 0.9)
+}
+tracks/9/type = "value"
+tracks/9/imported = false
+tracks/9/enabled = true
+tracks/9/path = NodePath("core:zen_ease_scale")
+tracks/9/interp = 0
+tracks/9/loop_wrap = true
+tracks/9/keys = {
+"times": PackedFloat32Array(0, 0.018, 0.9),
+"transitions": PackedFloat32Array(1, 1, 1),
+"update": 1,
+"values": ["linear", "linear", "backIn"]
+}
+tracks/10/type = "bezier"
+tracks/10/imported = false
+tracks/10/enabled = true
+tracks/10/path = NodePath("dot:alpha")
+tracks/10/interp = 1
+tracks/10/loop_wrap = true
+tracks/10/keys = {
+"handle_modes": PackedInt32Array(0, 0, 0, 0),
+"points": PackedFloat32Array(0, 0, 0, 0.006, 0.3333333, 1, -0.006, -0.333488, 0.204, 0, 1, -0.204, 0, 0.09, -0.3333333, 0, -0.09, 0.333488, 0, 0),
+"times": PackedFloat32Array(0, 0.018, 0.63, 0.9)
+}
+tracks/11/type = "value"
+tracks/11/imported = false
+tracks/11/enabled = true
+tracks/11/path = NodePath("dot:zen_ease_alpha")
+tracks/11/interp = 0
+tracks/11/loop_wrap = true
+tracks/11/keys = {
+"times": PackedFloat32Array(0, 0.018, 0.63, 0.9),
+"transitions": PackedFloat32Array(1, 1, 1, 1),
+"update": 1,
+"values": ["linear", "linear", "linear", "linear"]
+}
+metadata/zen_capture = {
+"core:alpha": [0.018000000000000002, 0.0],
+"core:rot": [0.018000000000000002, 1.0],
+"core:zen_scale": [0.018000000000000002, 0.0],
+"dot:alpha": [0.018000000000000002, 0.0],
+"ring:outline_alpha": [0.018000000000000002, 0.0],
+"ring:zen_scale": [0.018000000000000002, 0.0]
+}
+
+[sub_resource type="AnimationLibrary" id="AnimationLibrary_2twhq"]
+_data = {
+&"burst": SubResource("Animation_jhndw")
+}
+
+[node name="sig_press_anchor" type="Node2D" unique_id=2034178541]
+script = ExtResource("1_ndimq")
+loop_smooth = true
+strings = SubResource("Resource_raxqj")
+clear_color = Color(0.07, 0.08, 0.12, 1)
+loop_play = true
+
+[node name="hint" type="Node2D" parent="." unique_id=1069203357]
+script = ExtResource("3_snj53")
+strings = SubResource("Resource_raxqj")
+size_frac = Vector2(10, 10)
+color_base = Color(0.55, 0.6, 0.7, 1)
+elem_name = "hint"
+unit_abs = true
+pos_frac = Vector2(0.5, 0.93)
+
+[node name="title" type="Node2D" parent="." unique_id=157470293]
+z_index = 1
+script = ExtResource("3_snj53")
+strings = SubResource("Resource_raxqj")
+string_base = 1
+size_frac = Vector2(10, 10)
+color_base = Color(0.96, 0.96, 0.96, 1)
+elem_name = "title"
+unit_abs = true
+pos_frac = Vector2(0.5, 0.1)
+
+[node name="ring" type="Node2D" parent="." unique_id=1005998604]
+z_index = 2
+script = ExtResource("4_8hp60")
+shape_kind = 1
+size_frac = Vector2(64, 64)
+color_base = Color(0.35, 0.85, 1, 0)
+outline_color_base = Color(0.35, 0.85, 1, 0)
+outline_base = 3.0
+elem_name = "ring"
+unit_abs = true
+
+[node name="core" type="Node2D" parent="." unique_id=1172359902]
+z_index = 3
+script = ExtResource("4_8hp60")
+shape_kind = 3
+size_frac = Vector2(18, 18)
+color_base = Color(0.96, 0.96, 0.96, 0)
+outline_color_base = Color(0, 0, 0, 0)
+elem_name = "core"
+unit_abs = true
+
+[node name="dot" type="Node2D" parent="." unique_id=1394156205]
+z_index = 4
+script = ExtResource("4_8hp60")
+shape_kind = 1
+size_frac = Vector2(6, 6)
+color_base = Color(1, 0.8, 0.35, 0)
+outline_color_base = Color(0, 0, 0, 0)
+elem_name = "dot"
+unit_abs = true
+
+[node name="Signals" type="Node" parent="." unique_id=1236807967]
+script = ExtResource("5_1ri4s")
+signals_data = [{
+"every_loop": false,
+"length": 0.9,
+"name": "burst",
+"point": "anchor",
+"point_ease": "sineOut",
+"point_elems": [{
+"elem": "ring",
+"off": Vector2(0, 0)
+}, {
+"elem": "core",
+"off": Vector2(0, 0)
+}, {
+"elem": "dot",
+"off": Vector2(0, 0)
+}],
+"replay": false,
+"seq_keys": [],
+"seq_mult": 0.0,
+"seq_targets": [],
+"targets": [{
+"elem": "ring",
+"keys": [],
+"prop": "scale"
+}, {
+"elem": "ring",
+"keys": [],
+"prop": "outline_alpha"
+}, {
+"elem": "core",
+"keys": [],
+"prop": "alpha"
+}, {
+"elem": "core",
+"keys": [],
+"prop": "rot"
+}, {
+"elem": "core",
+"keys": [],
+"prop": "scale"
+}, {
+"elem": "dot",
+"keys": [],
+"prop": "alpha"
+}],
+"terminal": false,
+"then": "",
+"trigger": "press",
+"uses_seq": false
+}]
+
+[node name="AnimationPlayer" type="AnimationPlayer" parent="." unique_id=305514432]
+callback_mode_method = 1
+libraries/ = SubResource("AnimationLibrary_nmu1l")
+libraries/sig = SubResource("AnimationLibrary_2twhq")

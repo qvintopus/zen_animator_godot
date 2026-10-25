@@ -1,0 +1,255 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://addons/zen/runtime/zen_canvas.gd" id="1_53l7n"]
+[ext_resource type="Script" path="res://addons/zen/runtime/zen_strings.gd" id="2_bjk0h"]
+[ext_resource type="Script" path="res://addons/zen/runtime/zen_text.gd" id="3_e5aac"]
+[ext_resource type="Script" path="res://addons/zen/runtime/zen_shape.gd" id="4_ejgup"]
+[ext_resource type="Script" path="res://addons/zen/runtime/zen_signal_bus.gd" id="5_nrvd6"]
+
+[sub_resource type="Resource" id="Resource_i0pjb"]
+script = ExtResource("2_bjk0h")
+entries = PackedStringArray("RELEASE: THE BALL SEEKS THE MOUSE-UP", "SEEK")
+
+[sub_resource type="Animation" id="Animation_isesh"]
+length = 1.2
+step = 0.0166667
+markers = [{
+"color": Color(1, 1, 1, 1),
+"name": &"outro_start",
+"time": 1.2
+}]
+tracks/0/type = "method"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath(".")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"values": [{
+"args": [true],
+"method": &"_anim_pose"
+}]
+}
+tracks/1/type = "bezier"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath("title:alpha")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"handle_modes": PackedInt32Array(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
+"points": PackedFloat32Array(0.6, 0, 0, 0.020833334, 5.9211896e-13, 0.6152241, -0.020833334, -0.010018858, 0.020833334, 0.010018858, 0.65857863, -0.020833334, -0.018510967, 0.041666668, 0.037021935, 0.8, -0.041666668, -0.05236268, 0.041666668, 0.05236268, 0.9414214, -0.041666668, -0.03702442, 0.020833334, 0.01851221, 0.9847759, -0.020833334, -0.010023515, 0.020833334, 0.010023515, 1, -0.020833334, 9.934108e-06, 0.020833334, -5.9211896e-13, 0.9847759, -0.020833334, 0.010018858, 0.020833334, -0.010018858, 0.94142133, -0.020833334, 0.018510967, 0.041666668, -0.037021935, 0.8, -0.041666668, 0.05236268, 0.041666668, -0.05236268, 0.65857863, -0.041666668, 0.03702442, 0.020833334, -0.01851221, 0.6152241, -0.020833334, 0.010023515, 0.020833334, -0.010023515, 0.6, -0.020833334, -9.934108e-06, 0, 0),
+"times": PackedFloat32Array(0, 0.0625, 0.125, 0.25, 0.375, 0.4375, 0.5, 0.5625, 0.625, 0.75, 0.875, 0.9375, 1)
+}
+tracks/2/type = "value"
+tracks/2/imported = false
+tracks/2/enabled = true
+tracks/2/path = NodePath("title:zen_ease_alpha")
+tracks/2/interp = 0
+tracks/2/loop_wrap = true
+tracks/2/keys = {
+"times": PackedFloat32Array(0, 0.5, 1),
+"transitions": PackedFloat32Array(1, 1, 1),
+"update": 1,
+"values": ["linear", "sineInOut", "sineInOut"]
+}
+tracks/3/type = "bezier"
+tracks/3/imported = false
+tracks/3/enabled = true
+tracks/3/path = NodePath("ball:pos_y")
+tracks/3/interp = 1
+tracks/3/loop_wrap = true
+tracks/3/keys = {
+"handle_modes": PackedInt32Array(0, 0, 0, 0, 0, 0, 0, 0, 0),
+"points": PackedFloat32Array(0.74, 0, 0, 0.05, -0.0039269906, 0.7285195, -0.05, 0.0036280602, 0.05, -0.0036280602, 0.7187868, -0.05, 0.0027768314, 0.05, -0.0027768314, 0.7122836, -0.05, 0.0015027821, 0.05, -0.0015027821, 0.71, -0.05, -7.4505806e-07, 0.05, 0, 0.7122836, -0.05, -0.001502689, 0.05, 0.001502689, 0.7187868, -0.05, -0.0027768314, 0.05, 0.0027768314, 0.7285195, -0.05, -0.0036291778, 0.05, 0.0036291778, 0.74, -0.05, -0.003929436, 0, 0),
+"times": PackedFloat32Array(0, 0.15, 0.3, 0.45, 0.6, 0.75, 0.9, 1.05, 1.2)
+}
+tracks/4/type = "value"
+tracks/4/imported = false
+tracks/4/enabled = true
+tracks/4/path = NodePath("ball:zen_ease_pos_y")
+tracks/4/interp = 0
+tracks/4/loop_wrap = true
+tracks/4/keys = {
+"times": PackedFloat32Array(0, 0.6, 1.2),
+"transitions": PackedFloat32Array(1, 1, 1),
+"update": 1,
+"values": ["linear", "sineOut", "sineIn"]
+}
+
+[sub_resource type="AnimationLibrary" id="AnimationLibrary_ega30"]
+_data = {
+&"zen": SubResource("Animation_isesh")
+}
+
+[sub_resource type="Animation" id="Animation_1nqmw"]
+length = 0.7
+step = 0.0166667
+tracks/0/type = "bezier"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("ball:w")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"handle_modes": PackedInt32Array(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
+"points": PackedFloat32Array(0, 0, 0, 0.0046666665, 5.333333, 16, -0.0046666665, -5.335808, 0.007583333, -0.5235988, 14.469266, -0.007583333, 0.48374137, 0.007583333, -0.48374137, 13.171573, -0.007583333, 0.37024418, 0.007583333, -0.37024418, 12.3044815, -0.007583333, 0.20037095, 0.007583333, -0.20037095, 12, -0.007583333, -9.934107e-05, 0.018958334, 5.9211893e-12, 12.152241, -0.018958334, -0.100188576, 0.018958334, 0.100188576, 12.585787, -0.018958334, -0.18510967, 0.037916668, 0.37021935, 14, -0.037916668, -0.5236268, 0.037916668, 0.5236268, 15.414213, -0.037916668, -0.37024418, 0.018958334, 0.18512209, 15.847759, -0.018958334, -0.10023514, 0.018958334, 0.10023514, 16, -0.018958334, 9.934107e-05, 0.046666667, 9.333334, 30, -0.046666667, 0, 0, 0),
+"times": PackedFloat32Array(0, 0.014, 0.03675, 0.0595, 0.08225, 0.105, 0.161875, 0.21875, 0.3325, 0.44625, 0.503125, 0.56, 0.7)
+}
+tracks/1/type = "value"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath("ball:zen_ease_w")
+tracks/1/interp = 0
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"times": PackedFloat32Array(0, 0.014, 0.105, 0.56, 0.7),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1),
+"update": 1,
+"values": ["linear", "linear", "sineOut", "sineInOut", "quadOut"]
+}
+tracks/2/type = "bezier"
+tracks/2/imported = false
+tracks/2/enabled = true
+tracks/2/path = NodePath("ball:h")
+tracks/2/interp = 1
+tracks/2/loop_wrap = true
+tracks/2/keys = {
+"handle_modes": PackedInt32Array(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
+"points": PackedFloat32Array(0, 0, 0, 0.0046666665, 5.333333, 16, -0.0046666665, -5.335808, 0.007583333, 0.7853981, 18.2961, -0.007583333, -0.72561204, 0.007583333, 0.72561204, 20.242641, -0.007583333, -0.5553663, 0.007583333, 0.5553663, 21.543278, -0.007583333, -0.30055642, 0.007583333, 0.30055642, 22, -0.007583333, 0.00014901161, 0.018958334, -8.881784e-12, 21.771639, -0.018958334, 0.15028287, 0.018958334, -0.15028287, 21.12132, -0.018958334, 0.2776645, 0.037916668, -0.555329, 19, -0.037916668, 0.7854402, 0.037916668, -0.7854402, 16.87868, -0.037916668, 0.5553663, 0.018958334, -0.27768314, 16.228361, -0.018958334, 0.15035272, 0.018958334, -0.15035272, 16, -0.018958334, -0.00014901161, 0.046666667, 9.333334, 30, -0.046666667, 0, 0, 0),
+"times": PackedFloat32Array(0, 0.014, 0.03675, 0.0595, 0.08225, 0.105, 0.161875, 0.21875, 0.3325, 0.44625, 0.503125, 0.56, 0.7)
+}
+tracks/3/type = "value"
+tracks/3/imported = false
+tracks/3/enabled = true
+tracks/3/path = NodePath("ball:zen_ease_h")
+tracks/3/interp = 0
+tracks/3/loop_wrap = true
+tracks/3/keys = {
+"times": PackedFloat32Array(0, 0.014, 0.105, 0.56, 0.7),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1),
+"update": 1,
+"values": ["linear", "linear", "sineOut", "sineInOut", "quadOut"]
+}
+tracks/4/type = "bezier"
+tracks/4/imported = false
+tracks/4/enabled = true
+tracks/4/path = NodePath("ball:alpha")
+tracks/4/interp = 1
+tracks/4/loop_wrap = true
+tracks/4/keys = {
+"handle_modes": PackedInt32Array(0, 0, 0, 0),
+"points": PackedFloat32Array(0, 0, 0, 0.0046666665, 0.3333333, 1, -0.0046666665, -0.333488, 0.182, 0, 1, -0.182, 0, 0.046666667, 0, 0, -0.046666667, 0.66707534, 0, 0),
+"times": PackedFloat32Array(0, 0.014, 0.56, 0.7)
+}
+tracks/5/type = "value"
+tracks/5/imported = false
+tracks/5/enabled = true
+tracks/5/path = NodePath("ball:zen_ease_alpha")
+tracks/5/interp = 0
+tracks/5/loop_wrap = true
+tracks/5/keys = {
+"times": PackedFloat32Array(0, 0.014, 0.56, 0.7),
+"transitions": PackedFloat32Array(1, 1, 1, 1),
+"update": 1,
+"values": ["linear", "linear", "linear", "quadIn"]
+}
+metadata/zen_capture = {
+"ball:alpha": [0.013999999999999999, 0.0],
+"ball:h": [0.013999999999999999, 0.0],
+"ball:w": [0.013999999999999999, 0.0]
+}
+
+[sub_resource type="AnimationLibrary" id="AnimationLibrary_rd5ie"]
+_data = {
+&"throw": SubResource("Animation_1nqmw")
+}
+
+[node name="sig_release_seek" type="Node2D" unique_id=907857455]
+script = ExtResource("1_53l7n")
+loop_smooth = true
+strings = SubResource("Resource_i0pjb")
+clear_color = Color(0.07, 0.08, 0.12, 1)
+loop_play = true
+
+[node name="hint" type="Node2D" parent="." unique_id=1574576594]
+script = ExtResource("3_e5aac")
+strings = SubResource("Resource_i0pjb")
+size_frac = Vector2(10, 10)
+color_base = Color(0.55, 0.6, 0.7, 1)
+elem_name = "hint"
+unit_abs = true
+pos_frac = Vector2(0.5, 0.93)
+
+[node name="title" type="Node2D" parent="." unique_id=29563594]
+z_index = 1
+script = ExtResource("3_e5aac")
+strings = SubResource("Resource_i0pjb")
+string_base = 1
+size_frac = Vector2(10, 10)
+color_base = Color(0.96, 0.96, 0.96, 1)
+elem_name = "title"
+unit_abs = true
+pos_frac = Vector2(0.5, 0.1)
+
+[node name="pad" type="Node2D" parent="." unique_id=1498453776]
+z_index = 2
+script = ExtResource("4_ejgup")
+size_frac = Vector2(0.14, 0.03)
+color_base = Color(0.55, 0.6, 0.7, 1)
+outline_color_base = Color(0, 0, 0, 0)
+elem_name = "pad"
+pos_frac = Vector2(0.5, 0.83)
+
+[node name="ball" type="Node2D" parent="." unique_id=1345754885]
+z_index = 3
+script = ExtResource("4_ejgup")
+shape_kind = 1
+size_frac = Vector2(16, 16)
+color_base = Color(1, 0.4, 0.6, 1)
+outline_color_base = Color(0, 0, 0, 0)
+elem_name = "ball"
+unit_abs = true
+pos_frac = Vector2(0.5, 0.74)
+
+[node name="Signals" type="Node" parent="." unique_id=712341944]
+script = ExtResource("5_nrvd6")
+signals_data = [{
+"every_loop": false,
+"length": 0.7,
+"name": "throw",
+"point": "seek",
+"point_ease": "backOut",
+"point_elems": [{
+"elem": "ball",
+"off": Vector2(0, 0)
+}],
+"replay": false,
+"seq_keys": [],
+"seq_mult": 0.0,
+"seq_targets": [],
+"targets": [{
+"elem": "ball",
+"keys": [],
+"prop": "w"
+}, {
+"elem": "ball",
+"keys": [],
+"prop": "h"
+}, {
+"elem": "ball",
+"keys": [],
+"prop": "alpha"
+}],
+"terminal": false,
+"then": "",
+"trigger": "release",
+"uses_seq": false
+}]
+
+[node name="AnimationPlayer" type="AnimationPlayer" parent="." unique_id=787197546]
+callback_mode_method = 1
+libraries/ = SubResource("AnimationLibrary_ega30")
+libraries/sig = SubResource("AnimationLibrary_rd5ie")

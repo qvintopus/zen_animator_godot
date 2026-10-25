@@ -338,7 +338,34 @@ func advance(delta: float) -> void:
             if canvas != null: canvas.stop_timeline()
             terminal_finished.emit(nm)
         var next := ZenSignalData.chained(player.sig)
-        if not next.is_empty(): fire(next)
+        if not next.is_empty():
+            # A chain picks up where this signal left off, not from the
+            # timeline: `land` starts from wherever `launch` left the rocket.
+            _carry = _end_pose()
+            fire(next)
+            _carry = {}
+
+
+## What the signal that just finished leaves on screen, for every prop it
+## shaped: "elem/prop" -> value. Its end pose is posed once more to read it,
+## since a finished signal no longer overrides.
+func _end_pose() -> Dictionary:
+    var out := {}
+    if canvas == null: return out
+    var was := player.held
+    player.held = true
+    _repose()
+    var t := canvas.pose_time
+    for e in canvas.elements():
+        var el := e as ZenElement
+        for p in ZenProps.scalars_for(el.zen_kind()):
+            if el.owns(p) and el.signal_shaped(p):
+                out["%s/%s" % [el.elem_name, p]] = el.prop(p, t, el.base_scalar(p))
+        for p in ZenProps.colors_for(el.zen_kind()):
+            if el.owns(p) and el.signal_shaped(p):
+                out["%s/%s" % [el.elem_name, p]] = el.prop_color(p, t, el.base_color(p), 1.0)
+    player.held = was
+    return out
 
 
 # ---------------------------------------------------------------------------
@@ -368,11 +395,17 @@ func offset(elem: String, prop: String) -> float:
 ##
 ## Returns null for an unresolvable element, which the player stores as a
 ## neutral capture - matching the C's out-of-range guard (anim.c:1516-1521).
+##
+## A CHAINED signal is the exception: it starts from the previous link's end
+## pose (_carry), so the hand-over is seamless rather than a one-frame flash of
+## the timeline pose.
 func _capture(elem_name: String, prop: String, t: float) -> Variant:
     var e := _find_elem(elem_name, prop)
     if e == null:
         push_warning("zen: signal targets unknown element '%s'" % elem_name)
         return null
+    var key := "%s/%s" % [elem_name, prop]
+    if _carry.has(key): return _carry[key]
     if ZenProps.is_color(prop):
         return e.plain_prop_color(prop, t, e.base_color(prop), 1.0)
     return e.plain_prop(prop, t, e.base_scalar(prop))
@@ -411,6 +444,10 @@ func _seq_index() -> int:
 
 ## Set by a stage when it runs several copies of one document at once.
 @export var seq := 0
+
+## The pose a chained signal starts from ("elem/prop" -> value), set only
+## while advance() fires the next link.
+var _carry: Dictionary = {}
 
 
 ## Re-pose so the override reaches the screen. Uses the LIVE doc time, which is

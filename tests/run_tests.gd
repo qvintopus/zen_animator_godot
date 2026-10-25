@@ -86,6 +86,8 @@ func _run() -> void:
     test_signal_trigger_end_oneshot()
     test_signal_trigger_end_every_loop()
     test_signal_then_chain()
+    test_signal_chain_carries_pose()
+    test_signal_demos()
     test_signal_normalize_legacy()
     test_signal_bake_no_pos_offset()
     test_signal_ops_add_rename_remove()
@@ -1652,6 +1654,153 @@ func test_signal_then_chain() -> void:
     check(bus.running_name == "", "a terminal signal does not chain")
     check(ZenSignalData.chained(_point_sig("follow")) == "", "a follow does not chain")
     canvas.queue_free()
+
+
+## A chained signal starts from the previous link's END pose, not from the
+## timeline: no one-frame flash of the timeline pose between links.
+func test_signal_chain_carries_pose() -> void:
+    var a := _one_target_sig("alpha", 1.0)
+    a["name"] = "a"
+    a["then"] = "b"
+    var canvas := _sig_canvas(a)
+    var bus: ZenSignalBus = canvas.bus()
+    var b := _one_target_sig("alpha", 0.0)
+    b["name"] = "b"
+    bus.signals_data.append(b)
+    # Bake only b: a second install() would rebake a from its stripped keys.
+    var lib := ZenAnimBuilder.find_player(canvas).get_animation_library(ZenAnimBuilder.SIG_LIB)
+    lib.add_animation(ZenAnimBuilder.sig_anim_name("b"), ZenAnimBuilder.bake_signal(b))
+    root.add_child(canvas)
+    var sh: ZenShape = canvas.get_node("shape")
+    canvas.pose(0.0)
+    bus.fire("a")
+    bus.advance(2.0)
+    check(bus.running_name == "b", "a chained into b")
+    canvas.pose(0.0)
+    check_near(sh.prop("alpha", 0.0, 0.0), 1.0, "b starts where a left alpha", 0.001)
+    bus.advance(1.0)
+    canvas.pose(0.0)
+    check_near(sh.prop("alpha", 0.0, 0.0), 0.5, "and eases on from there (half way)", 0.001)
+    check(bus._carry.is_empty(), "the carried pose is not kept past the hand-over")
+    bus.release_signal()
+    bus.fire("b")
+    canvas.pose(0.0)
+    check_near(sh.prop("alpha", 0.0, 0.0), 0.0, "a plain fire still captures the timeline", 0.001)
+    canvas.queue_free()
+
+
+## The sig_* demo scenes (tools/gen_signal_demos.gd): sound data, and each one
+## does what its hint says when driven the way a player would.
+func test_signal_demos() -> void:
+    var names: Array = []
+    for nm in ZenSceneOps.scene_paths():
+        if String(nm).begins_with("sig_"): names.append(nm)
+    check(names.size() == 9, "nine signal demos ship (%d)" % names.size())
+    for nm in names:
+        var c: ZenCanvas = (load(ZenSceneOps.path_of(nm)) as PackedScene).instantiate()
+        root.add_child(c)
+        var bus := c.bus()
+        check(bus != null, "%s has signals" % nm)
+        if bus == null:
+            c.queue_free()
+            continue
+        for sn in bus.names():
+            var sd := bus.find(sn)
+            var a := ZenAnimBuilder.signal_anim(c, sn)
+            check(a != null and a.get_track_count() > 0 or not (sd["point_elems"] as Array).is_empty(),
+                  "%s/%s drives something" % [nm, sn])
+            check(ZenSignalOps.trigger_clash(c, sn).is_empty(), "%s/%s has no trigger clash" % [nm, sn])
+            var nx := String(sd["then"])
+            check(nx.is_empty() or bus.has(nx), "%s/%s chains to a real signal" % [nm, sn])
+            for pe in sd["point_elems"]:
+                check(ZenElemOps.find(c, String(pe["elem"])) != null,
+                      "%s/%s binds a real element" % [nm, sn])
+        c.queue_free()
+
+    var run := func(nm: String) -> ZenCanvas:
+        var cv: ZenCanvas = (load(ZenSceneOps.path_of(nm)) as PackedScene).instantiate()
+        root.add_child(cv)
+        cv.pose(0.5)
+        return cv
+    var c: ZenCanvas = run.call("sig_press_anchor")
+    c.pointer("press", Vector2(0.2, 0.3))
+    check(c.bus().running_name == "burst", "press_anchor: a press fires burst")
+    c.bus().advance(0.1)
+    c.pose(0.5)
+    var ring := ZenElemOps.find(c, "ring")
+    check_near(ring.center_px(0.5).x, 64.0, "press_anchor: the ring is born at the click", 0.5)
+    c.queue_free()
+
+    c = run.call("sig_release_seek")
+    c.pointer("release", Vector2(0.2, 0.3))
+    check(c.bus().running_name == "throw", "release_seek: a release fires throw")
+    c.bus().advance(0.69)
+    c.pose(0.5)
+    check_near(ZenElemOps.find(c, "ball").center_px(0.5).y, 0.3 * 180.0,
+               "release_seek: the ball arrives at the mouse-up", 1.5)
+    c.queue_free()
+
+    c = run.call("sig_follow")
+    c.pointer("press", Vector2(0.8, 0.2))
+    c.bus().advance(1.0)
+    check(c.bus().is_following(), "follow: a press grabs and keeps following")
+    c.pointer("release", Vector2(0.3, 0.7))
+    check(c.bus().running_name == "drop", "follow: release supersedes with drop")
+    c.bus().advance(0.5)
+    check(c.bus().running_name == "respawn", "follow: drop chains into respawn")
+    c.pose(0.5)
+    check_near(ZenElemOps.find(c, "orb").prop("alpha", 0.5, 1.0), 0.0,
+               "follow: respawn starts from drop's faded orb", 0.05)
+    c.queue_free()
+
+    c = run.call("sig_code")
+    check(not c.bus().wants_pointer(), "code: nothing fires on its own")
+    c.pointer("move", Vector2(0.7, 0.4))
+    c.fire("ping")
+    c.bus().advance(0.6)
+    c.pose(0.5)
+    check_near(ZenElemOps.find(c, "mark").center_px(0.5).x, 0.7 * 320.0,
+               "code: ping lands at the pointer read when fired", 0.5)
+    c.queue_free()
+
+    c = run.call("sig_end_once")
+    check(not c.loop_play, "end_once is a one-shot")
+    check(c.bus().trigger("end", null, 0), "end_once: the end trigger fires done")
+    c.bus().advance(1.0)
+    check(c.bus().is_holding(), "end_once: done is terminal and holds")
+    c.queue_free()
+
+    for pair in [["sig_end_every_loop", true], ["sig_end_first_loop", false]]:
+        c = run.call(pair[0])
+        check(c.bus().trigger("end", null, 1), "%s: the first wrap fires lap" % pair[0])
+        c.bus().release_signal()
+        check(c.bus().trigger("end", null, 2) == pair[1], "%s: the second wrap %s" % [
+              pair[0], "fires again" if pair[1] else "does not"])
+        c.queue_free()
+
+    c = run.call("sig_then_chain")
+    c.pointer("press", Vector2(0.5, 0.5))
+    check(c.bus().running_name == "windup", "then_chain: a press winds up")
+    c.bus().advance(0.4)
+    check(c.bus().running_name == "launch", "then_chain: windup -> launch")
+    c.bus().advance(0.7)
+    check(c.bus().running_name == "land", "then_chain: launch -> land")
+    c.pose(0.5)
+    check(ZenElemOps.find(c, "rocket").center_px(0.5).y < 0.0,
+          "then_chain: land picks the rocket up off-screen, where launch left it")
+    c.queue_free()
+
+    c = run.call("sig_starfall")
+    c.pointer("press", Vector2(0.4, 0.7))
+    check(c.bus().running_name == "comet", "starfall: a click sends the comet")
+    c.bus().advance(0.8)
+    check(c.bus().running_name == "nova", "starfall: the comet chains into the nova")
+    c.bus().advance(0.05)
+    c.pose(2.0)
+    check_near(ZenElemOps.find(c, "nova_ring").center_px(2.0).x, 0.4 * 320.0,
+               "starfall: the nova bursts where the comet landed", 0.5)
+    check(c.bus().trigger("end", null, 3), "starfall: shimmer fires on every loop")
+    c.queue_free()
 
 
 ## Legacy uses_pos / pos_anchor / pos_params upgrade to the point fields.
