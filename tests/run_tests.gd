@@ -2399,7 +2399,7 @@ func test_anim_player_markers() -> void:
           "intro_end 0 means no marker at all")
 
     # Pause markers: pause_N[_once], read back in time order.
-    var pg: ZenCanvas = (load("res://anims/ma_prog_01.tscn") as PackedScene).instantiate()
+    var pg: ZenCanvas = (load("res://anims/ma_prog/ma_prog_01.tscn") as PackedScene).instantiate()
     check(pg.pauses.size() == 4, "ma_prog_01's four pauses come back from markers (%d)" % pg.pauses.size())
     var pa := _zen_anim(pg)
     var first_t := float(pg.pauses[0]["t"])
@@ -2538,7 +2538,7 @@ func test_signal_capture_segment() -> void:
 
 ## SPACE's job: release a held pause and keep playing INSIDE the section.
 func test_release_pause_keeps_section() -> void:
-    var c: ZenCanvas = (load("res://anims/ma_prog_01.tscn") as PackedScene).instantiate()
+    var c: ZenCanvas = (load("res://anims/ma_prog/ma_prog_01.tscn") as PackedScene).instantiate()
     c.loop_smooth = false
     root.add_child(c)
     await process_frame
@@ -2837,7 +2837,7 @@ func test_pixel_shape() -> void:
 ## A custom shape keeps its shape_name, its `shape_refs` list, and shape_at()
 ## follows the stepped track.
 func test_custom_shape_resolution() -> void:
-    var c: ZenCanvas = (load("res://anims/ma_prog_02_coding.tscn") as PackedScene).instantiate()
+    var c: ZenCanvas = (load("res://anims/ma_prog/ma_prog_02_coding.tscn") as PackedScene).instantiate()
     var icon: ZenShape = null
     for e in c.elements():
         if e is ZenShape and (e as ZenShape).elem_name == "icon_ai": icon = e
@@ -3096,23 +3096,25 @@ func test_gallery_folders() -> void:
     g._build_list()
     var top := 0
     for e in g._entries: if String(e["folder"]) == "": top += 1
-    check(g._rows.size() == top + 1 and g._folder_row(0) == "signal_demo",
-          "collapsed: the folder row, then the top-level animations")
-    check(String(g._list.get_child(0).text).contains("signal_demo  (9)"), "the folder row counts its animations")
-    g._select(0)
+    var nf := ZenSceneOps.folders().size()
+    var sd := ZenSceneOps.folders().find("signal_demo")
+    check(g._rows.size() == top + nf and g._folder_row(sd) == "signal_demo",
+          "collapsed: the folder rows, then the top-level animations")
+    check(String(g._list.get_child(sd).text).contains("signal_demo  (9)"), "the folder row counts its animations")
+    g._select(sd)
     check(g._marked_anims().is_empty() and String(g._info.text).contains("folder"),
           "a folder row selects nothing and describes the folder")
-    g._play(0)
+    g._play(sd)
     check(g._playing == null, "playing a folder row does nothing")
     g._toggle_folder("signal_demo")
-    check(g._rows.size() == top + 10 and g._entry_at(1)["name"] == "sig_code", "expanding shows its nine")
+    check(g._rows.size() == top + nf + 9 and g._entry_at(sd + 1)["name"] == "sig_code", "expanding shows its nine")
     check(ZenSettings.open_folders() == ["signal_demo"], "the open folder is remembered")
-    g._select(0)
-    g._select(3, true)
+    g._select(sd)
+    g._select(sd + 3, true)
     check(g._marked_anims().size() == 3, "a range over the folder row takes only animations")
-    g._select(2)
+    g._select(sd + 2)
     g._fold_cursor(false)
-    check(g._rows.size() == top + 1 and g._sel == 0, "LEFT inside a folder folds it, cursor on the folder")
+    check(g._rows.size() == top + nf and g._sel == sd, "LEFT inside a folder folds it, cursor on the folder")
 
     g._search.text = "seek"
     g._on_search_changed()
@@ -3124,7 +3126,7 @@ func test_gallery_folders() -> void:
     check(g._rows.is_empty() and String(g._info.text).contains("no animation"), "no match: an empty list says so")
     g._search.text = ""
     g._on_search_changed()
-    check(g._rows.size() == top + 1, "clearing the search restores the folded view")
+    check(g._rows.size() == top + nf, "clearing the search restores the folded view")
     g.queue_free()
     await process_frame
     ZenSettings.set_open_folders(saved)
@@ -3136,11 +3138,12 @@ func test_gallery_multi_select() -> void:
     var g: Node = (load("res://zen_gallery.tscn") as PackedScene).instantiate()
     root.add_child(g)
     await process_frame
-    # Row 0 is the signal_demo folder: start on the first animation after it.
+    # The folder rows come first: start on the first animation after them.
     g._open = {}
     g._build_list()
-    g._select(1)
-    g._select(3, true)
+    var nf := ZenSceneOps.folders().size()
+    g._select(nf)
+    g._select(nf + 2, true)
     check(g._marked_anims().size() == 3, "shift+click marks a range of animations")
     check(String(g._hint.text).contains("export 3"), "the footer offers the selection's keys")
     g._ask_delete()
@@ -3604,7 +3607,7 @@ func test_scene_ops_roundtrip() -> void:
 ## the canvas and every text, entries at stable indices, and the stepped
 ## `string` track switches the label that game code reads.
 func test_string_pool_scenes() -> void:
-    var c: ZenCanvas = (load("res://anims/ma_prog_01.tscn") as PackedScene).instantiate()
+    var c: ZenCanvas = (load("res://anims/ma_prog/ma_prog_01.tscn") as PackedScene).instantiate()
     c.live_playback = false
     var texts := ZenStringOps.texts(c)
     check(c.strings != null and texts.size() == 3, "ma_prog_01 has a pool and three texts")
@@ -3626,11 +3629,11 @@ func test_string_pool_scenes() -> void:
     check(seen.size() == 1, "no text_changed while the words stay")
     c.pose(7.0)
     check(t1.text == "coding w/ ai", "...and again at 6.6s")
-    check(not FileAccess.get_file_as_string("res://anims/ma_prog_01.tscn").contains("\ntext = "),
+    check(not FileAccess.get_file_as_string("res://anims/ma_prog/ma_prog_01.tscn").contains("\ntext = "),
           "the label is not stored in the scene")
     c.free()
 
-    var c2: ZenCanvas = (load("res://anims/ma_prog_02_coding.tscn") as PackedScene).instantiate()
+    var c2: ZenCanvas = (load("res://anims/ma_prog/ma_prog_02_coding.tscn") as PackedScene).instantiate()
     c2.live_playback = false
     check(c2.strings.at(9) == "coding" and c2.strings.at(13) == "CODE", "a full pool keeps its indices")
     var t2 := ZenElemOps.find(c2, "t2") as ZenText
@@ -3701,8 +3704,8 @@ func test_string_ops() -> void:
 ## The pool is ONE instance per canvas through every copy the editor makes:
 ## open, snapshot/restore, element duplicate and save/load.
 func test_string_pool_shared() -> void:
-    var cached: ZenCanvas = (load("res://anims/ma_prog_01.tscn") as PackedScene).instantiate()
-    var o := ZenSceneOps.open("res://anims/ma_prog_01.tscn")
+    var cached: ZenCanvas = (load("res://anims/ma_prog/ma_prog_01.tscn") as PackedScene).instantiate()
+    var o := ZenSceneOps.open("res://anims/ma_prog/ma_prog_01.tscn")
     var shared_by := func(c: ZenCanvas) -> bool:
         return ZenStringOps.texts(c).all(func(t): return (t as ZenText).strings == c.strings)
     check(o.strings != cached.strings and shared_by.call(o), "open gives the canvas its own shared pool")
@@ -3739,7 +3742,7 @@ func test_scene_editor_strings() -> void:
     var ed: ZenSceneEditor = (load("res://tools/zen_scene_editor.tscn") as PackedScene).instantiate()
     root.add_child(ed)
     await process_frame
-    ed.open("res://anims/ma_prog_02_coding.tscn")
+    ed.open("res://anims/ma_prog/ma_prog_02_coding.tscn")
     await process_frame
     check(ed._panel("strings") != null, "the editor has a Strings panel")
     ed._sel.assign(["t2"])
@@ -4118,7 +4121,7 @@ func test_canvas_game_api() -> void:
     c.queue_free()
 
     # Pause markers: resume() releases the hold.
-    var p: ZenCanvas = (load("res://anims/ma_prog_01.tscn") as PackedScene).instantiate()
+    var p: ZenCanvas = (load("res://anims/ma_prog/ma_prog_01.tscn") as PackedScene).instantiate()
     root.add_child(p)
     await process_frame
     p.advance_pauses(0.0, float(p.pauses[0]["t"]))
