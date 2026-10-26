@@ -192,11 +192,39 @@ func _dialog(title: String, ok: String) -> ConfirmationDialog:
     return d
 
 
+## The dialog's body: a column inside a scroll box, so a tall dialog scrolls
+## instead of growing past the window (sized by _popup).
 func _col(d: Window) -> VBoxContainer:
+    var sc := ScrollContainer.new()
+    sc.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+    d.add_child(sc)
     var col := VBoxContainer.new()
     col.add_theme_constant_override("separation", 6)
-    d.add_child(col)
+    col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+    sc.add_child(col)
     return col
+
+
+## Show `d` centred: as tall as its content, but never taller than the
+## window leaves room for - the rest scrolls.
+func _popup(d: ConfirmationDialog) -> void:
+    _fit(d)
+    d.popup_centered()
+
+
+## Room for the title bar, the buttons and a margin around the dialog.
+const DIALOG_CHROME := 170
+
+
+func _fit(d: ConfirmationDialog) -> void:
+    var sc: ScrollContainer = null
+    for ch in d.get_children():
+        if ch is ScrollContainer: sc = ch
+    if sc == null or sc.get_child_count() == 0: return
+    var want := (sc.get_child(0) as Control).get_combined_minimum_size().y
+    var room := maxf(get_viewport().get_visible_rect().size.y - DIALOG_CHROME, 120.0)
+    sc.custom_minimum_size.y = minf(want, room)
+    d.reset_size()
 
 
 func _spin(lo: float, hi: float, step: float, tip: String) -> SpinBox:
@@ -251,7 +279,7 @@ func ask_length() -> void:
     _len_spin.set_value_no_signal(ed._canvas.duration)
     _len_scale.set_pressed_no_signal(false)
     _sync_length()
-    _len_dialog.popup_centered()
+    _popup(_len_dialog)
     _len_spin.get_line_edit().grab_focus()
 
 
@@ -318,7 +346,7 @@ func ask_trim() -> void:
     if span.x < 0.0 and _step == 0:
         ed._set_status("nothing to trim: nothing changes over time")
         return
-    _trim_dialog.popup_centered()
+    _popup(_trim_dialog)
 
 
 func _sync_trim() -> void:
@@ -456,7 +484,7 @@ func _ask_effect_name() -> void:
     _name_sigs.set_pressed_no_signal(false)
     _name_sigs.text = "Keep signals (%d)" % sigs if sigs > 0 else "Keep signals (this animation has none)"
     _validate_name()
-    _name_dialog.popup_centered()
+    _popup(_name_dialog)
     _name_edit.grab_focus()
     _name_edit.select_all()
 
@@ -512,7 +540,7 @@ func _ask_elements() -> void:
         c.set_meta("elem", el.elem_name)
         c.button_pressed = _pre_sel.is_empty() or _pre_sel.has(el.elem_name)
         _elem_box.add_child(c)
-    _elem_dialog.popup_centered()
+    _popup(_elem_dialog)
 
 
 func _check_all(on: bool) -> void:
@@ -713,7 +741,7 @@ func ask_insert(path := "", prev := {}) -> void:
         if String(prev["prefix"]) != "": _ins_prefix.text = String(prev["prefix"])
         _fill_rows(prev["map"])
         _sync_insert()
-    _ins_dialog.popup_centered()
+    _popup(_ins_dialog)
 
 
 ## Edit > Adjust last insert: while the last undo step is still that insert,
@@ -742,6 +770,7 @@ func _load_fx() -> void:
     _ins_prefix.text = nm.trim_prefix("fx_") + "_"
     _fill_rows()
     _sync_insert()
+    if _ins_dialog.visible: _fit.call_deferred(_ins_dialog)   # another effect, other rows
 
 
 ## The Elements grid for the picked effect: `map` (else ZenClipOps.suggest -

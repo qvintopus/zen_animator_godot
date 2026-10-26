@@ -2246,6 +2246,9 @@ func _ask_open() -> void:
     for n in names:
         _open_list.add_item(String(n))
         _open_list.set_item_metadata(_open_list.item_count - 1, paths[n])
+    # The list scrolls itself; keep the dialog inside a short window.
+    _open_list.custom_minimum_size.y = clampf(get_viewport().get_visible_rect().size.y - 170.0, 120.0, 320.0)
+    _open_dialog.reset_size()
     _open_dialog.popup_centered()
 
 
