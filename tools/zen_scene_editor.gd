@@ -279,6 +279,13 @@ func _commit_live() -> void:
     _set_status(_live_label)
 
 
+## Where the undo history stands - an op can tell later whether its own step
+## is still the last one.
+func undo_mark() -> Array:
+    _commit_live()
+    return [_undo.get_version(), _undo.get_current_action_name()]
+
+
 func _do_undo() -> void:
     _commit_live()
     if _undo.undo(): _set_status("undo: %s" % _undo.get_current_action_name())
@@ -449,7 +456,11 @@ func _build_menus() -> void:
         {"label": "Extract effect...", "fn": _fx.ask_extract,
          "tip": "Make a new effect animation from part of this one, step by step."},
         {"label": "Insert effect...", "fn": _fx.ask_insert,
-         "tip": "Place another animation into this one: where, how fast, and how its elements are named."}]))
+         "tip": "Place another animation into this one: where, how fast, which elements it drives "
+            + "or adds, and how new ones are named."},
+        {"label": "Adjust last insert...", "fn": _fx.adjust_insert,
+         "tip": "Right after an insert: undo it and reopen the Insert dialog with its settings, to "
+            + "change where it starts, its speed or its element mapping."}]))
     _menu.add_child(_popup("Element", [
         {"label": "Add text", "fn": _add_element.bind("text"), "tip": "Add a text element in front."},
         {"label": "Add shape", "fn": _add_element.bind("shape"), "tip": "Add a shape element in front."},

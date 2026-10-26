@@ -29,7 +29,22 @@ animation out as an *effect*, and put an effect into an animation.
   tooltip, and the menu bar is built from ZenUI actions, so each item carries one.
   `ZenUI.popup_fill` now handles submenus.
 
+## Mapping onto existing elements (2026-10-26)
+
+- `paste(dest, fx, t, prefix, map)`: per effect row `{to, relative, resolve, stepped}`;
+  `to` "" = new, "-" = skip, a name = drive that element (same kind, one row per target).
+- Relative: `pos_x/pos_y/rot` are offset, `scale/w/h/size` are scaled by the target's value at the
+  row's first key; alpha and colours are as keyed. Stepped props are carried only with `stepped`.
+- A target with no own key before the effect is pinned at 0 (and held up to the start), so
+  nothing changes before the effect.
+- Overlap = own keys strictly inside the row's span (`conflicts`). Default merge (the user's
+  choice), flagged in the dialog with *replace own* / *push own after*, and
+  `clear_after` for a start with no overlap.
+- After the insert, its keys are selected. Edit > Adjust last insert works while the undo top is
+  still that insert (`ZenSceneEditor.undo_mark`).
+
 ## Tests
 
-`test_clip_ops` (insert timing, eases, prefix, ratio, text pool), `test_doc_retime_trim`,
-and `test_scene_editor_effects` (Length, Extract end to end, Insert, undo).
+`test_clip_ops` (insert timing, eases, prefix, ratio, text pool), `test_clip_map` (mapping,
+relative/absolute, stepped, conflicts, merge/replace/push), `test_doc_retime_trim`,
+and `test_scene_editor_effects` (Length, Extract end to end, Insert new and mapped, adjust, undo).

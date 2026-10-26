@@ -11,8 +11,11 @@ extends Node
 ##     usual, then trim the empty time. Every step is plain scene editing on
 ##     the copy, so stopping half way leaves an ordinary scene.
 ##   - INSERT asks where (the playhead - movable from the dialog - or a given
-##     second), how fast (a length ratio, the result shown) and whether to
-##     prefix the inserted element names, then runs ZenClipOps.paste.
+##     second), how fast (a length ratio, the result shown), where each effect
+##     element goes (a new element, an existing one it drives - relative or
+##     absolute - or nowhere; overlaps with that element's own keys are shown
+##     with a way out) and whether to prefix the new names, then runs
+##     ZenClipOps.paste. Edit > Adjust last insert reopens it, filled in.
 ##   - LENGTH and TRIM (Edit > Options) change the open scene's own clock.
 ##
 ## It edits the editor's canvas through the editor's own undo steps
@@ -62,8 +65,18 @@ var _ins_prefix_on: CheckBox
 var _ins_prefix: LineEdit
 var _ins_names: Label
 var _ins_info: Label
+var _ins_grid: GridContainer            ## one row per effect element
+var _ins_rows := {}                     ## effect element -> its row's controls
+var _ins_map := {}                      ## effect element -> ZenClipOps map entry
+var _ins_clash: Label
+var _ins_clear: Button
+var _ins_clear_t := 0.0                 ## the first start with no overlap
 var _ins_fx: ZenCanvas = null           ## the picked effect, opened for its numbers
+var _ins_fx_r := 1.0                    ## the ratio _ins_fx is retimed by
 var _ins_path := ""
+## The last insert, for Edit > Adjust last insert: its settings and the undo
+## step it made (`undo` is the editor's undo_mark() right after it).
+var last_insert := {}
 var _syncing := false
 
 
@@ -555,6 +568,7 @@ func _finish_extract() -> void:
 ## Opening a scene ends the guide (extract re-arms it after its own open).
 func scene_opened() -> void:
     _stop_guide(false)
+    last_insert = {}
     refresh_list()
 
 
@@ -612,11 +626,36 @@ func _build_insert() -> void:
     _ins_ratio.value_changed.connect(func(_v): _sync_insert())
     lr.add_child(_ins_ratio)
 
+    col.add_child(ZenUI.label("Elements", ZenUI.TITLE))
+    var eh := ZenUI.label("Each effect element becomes a new element, drives one of this "
+        + "animation's elements of the same kind, or is left out.", ZenUI.TEXT, 12)
+    eh.autowrap_mode = TextServer.AUTOWRAP_WORD
+    eh.custom_minimum_size.x = 360
+    col.add_child(eh)
+    _ins_grid = GridContainer.new()
+    _ins_grid.columns = 4
+    _ins_grid.add_theme_constant_override("h_separation", 8)
+    col.add_child(_ins_grid)
+    var cr := HBoxContainer.new()
+    col.add_child(cr)
+    _ins_clash = ZenUI.label("", ZenUI.WARN, 12)
+    cr.add_child(_ins_clash)
+    _ins_clear = Button.new()
+    _ins_clear.tooltip_text = "Move the effect's start to the first time where it lands on none "
+    _ins_clear.tooltip_text += "of the driven elements' own keys."
+    _ins_clear.pressed.connect(func():
+        _syncing = true
+        _ins_sec.value = _ins_clear_t
+        _syncing = false
+        _ins_at_sec.button_pressed = true
+        _sync_insert())
+    cr.add_child(_ins_clear)
+
     col.add_child(ZenUI.label("Names", ZenUI.TITLE))
     var nr := HBoxContainer.new()
     col.add_child(nr)
-    _ins_prefix_on = _check("prefix", "Put this in front of every inserted element's name, so "
-        + "the effect's elements are easy to tell apart in the Elements panel.")
+    _ins_prefix_on = _check("prefix", "Put this in front of every NEW element's name, so the "
+        + "effect's elements are easy to tell apart in the Elements panel.")
     _ins_prefix_on.toggled.connect(func(_on): _sync_insert())
     nr.add_child(_ins_prefix_on)
     _ins_prefix = LineEdit.new()
@@ -635,9 +674,11 @@ func _build_insert() -> void:
     _ins_dialog.visibility_changed.connect(func(): if not _ins_dialog.visible: _drop_fx())
 
 
-## Insert: the dialog, on the Effects panel's selection (or `path`).
-func ask_insert(path := "") -> void:
+## Insert: the dialog, on the Effects panel's selection (or `path`); `prev`
+## fills it in with an earlier insert's settings (see adjust_insert).
+func ask_insert(path := "", prev := {}) -> void:
     if not _doc_mode(): return
+    if not prev.is_empty(): path = String(prev["path"])
     if path == "": path = selected_path()
     _ins_pick.clear()
     var pick := -1
@@ -662,7 +703,33 @@ func ask_insert(path := "") -> void:
     _ins_at_head.button_pressed = true
     _ins_prefix_on.set_pressed_no_signal(false)
     _load_fx()
+    if not prev.is_empty():
+        _syncing = true
+        _ins_sec.value = float(prev["at"])
+        _ins_ratio.value = float(prev["ratio"])
+        _syncing = false
+        _ins_at_sec.button_pressed = true
+        _ins_prefix_on.set_pressed_no_signal(String(prev["prefix"]) != "")
+        if String(prev["prefix"]) != "": _ins_prefix.text = String(prev["prefix"])
+        _fill_rows(prev["map"])
+        _sync_insert()
     _ins_dialog.popup_centered()
+
+
+## Edit > Adjust last insert: while the last undo step is still that insert,
+## undo it and reopen the dialog with its settings; OK inserts again.
+func can_adjust() -> bool:
+    return not last_insert.is_empty() and ed.undo_mark() == last_insert["undo"]
+
+
+func adjust_insert() -> void:
+    if not can_adjust():
+        ed._set_status("only right after an insert")
+        return
+    var prev := last_insert.duplicate(true)
+    ed._do_undo()
+    last_insert = {}
+    ask_insert("", prev)
 
 
 func _load_fx() -> void:
@@ -670,14 +737,148 @@ func _load_fx() -> void:
     var ix := _ins_pick.selected
     _ins_path = String(_ins_pick.get_item_metadata(ix)) if ix >= 0 else ""
     if _ins_path != "": _ins_fx = ZenSceneOps.open(_ins_path)
+    _ins_fx_r = 1.0
     var nm := _ins_path.get_file().get_basename()
     _ins_prefix.text = nm.trim_prefix("fx_") + "_"
+    _fill_rows()
     _sync_insert()
+
+
+## The Elements grid for the picked effect: `map` (else ZenClipOps.suggest -
+## and a one-element effect drives the one selected element of its kind).
+func _fill_rows(map := {}) -> void:
+    for ch in _ins_grid.get_children():
+        _ins_grid.remove_child(ch)
+        ch.queue_free()
+    _ins_rows.clear()
+    _ins_map = {}
+    if _ins_fx == null: return
+    var c := ed._canvas
+    var rows := ZenElemOps.rows(_ins_fx)
+    if map.is_empty():
+        map = ZenClipOps.suggest(c, _ins_fx)
+        if rows.size() == 1:
+            var kind := (rows[0] as ZenElement).zen_kind()
+            var same := ed._sel.filter(func(n):
+                var d := ZenElemOps.find(c, n)
+                return d != null and d.zen_kind() == kind)
+            if same.size() == 1: map = {(rows[0] as ZenElement).elem_name: {"to": same[0]}}
+    for r in rows: _add_row(r as ZenElement, ZenClipOps.entry(map, (r as ZenElement).elem_name))
+
+
+func _add_row(r: ZenElement, e: Dictionary) -> void:
+    var nm := r.elem_name
+    var kind := r.zen_kind()
+    var inc := _check("%s (%s)" % [nm, kind], "Insert this effect element. Unchecked, it is left out.")
+    inc.button_pressed = e["to"] != "-"
+    _ins_grid.add_child(inc)
+
+    var to := OptionButton.new()
+    to.tooltip_text = "Where its keys go: a NEW element, or one of this animation's %s elements, " % kind
+    to.tooltip_text += "which it then drives - that element's other keys stay."
+    to.add_item("new element")
+    to.set_item_metadata(0, "")
+    for d in ZenClipOps.targets_for(ed._canvas, r):
+        to.add_item("-> " + (d as ZenElement).elem_name)
+        to.set_item_metadata(to.item_count - 1, (d as ZenElement).elem_name)
+        if (d as ZenElement).elem_name == e["to"]: to.select(to.item_count - 1)
+    _ins_grid.add_child(to)
+
+    var mc := HBoxContainer.new()
+    var mode := OptionButton.new()
+    mode.add_item("relative")
+    mode.set_item_tooltip(0, "Moves with the element it drives: position and rotation add to its "
+        + "own, sizes scale by its own. Alpha and colours play as keyed.")
+    mode.add_item("absolute")
+    mode.set_item_tooltip(1, "The effect's own values, exactly as keyed.")
+    mode.select(0 if e["relative"] else 1)
+    mode.tooltip_text = "How the effect's values meet the driven element's: relative to its own, "
+    mode.tooltip_text += "or the effect's exact values."
+    mc.add_child(mode)
+    var stepped := ZenClipOps.carried(_ins_fx, r, true).size() > ZenClipOps.carried(_ins_fx, r, false).size()
+    var words := _check("+ text" if kind == "text" else "+ shape",
+        "Also take the effect's %s keys. Off, the driven element keeps its own." % ("words" if kind == "text" else "shape"))
+    words.button_pressed = e["stepped"]
+    words.visible = stepped
+    mc.add_child(words)
+    _ins_grid.add_child(mc)
+
+    var cc := HBoxContainer.new()
+    var warn := ZenUI.label("", ZenUI.WARN, 12)
+    warn.mouse_filter = Control.MOUSE_FILTER_PASS
+    cc.add_child(warn)
+    var res := OptionButton.new()
+    res.add_item("merge")
+    res.set_item_tooltip(0, "Lay the effect's keys between the element's own: both play, interleaved.")
+    res.add_item("replace own")
+    res.set_item_tooltip(1, "Remove the element's own keys inside the effect's span first.")
+    res.add_item("push own after")
+    res.set_item_tooltip(2, "Move the element's own keys from the effect's start onwards later by "
+        + "the effect's length, so they play after it. The scene grows if needed.")
+    res.select(maxi(ZenClipOps.RESOLVE.find(e["resolve"]), 0))
+    res.tooltip_text = "This element has its own keys where the effect lands: how to settle them."
+    cc.add_child(res)
+    _ins_grid.add_child(cc)
+
+    _ins_rows[nm] = {"inc": inc, "to": to, "mode": mode, "words": words, "clash": cc, "warn": warn, "res": res}
+    _ins_map[nm] = e
+    var changed := func(_x = null): _row_changed(nm)
+    inc.toggled.connect(changed)
+    to.item_selected.connect(changed)
+    mode.item_selected.connect(changed)
+    words.toggled.connect(changed)
+    res.item_selected.connect(changed)
+
+
+func _row_changed(nm: String) -> void:
+    var w: Dictionary = _ins_rows[nm]
+    var to: OptionButton = w["to"]
+    _ins_map[nm] = {"to": String(to.get_item_metadata(to.selected)) if (w["inc"] as CheckBox).button_pressed else "-",
+        "relative": (w["mode"] as OptionButton).selected == 0,
+        "resolve": ZenClipOps.RESOLVE[(w["res"] as OptionButton).selected],
+        "stepped": (w["words"] as CheckBox).button_pressed}
+    _sync_insert()
+
+
+## The rows' controls from the map: claimed targets, overlaps and their fixes.
+func _sync_rows(at: float) -> Dictionary:
+    var c := ed._canvas
+    var claimed := {}
+    for nm in _ins_map:
+        var t := String(_ins_map[nm]["to"])
+        if t != "" and t != "-": claimed[t] = nm
+    var clash := ZenClipOps.conflicts(c, _ins_fx, at, _ins_map)
+    var by_row := {}
+    for target in clash: by_row[clash[target]["row"]] = clash[target]
+    for nm in _ins_rows:
+        var w: Dictionary = _ins_rows[nm]
+        var e: Dictionary = _ins_map[nm]
+        var on := String(e["to"]) != "-"
+        var drives := on and String(e["to"]) != ""
+        var to: OptionButton = w["to"]
+        to.disabled = not on
+        to.set_item_text(0, "new: " + ZenElemOps.unique_name(c, insert_prefix() + String(nm)))
+        for i in range(1, to.item_count):
+            var owner_row: String = claimed.get(to.get_item_metadata(i), nm)
+            to.set_item_disabled(i, owner_row != nm)
+        (w["mode"] as OptionButton).disabled = not drives
+        (w["words"] as CheckBox).disabled = not drives
+        var cf: Dictionary = by_row.get(nm, {})
+        # The cell stays (a hidden grid cell shifts the rows); its contents go.
+        for ch in (w["clash"] as Control).get_children(): (ch as Control).visible = drives and not cf.is_empty()
+        if not cf.is_empty():
+            var warn: Label = w["warn"]
+            warn.text = "%d own key(s) %.2f-%.2fs" % [cf["keys"], cf["first"], cf["last"]]
+            warn.tooltip_text = "%s has its own %s keys inside the effect's span (%s)." % [
+                String(e["to"]), ", ".join(PackedStringArray(cf["props"])),
+                "merged in between" if e["resolve"] == "merge" else String(e["resolve"]) + "d"]
+    return clash
 
 
 func _drop_fx() -> void:
     if _ins_fx != null and is_instance_valid(_ins_fx): _ins_fx.free()
     _ins_fx = null
+    _ins_fx_r = 1.0
 
 
 func insert_at() -> float:
@@ -697,20 +898,35 @@ func _sync_insert() -> void:
         return
     _ins_dialog.get_ok_button().disabled = false
     var c := ed._canvas
+    var r := _ins_ratio.value
+    # The opened copy plays at the ratio, so its spans are the inserted ones.
+    if not is_equal_approx(r, _ins_fx_r):
+        ZenDocOps.retime(_ins_fx, r / _ins_fx_r)
+        _ins_fx_r = r
+    var base_len := _ins_fx.duration / r
     var rows := ZenElemOps.rows(_ins_fx).size()
     var sigs := ZenSignalOps.names(_ins_fx).size()
-    _ins_about.text = "%.2fs, %d element(s)%s" % [_ins_fx.duration, rows,
+    _ins_about.text = "%.2fs, %d element(s)%s" % [base_len, rows,
         ", %d signal(s) - not inserted" % sigs if sigs > 0 else ""]
-    var r := _ins_ratio.value
-    var fx_len := _ins_fx.duration * r
+    var fx_len := base_len * r
     var at := insert_at()
-    var s := "length %.2fs x %.2f = %.2fs, from %.2fs to %.2fs" % [_ins_fx.duration, r, fx_len, at, at + fx_len]
+    var s := "length %.2fs x %.2f = %.2fs, from %.2fs to %.2fs" % [base_len, r, fx_len, at, at + fx_len]
     if at + fx_len > c.duration + EPS:
         s += "\nthis animation grows from %.2fs to %.2fs" % [c.duration, at + fx_len]
     _ins_info.text = s
-    var names := ZenClipOps.names_for(c, _ins_fx, insert_prefix())
+    var names := ZenClipOps.names_for(c, _ins_fx, insert_prefix(), _ins_map)
     var shown := names.slice(0, 4)
-    _ins_names.text = "adds: " + ", ".join(PackedStringArray(shown)) + (", ..." if names.size() > shown.size() else "")
+    _ins_names.text = "adds no new element" if names.is_empty() else \
+        "adds: " + ", ".join(PackedStringArray(shown)) + (", ..." if names.size() > shown.size() else "")
+    var clash := _sync_rows(at)
+    var merged := 0
+    for target in clash:
+        if ZenClipOps.entry(_ins_map, clash[target]["row"])["resolve"] == "merge": merged += 1
+    _ins_clash.text = "" if clash.is_empty() else "%d driven element(s) have own keys where the effect lands" % clash.size()
+    _ins_clear_t = ZenClipOps.clear_after(c, _ins_fx, at, _ins_map) if not clash.is_empty() else at
+    _ins_clear.text = "start at %.2fs instead" % _ins_clear_t
+    _ins_clear.visible = not clash.is_empty() and _ins_clear_t > at + EPS
+    _ins_dialog.ok_button_text = "Insert" if merged == 0 else "Insert (%d overlap(s) merged)" % merged
 
 
 func _apply_insert() -> void:
@@ -722,17 +938,61 @@ func _apply_insert() -> void:
     ZenDocOps.retime(fx, _ins_ratio.value)
     var at := insert_at()
     var prefix := insert_prefix()
+    var map := _ins_map.duplicate(true)
     var c := ed._canvas
     var made: Array = []
+    var clash := ZenClipOps.conflicts(c, fx, at, map)
+    # What each driven row writes - its span and props - for picking its keys.
+    var spans := {}
+    for r in ZenElemOps.rows(fx):
+        var e := ZenClipOps.entry(map, (r as ZenElement).elem_name)
+        if e["to"] == "" or e["to"] == "-": continue
+        var props: Array = []
+        for hp in ZenClipOps.carried(fx, r, e["stepped"]):
+            if not props.has(hp[1]): props.append(hp[1])
+        spans[String(e["to"])] = [ZenClipOps.row_span(fx, r, e["stepped"]), props]
     # A lambda captures `made` by value: fill the array, do not reassign it.
     ed._command("insert %s" % _ins_path.get_file().get_basename(), func():
-        made.assign(ZenClipOps.paste(c, fx, at, prefix)))
+        made.assign(ZenClipOps.paste(c, fx, at, prefix, map)))
     fx.free()
     if made.is_empty(): return
+    last_insert = {"path": _ins_path, "at": at, "ratio": _ins_ratio.value, "prefix": prefix,
+                   "map": map, "undo": ed.undo_mark()}
     var out: Array[String] = []
     for el in made: out.append((el as ZenElement).elem_name)
     ed._sel = out
     ed._on_selection_changed(true)
+    _select_inserted(made, spans, at)
+    var merged: Array = []
+    for target in clash:
+        if ZenClipOps.entry(map, clash[target]["row"])["resolve"] == "merge":
+            merged.append("%d on %s" % [clash[target]["keys"], target])
+    if not merged.is_empty():
+        ed._set_status("merged over own keys (%s) - Ctrl+Z undoes, Edit > Adjust last insert changes it"
+            % ", ".join(PackedStringArray(merged)))
+
+
+## Pick the keys the insert wrote, so the Keys panel's shift and stretch move
+## it as one: every key of a new element; of a driven one (`spans`: target ->
+## [span, props]), the keys inside the span on the props the effect wrote.
+func _select_inserted(made: Array, spans: Dictionary, at: float) -> void:
+    var ids: Array = []
+    for row in made:
+        var span := Vector2(-INF, INF)
+        var props: Array = []
+        var sp: Array = spans.get((row as ZenElement).elem_name, [])
+        if not sp.is_empty():
+            span = Vector2(at + (sp[0] as Vector2).x, at + (sp[0] as Vector2).y)
+            props = sp[1]
+        for h in ZenElemOps.halves(ed._canvas, row):
+            for prop in ZenKeyOps.keyed_props(ed._canvas, h):
+                if not props.is_empty() and not props.has(prop): continue
+                var ks := ZenKeyOps.keys(ed._canvas, h, prop)
+                for i in ks.size():
+                    var kt := float(ks[i]["t"])
+                    if kt >= span.x - ZenKeyOps.T_EPS and kt <= span.y + ZenKeyOps.T_EPS:
+                        ids.append("%s|%s|%d" % [String((h as ZenElement).name), prop, i])
+    if not ids.is_empty(): ed._select_ids(ids, false)
 
 
 # ---------------------------------------------------------------- helpers

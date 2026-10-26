@@ -595,12 +595,24 @@ the gallery's `effects` folder. The **Effects** panel (**8**) lists every animat
   the effect on the timeline, as usual. (5) **Trim** cuts the empty time, and the effect
   is saved. Stopping half way leaves an ordinary scene.
 - **Insert...** (or double-click, or right-click the ruler: *insert effect here*) places
-  another animation into this one. Its elements are added as new ones, with values,
-  bezier handles and eases kept (`ZenClipOps.paste`). The dialog asks where it starts:
-  at the playhead (changing the value scrubs the playhead) or at a given second. It
-  also asks for a **ratio** for its length (0.5 = twice as fast; the resulting length
-  and end are shown, and the scene grows if the effect runs past its end) and an
-  optional **prefix** for the inserted element names. Signals are not inserted.
+  another animation into this one, with values, bezier handles and eases kept
+  (`ZenClipOps.paste`). The dialog asks where it starts: at the playhead (changing the
+  value scrubs the playhead) or at a given second. It also asks for a **ratio** for its
+  length (0.5 = twice as fast; the resulting length and end are shown, and the scene
+  grows if the effect runs past its end) and an optional **prefix** for new element
+  names. Signals are not inserted.
+- **Elements** (in the Insert dialog): each effect element is added as a **new** element,
+  **drives** an existing element of the same kind (one effect element per target), or is
+  left out. A same-named element is suggested; a one-element effect drives the selected
+  element. A driven element is either **relative** (position and rotation add to its own,
+  sizes scale by its own; alpha and colours play as keyed) or **absolute**. It keeps its
+  own words or shape unless *+ text* / *+ shape* is ticked. When it has keys of its own
+  inside the effect's span, the row shows them (count and times) and offers **merge**
+  (interleave, the default), **replace own** or **push own after**. *Start at ... instead*
+  moves the effect to the first time with no overlap.
+- After an insert, its keys are picked, so the Keys panel's shift and stretch move it as
+  one. **Edit > Adjust last insert...** (right after it) undoes it and reopens the dialog
+  with the same settings.
 
 **Edit > Options > Length...** sets the animation's length. *Scale keys* stretches every
 key, marker and pause with it (`ZenDocOps.retime`); otherwise keys stay put and those past

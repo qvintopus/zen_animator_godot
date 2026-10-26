@@ -4087,6 +4087,11 @@ func test_scene_editor_effects() -> void:
     fx._ins_sec.value = 1.5
     check(fx._ins_at_sec.button_pressed, "typing a second picks 'at second'")
     fx._ins_ratio.value = 2.0
+    check(fx._ins_map.get("ring", {}).get("to") == "ring", "a same-named element is suggested as the target")
+    var ring_to: OptionButton = fx._ins_rows["ring"]["to"]
+    ring_to.select(0)
+    ring_to.item_selected.emit(0)                       # what picking sends
+    check(fx._ins_map["ring"]["to"] == "", "...and can be switched to a new element")
     fx._ins_prefix.text = "pre_"
     fx._ins_prefix.text_changed.emit("pre_")          # what typing sends
     check(fx.insert_prefix() == "pre_", "typing a prefix turns it on")
@@ -4103,6 +4108,38 @@ func test_scene_editor_effects() -> void:
     check(ed._sel.size() == 1 and ed._sel[0] == "pre_ring", "the inserted elements are selected")
     ed._do_undo()
     check(ZenElemOps.find(ed._canvas, "pre_ring") == null, "one undo removes the insert")
+
+    # Mapped onto the existing ring, relative, over its own keys: reported,
+    # merged, selected, and adjustable afterwards.
+    ring = ZenElemOps.find(ed._canvas, "ring")
+    var own_n := ZenKeyOps.keys(ed._canvas, ring, "pos_x").size()
+    fx.ask_insert(ZenSceneOps.path_of("zz_fx_out"))
+    fx._ins_sec.value = 0.4
+    check(fx._ins_map["ring"]["to"] == "ring" and fx._ins_map["ring"]["relative"], "the suggestion drives ring, relative")
+    check((fx._ins_rows["ring"]["warn"] as Control).visible, "ring's own key at 0.8s shows as an overlap")
+    check(fx._ins_clear.visible, "...with a later start offered: %s" % fx._ins_clear.text)
+    check(fx._ins_names.text == "adds no new element", "a fully mapped insert adds nothing: %s" % fx._ins_names.text)
+    fx._ins_dialog.hide()
+    fx._apply_insert()
+    check(ZenElemOps.rows(ed._canvas).size() == n0, "a mapped insert adds no element")
+    var rk2 := ZenKeyOps.keys(ed._canvas, ring, "pos_x")
+    check(rk2.size() > own_n, "...it merges keys into ring (%d -> %d)" % [own_n, rk2.size()])
+    check(not ed._key_sel.is_empty(), "the inserted keys are picked for the Keys panel")
+    check(ed._status.text.contains("merged over"), "the status names the merged overlap: %s" % ed._status.text)
+    check(fx.can_adjust(), "right after it, the insert can be adjusted")
+    fx.adjust_insert()
+    check(fx._ins_dialog.visible and absf(fx._ins_sec.value - 0.4) < 1e-3 and fx._ins_at_sec.button_pressed,
+          "Adjust undoes and reopens the dialog with its settings")
+    check(ZenKeyOps.keys(ed._canvas, ring, "pos_x").size() == own_n, "...the insert is undone meanwhile")
+    var res: OptionButton = fx._ins_rows["ring"]["res"]
+    res.select(1)
+    res.item_selected.emit(1)
+    fx._ins_dialog.hide()
+    fx._apply_insert()
+    check(ZenKeyOps.keys(ed._canvas, ring, "pos_x").size() < rk2.size(), "re-inserted with 'replace own'")
+    ed._do_undo()
+    check(ZenKeyOps.keys(ed._canvas, ring, "pos_x").size() == own_n, "...still one undo step")
+    check(not fx.can_adjust(), "after an undo there is nothing to adjust")
 
     # The playhead option scrubs the editor as it changes.
     fx.ask_insert(ZenSceneOps.path_of("zz_fx_out"))
