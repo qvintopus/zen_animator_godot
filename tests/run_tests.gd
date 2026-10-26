@@ -111,6 +111,7 @@ func _run() -> void:
     await test_loop_play_separate_from_smooth()
     await test_viewer_intro_loop_toggles()
     test_pixel_shape()
+    test_shipped_shapes()
     test_custom_shape_resolution()
     test_element_hit()
     test_stage_view()
@@ -2837,6 +2838,18 @@ func test_pixel_shape() -> void:
     check(ZenPixelShape.valid_name("page_icon") and not ZenPixelShape.valid_name("_x")
           and not ZenPixelShape.valid_name("a b") and not ZenPixelShape.valid_name(""),
           "shape name rules")
+
+
+## Every shipped shape (the ported ones and tools/gen_shapes.gd's) loads whole and
+## has ink - a primitive that painted nothing would leave it empty.
+func test_shipped_shapes() -> void:
+    var names := ZenAssets.shape_names()
+    check(names.size() >= 50, "the shipped shape set is there (%d)" % names.size())
+    for nm: String in names:
+        var sh := ZenAssets.load_shape(nm)
+        check(sh != null and sh.cells.size() == sh.size.x * sh.size.y, "%s loads whole" % nm)
+        if sh == null: continue
+        check(sh.count(ZenPixelShape.EMPTY) < sh.cells.size(), "%s has ink" % nm)
 
 
 ## A custom shape keeps its shape_name, its `shape_refs` list, and shape_at()

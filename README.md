@@ -157,6 +157,11 @@ UndoRedo-backed undo/redo, a reference image (native file dialog or drag-and-dro
 with fade/threshold/scale/offset and converted to pixels, a live preview tinted with
 pickable colours, and rename / duplicate / delete. The editor works on a copy; **Save** writes the `.tres` and updates the
 already-loaded resource, so animations using it redraw at once.
+Besides the ported icons, `tools/gen_shapes.gd` paints a 64x64 set for explaining code and
+coding with AI (brackets, terminal, git branch, chip, robot, chat, neural net, sparkles...)
+plus a few unrelated ones (heart, cat, rocket, sun...)
+(`Godot --headless --path . --script res://tools/gen_shapes.gd`). A re-run keeps any shape
+that already exists, so editor touch-ups survive; `-- --force` repaints them.
 
 **Scenes play on F6, and the AnimationPlayer is the scene's timeline.** Every
 `anims/*.tscn` saves an `AnimationPlayer` beside `Signals`; it is the **only** stored copy
@@ -389,7 +394,8 @@ tools/                 zen_gallery.gd, zen_options.gd (font picker), zen_shape_e
                        signal_shots.tscn (renders what an export cannot show),
                        gen_ease_ref.gd (regenerates tests/ease_ref.txt),
                        gen_raylib_font.gd (regenerates the default raylib font),
-                       gen_input_map.gd (regenerates project.godot's [input] section)
+                       gen_input_map.gd (regenerates project.godot's [input] section),
+                       gen_shapes.gd (paints the generated pixel-shape icons)
 assets/shapes/         pixel-shape assets (ZenPixelShape .tres)
 assets/easings.tres    the custom easings (ZenEasingSet)
 anims/                 authored Godot scenes (source of truth); subdirectories are
