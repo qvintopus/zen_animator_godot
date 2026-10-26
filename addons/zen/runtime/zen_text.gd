@@ -160,10 +160,13 @@ func string_index_at(t: float) -> int:
     return i
 
 
-## The words at `t`, straight from the pool.
+## The words at `t`: the pool entry, with %1..%9 filled from the canvas's
+## text_args.
 func text_at(t: float) -> String:
     if strings == null: return ""
-    return strings.at(string_index_at(t))
+    if canvas == null: _find_canvas()
+    return ZenStrings.format(strings.at(string_index_at(t)),
+                             canvas.text_args if canvas != null else PackedStringArray())
 
 
 ## Rewrite the label from the pool at the last pose time.

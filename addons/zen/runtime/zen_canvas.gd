@@ -68,6 +68,20 @@ signal paused(index: int)
 ## text node that has none, so a hand-built scene still resolves its words.
 @export var strings: ZenStrings
 
+## TEXT ARGUMENTS: the sequenced data packet that fills %1..%9 in the pool's
+## entries ("WAVE %1" + ["3"] -> "WAVE 3"). The saved values are the samples
+## the gallery, editor and exports show; game code replaces them with
+## set_text_args() / play_with() / fire(name, {"args": [...]}).
+@export var text_args := PackedStringArray():
+	set(v):
+		text_args = v
+		for e in elements():
+			if e is ZenText: (e as ZenText)._resolve()
+
+## What each slot means (["wave", "rooms_left"] names %1 and %2). Documentation
+## only: the editor and the exported README show it, nothing reads it to play.
+@export var text_arg_names := PackedStringArray()
+
 ## Background colour painted before any element. Alpha 0 means "draw nothing",
 ## letting whatever is behind show through (anim_stage.h:20-27).
 @export var clear_color := Color(0, 0, 0, 0)
@@ -681,9 +695,24 @@ func resume() -> bool:
 	return true
 
 
+## Replace the text packet: args[0] fills %1, args[1] %2... Any values,
+## stringified, so play_with([wave, "BIG JELLY"]) needs no str() calls.
+func set_text_args(args: Array) -> void:
+	var out := PackedStringArray()
+	for a in args: out.append(str(a))
+	text_args = out
+
+
+## set_text_args(args), then play().
+func play_with(args: Array, from_start := true) -> void:
+	set_text_args(args)
+	play(from_start)
+
+
 ## Fire an authored signal by name. Returns false for a name the scene does
-## not declare.
+## not declare. `params.args`, when given, replaces the text packet first.
 func fire(signal_name: String, params: Dictionary = {}) -> bool:
+	if params.has("args"): set_text_args(params["args"])
 	var bus_ := bus()
 	return bus_ != null and bus_.fire(signal_name, params)
 

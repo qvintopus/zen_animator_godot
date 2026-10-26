@@ -141,6 +141,7 @@ func _run() -> void:
     test_string_pool_scenes()
     test_string_ops()
     test_string_pool_shared()
+    test_text_args()
     await test_scene_editor()
     await test_scene_editor_strings()
     await test_scene_editor_effects()
@@ -4019,6 +4020,45 @@ func test_string_pool_shared() -> void:
     check(shared_by.call(back) and back.strings.at(0) == "later", "it loads back shared, with the edit")
     DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
     for x in [cached, o, snap, back]: x.free()
+
+
+## Text arguments: %1..%9 in a pool entry, filled from the canvas packet.
+func test_text_args() -> void:
+    var a := PackedStringArray(["3", "2"])
+    check(ZenStrings.format("WAVE %1", a) == "WAVE 3", "format fills %1")
+    check(ZenStrings.format("%2 left of %1", a) == "2 left of 3", "slots fill by number, not order")
+    check(ZenStrings.format("WAVE %1 / %3", a) == "WAVE 3 / %3", "a slot without an arg stays visible")
+    check(ZenStrings.format("100%% %1", a) == "100% 3", "%% is a literal percent")
+    check(ZenStrings.format("50% off", a) == "50% off", "a lone % is kept")
+    check(ZenStrings.format("%10", a) == "30", "only one digit is a slot (%10 = %1 then 0)")
+    check(ZenStrings.arg_slots("%2 x %1 %2 %%3") == PackedInt32Array([1, 2]), "arg_slots lists used slots")
+
+    var o := ZenSceneOps.new_canvas("untitled")
+    var t := ZenElemOps.add(o, "text", "zz_args") as ZenText
+    var i := t.string_index_at(0.0)   # a new text keys its own entry on a `string` track
+    ZenStringOps.set_text(o, i, "WAVE %1 - %2 LEFT")
+    o.pose(0.0)
+    check(t.text == "WAVE %1 - %2 LEFT", "no args: placeholders show as written")
+    check(o.strings.arg_count() == 2, "arg_count is the highest slot used")
+    var seen: Array = []
+    t.text_changed.connect(func(s): seen.append(s))
+    o.set_text_args([7, "BIG JELLY"])
+    check(t.text == "WAVE 7 - BIG JELLY LEFT" and seen == ["WAVE 7 - BIG JELLY LEFT"],
+          "set_text_args stringifies, re-resolves and emits text_changed")
+    check(o.strings.at(i) == "WAVE %1 - %2 LEFT", "the pool entry is never rewritten")
+    o.fire("nope", {"args": ["9"]})
+    check(t.text == "WAVE 9 - %2 LEFT", "fire() applies params.args even for an unknown signal name")
+
+    o.text_arg_names = PackedStringArray(["wave", "left"])
+    var nm := "zz_test_text_args"
+    var path := ZenSceneOps.save(o, nm)
+    var back := ZenSceneOps.open(path)
+    var bt := ZenElemOps.find(back, t.elem_name) as ZenText
+    back.pose(0.0)
+    check(back.text_args == PackedStringArray(["9"]) and back.text_arg_names.size() == 2
+          and bt.text == "WAVE 9 - %2 LEFT", "args and their names save as the scene's samples")
+    DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
+    for x in [o, back]: x.free()
 
 
 ## Effects through the editor's own handlers: Length, Trim, Extract, Insert.

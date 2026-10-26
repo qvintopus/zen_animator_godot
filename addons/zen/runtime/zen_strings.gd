@@ -19,6 +19,11 @@ extends Resource
 ## Reference counting needs the scene's Animations, so it lives in
 ## ZenStringOps; this class knows nothing about keys.
 ##
+## TEXT ARGUMENTS. An entry may hold %1..%9, filled from the canvas's
+## sequenced packet (ZenCanvas.text_args) when a text resolves: "WAVE %1"
+## with ["3"] shows "WAVE 3". %% is a literal %. The entry itself is never
+## rewritten - the placeholder is the visible marker of a dynamic field.
+##
 
 @export var entries: PackedStringArray = PackedStringArray()
 
@@ -75,3 +80,53 @@ func truncate(n: int) -> void:
     if n < 0 or n >= entries.size(): return
     entries.resize(n)
     emit_changed()
+
+
+## `s` with %1..%9 replaced by args[0..8] and %% by %. A slot with no arg is
+## left as written ("%2"), so a missing value shows in a preview instead of
+## silently vanishing.
+static func format(s: String, args: PackedStringArray) -> String:
+    if s.find("%") < 0: return s
+    var out := ""
+    var i := 0
+    while i < s.length():
+        var c := s[i]
+        if c == "%" and i + 1 < s.length():
+            var n := s[i + 1]
+            if n == "%":
+                out += "%"
+                i += 2
+                continue
+            if n >= "1" and n <= "9":
+                var slot := n.unicode_at(0) - 49
+                out += args[slot] if slot < args.size() else "%" + n
+                i += 2
+                continue
+        out += c
+        i += 1
+    return out
+
+
+## The 1-based argument slots `s` uses, ascending and without repeats.
+static func arg_slots(s: String) -> PackedInt32Array:
+    var used := {}
+    var i := 0
+    while i < s.length() - 1:
+        if s[i] == "%":
+            var n := s[i + 1]
+            if n >= "1" and n <= "9": used[n.unicode_at(0) - 48] = true
+            i += 2
+            continue
+        i += 1
+    var out := PackedInt32Array(used.keys())
+    out.sort()
+    return out
+
+
+## The highest argument slot any entry uses (0 for a pool without args).
+func arg_count() -> int:
+    var top := 0
+    for e in entries:
+        var slots := arg_slots(e)
+        if not slots.is_empty(): top = maxi(top, slots[slots.size() - 1])
+    return top
