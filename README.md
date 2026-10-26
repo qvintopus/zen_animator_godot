@@ -146,6 +146,18 @@ the next added entry refills it - and the **Strings** panel's **clean up holes**
 the pool, rewriting every `string_base` and every `string` key (signals included). An entry
 still in use cannot be deleted.
 
+**Text arguments** make a field the game fills: an entry may hold `%1`..`%9` (`%%` is a
+literal %), and every text shows its entry formatted with the canvas's one sequenced
+packet, `ZenCanvas.text_args` - `"WAVE %1 completed with %2 rooms left"` with `[3, 2]`
+reads *WAVE 3 completed with 2 rooms left*. The entry itself never changes, so the
+placeholder is what marks a dynamic field; a slot with no value stays visible as `%2`.
+The saved `text_args` are **sample values** - what the editor, the gallery and exports
+show - and `text_arg_names` says what each slot means. Both are edited in the Document
+panel's **Text args** rows (one per slot the pool uses); the Strings list tags an entry
+with its fields (`{%1 %2}`). Game code passes the packet with `play_with([3, 2])`,
+`set_text_args([...])` (values are stringified) or `fire(name, {"args": [...]})`, so a
+signal can carry its own.
+
 **Visual assets are pixel shapes** - `ZenPixelShape` resources in `assets/shapes/*.tres`.
 A pixel shape is a grid of fill/outline cells with no colour of its own: a `custom`
 `ZenShape` tints fill with its `color` track and outline with `outline_color`, and a
@@ -304,12 +316,15 @@ func close_menu() -> void:
 ```
 
 `play(from_start := true)`, `stop()`, `restart()`, `resume()` (past a pause marker),
-`fire(name, params := {})`, `release_signal()` (let go of a follow or a held end pose),
+`fire(name, params := {})` (`params.args` sets the text args first),
+`play_with(args, from_start := true)` / `set_text_args(args)` (fill `%1`, `%2`... - see
+Text arguments), `release_signal()` (let go of a follow or a held end pose),
 `signal_names()`; signals `finished` and `paused(index)`, plus `bus().signal_fired` /
 `bus().terminal_finished`. Set `live_playback = false` in the inherited scene to start it
 stopped, then call `play()`. Press/release/follow signals read the mouse by themselves;
 untick `pointer_input` to feed `pointer(kind, frac)` from game code instead. The
-generated README.txt says what triggers each of the scene's signals.
+generated README.txt says what triggers each of the scene's signals and lists its text
+args (slot, name, sample, the entries that show it).
 
 ```sh
 ./Godot_v4.7.2-stable_linux.x86_64 --headless --path . tools/export_scene.tscn -- \

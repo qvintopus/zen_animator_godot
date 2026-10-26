@@ -4058,6 +4058,11 @@ func test_text_args() -> void:
     check(back.text_args == PackedStringArray(["9"]) and back.text_arg_names.size() == 2
           and bt.text == "WAVE 9 - %2 LEFT", "args and their names save as the scene's samples")
     DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
+    ZenDocOps.set_text_arg(back, 2, "rooms_left", "4")
+    check(back.text_args == PackedStringArray(["9", "4"]) and bt.text == "WAVE 9 - 4 LEFT"
+          and back.text_arg_names[1] == "rooms_left", "set_text_arg writes a slot's name and sample")
+    check(ZenSceneEditor._string_label(3, "WAVE %2 of %1", 1) == "#3  WAVE %2 of %1  ×1  {%1 %2}",
+          "the Strings list marks entries with fields")
     for x in [o, back]: x.free()
 
 

@@ -79,6 +79,21 @@ static func remove_pause(canvas: ZenCanvas, i: int) -> void:
 
 ## Scale the whole clock by `factor`: every document key (and handle reach),
 ## the length, intro, outro and pauses. Signals keep their own seconds.
+## Name and sample value of text argument `slot` (1-based: %1 is slot 1).
+## Both arrays grow to reach it; the sample is what previews and exports show
+## until game code passes its own packet.
+static func set_text_arg(canvas: ZenCanvas, slot: int, nm: String, value: String) -> void:
+    if slot < 1 or slot > 9: return
+    var names := canvas.text_arg_names
+    var args := canvas.text_args
+    while names.size() < slot: names.append("")
+    while args.size() < slot: args.append("")
+    names[slot - 1] = nm
+    args[slot - 1] = value
+    canvas.text_arg_names = names
+    canvas.text_args = args       # the setter re-resolves every text
+
+
 static func retime(canvas: ZenCanvas, factor: float) -> void:
     var anim := ZenKeyOps.anim_of(canvas)
     if anim == null or factor <= 0.0 or is_equal_approx(factor, 1.0): return

@@ -116,6 +116,7 @@ var _tree: Tree
 var _insp: VBoxContainer
 var _insp_rows: Array = []              ## [{prop, node, editor, key}]
 var _doc_rows: Dictionary = {}
+var _args_box: VBoxContainer
 var _tl: ZenTimelineView
 var _ctx: PopupMenu
 var _ctx_ease: PopupMenu
@@ -558,6 +559,13 @@ func _build_doc(p: VBoxContainer) -> void:
         ZenUI.DIM, 11)
     note.autowrap_mode = TextServer.AUTOWRAP_WORD
     p.add_child(note)
+    var head := ZenUI.label("Text args", ZenUI.TEXT)
+    head.tooltip_text = "Pool entries may hold %1..%9. Game code fills them in order:\n" \
+        + "play_with([wave, rooms_left]) or fire(name, {\"args\": [...]})."
+    head.mouse_filter = MOUSE_FILTER_PASS
+    p.add_child(head)
+    _args_box = VBoxContainer.new()
+    p.add_child(_args_box)
 
 
 func _doc_spin(g: GridContainer, text: String, lo: float, hi: float, step: float,
@@ -698,7 +706,9 @@ static func _string_label(i: int, words: String, users: int) -> String:
     var one := words.replace("\n", " / ").strip_edges()
     if one.length() > 34: one = one.substr(0, 33) + "…"
     if words.is_empty(): one = "(hole)" if users == 0 else "(empty)"
-    return "#%d  %s  ×%d" % [i, one, users]
+    var fields := ""
+    for n in ZenStrings.arg_slots(words): fields += " %%%d" % n
+    return "#%d  %s  ×%d%s" % [i, one, users, ("  {" + fields.strip_edges() + "}") if fields != "" else ""]
 
 
 ## Words for a new entry that no other entry already holds, so add() cannot
@@ -743,6 +753,12 @@ func _refresh_strings(keep_edit := false) -> void:
     _str_info.text = "%d entries, %d holes. Text elements always show a pool entry; an edit changes it for everyone using it." % [
         pool.entries.size() - holes.size(), holes.size()]
     if has: _str_info.text = "#%d used by %d.  " % [_str_sel, users] + _str_info.text
+    var slots := ZenStrings.arg_slots(pool.at(_str_sel)) if has else PackedInt32Array()
+    if not slots.is_empty():
+        var fields := PackedStringArray()
+        for n in slots: fields.append("%%%d" % n)
+        _str_info.text = "Fields %s are filled by the game (Document > Text args).  " % ", ".join(fields) \
+            + _str_info.text
 
 
 func _selected_texts() -> Array:
@@ -1335,7 +1351,50 @@ func _refresh_doc() -> void:
     cs.set_item_text(cs.item_count - 1, "%d x %d  custom" % [int(_canvas.design_size.x), int(_canvas.design_size.y)])
     cs.select(pi if pi >= 0 else cs.item_count - 1)
     (_doc_rows["pauses"] as Label).text = "%d" % _canvas.pauses.size()
+    _refresh_args()
     _syncing = false
+
+
+## One row per %N the pool uses: its name and the sample value previews show.
+## Rows are rebuilt only when the slot count changes, so typing keeps its caret.
+func _refresh_args() -> void:
+    if _args_box == null: return
+    var n := ZenStringOps.pool(_canvas).arg_count()
+    if _args_box.get_child_count() != maxi(n, 1):
+        for c in _args_box.get_children(): c.free()
+        if n == 0:
+            var none := ZenUI.label("No entry uses %1..%9. Type one into a string (\"WAVE %1\") to make a field the game fills.",
+                ZenUI.DIM, 11)
+            none.autowrap_mode = TextServer.AUTOWRAP_WORD
+            _args_box.add_child(none)
+        for slot in range(1, n + 1):
+            var row := HBoxContainer.new()
+            row.add_child(ZenUI.label("%%%d" % slot, ZenUI.TEXT))
+            var nm := LineEdit.new()
+            nm.placeholder_text = "name"
+            nm.tooltip_text = "What %%%d means (e.g. wave). Shown in the exported README; nothing reads it to play." % slot
+            nm.size_flags_horizontal = SIZE_EXPAND_FILL
+            var val := LineEdit.new()
+            val.placeholder_text = "sample"
+            val.tooltip_text = "Sample value for %%%d: what the editor, gallery and exports show until the game passes its own." % slot
+            val.size_flags_horizontal = SIZE_EXPAND_FILL
+            var write := func(_words: String) -> void:
+                if _syncing: return
+                _live("text arg %d" % slot, func(): ZenDocOps.set_text_arg(_canvas, slot, nm.text, val.text))
+            nm.text_changed.connect(write)
+            val.text_changed.connect(write)
+            row.add_child(nm)
+            row.add_child(val)
+            _args_box.add_child(row)
+    if n == 0: return
+    for slot in range(1, n + 1):
+        var row := _args_box.get_child(slot - 1)
+        var nm := row.get_child(1) as LineEdit
+        var val := row.get_child(2) as LineEdit
+        var want_nm := _canvas.text_arg_names[slot - 1] if slot <= _canvas.text_arg_names.size() else ""
+        var want_val := _canvas.text_args[slot - 1] if slot <= _canvas.text_args.size() else ""
+        if not nm.has_focus() and nm.text != want_nm: nm.text = want_nm
+        if not val.has_focus() and val.text != want_val: val.text = want_val
 
 
 ## Resize the canvas to a preset. Geometry is stored as fractions of the

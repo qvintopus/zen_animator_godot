@@ -325,6 +325,7 @@ static func scene_text(anim: String) -> Dictionary:
     var info := {
         "elements": canvas.elements().map(func(e): return String((e as Node).name)),
         "signals": _signal_lines(canvas),
+        "args": arg_lines(canvas),
         "pauses": canvas.pauses.size(),
         "loops": canvas.loops(),
     }
@@ -462,6 +463,9 @@ static func notes_text(s: Settings, infos: Dictionary, earlier := PackedStringAr
         if not (info["signals"] as Array).is_empty():
             L.append("      signals (any can also be fired from code: fire(\"name\")):")
             for line in info["signals"]: L.append("        %s" % line)
+        if not (info.get("args", []) as Array).is_empty():
+            L.append("      text args (play_with([...]) / set_text_args([...]) fill them in order):")
+            for line in info["args"]: L.append("        %s" % line)
         var traits := PackedStringArray()
         traits.append("loops" if bool(info["loops"]) else "plays once, then emits finished")
         if int(info["pauses"]) > 0:
@@ -527,6 +531,22 @@ static func notes_text(s: Settings, infos: Dictionary, earlier := PackedStringAr
     L.append("   Do not edit files in res://%s/: an update replaces them. Your inherited" % sub)
     L.append("   scenes and scripts live outside it and keep working.")
     return "\n".join(L) + "\n"
+
+
+## One README line per text argument the pool uses: its slot, name, the
+## saved sample and the entries that show it.
+static func arg_lines(canvas: ZenCanvas) -> Array:
+    var out: Array = []
+    if canvas.strings == null: return out
+    for slot in range(1, canvas.strings.arg_count() + 1):
+        var nm := canvas.text_arg_names[slot - 1] if slot <= canvas.text_arg_names.size() else ""
+        var sample := canvas.text_args[slot - 1] if slot <= canvas.text_args.size() else ""
+        var shown := PackedStringArray()
+        for e in canvas.strings.entries:
+            if ZenStrings.arg_slots(e).has(slot): shown.append("\"%s\"" % e.replace("\n", " / "))
+        out.append("%%%d %s(sample \"%s\") in %s" % [slot, (nm + " ") if nm != "" else "", sample,
+            ", ".join(shown) if not shown.is_empty() else "no entry"])
+    return out
 
 
 ## One README line per signal: its name and what fires it, so a scene whose
