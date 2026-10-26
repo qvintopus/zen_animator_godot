@@ -135,6 +135,7 @@ func _run() -> void:
     test_doc_ops()
     test_scene_ops_roundtrip()
     test_clip_ops()
+    test_clip_map()
     test_doc_retime_trim()
     test_string_pool_scenes()
     test_string_ops()
@@ -3719,6 +3720,81 @@ func test_clip_ops() -> void:
           "...at the shifted times")
     check((tl as ZenText).strings == pool, "an inserted text uses the destination's pool")
     for c in [fx, dest, d2, sc, dc]: c.free()
+
+
+## Mapping an effect's elements onto existing ones: relative / absolute
+## values, skipping, stepped props, and the own keys it lands among.
+func test_clip_map() -> void:
+    var fx := _authoring_canvas({"pos_x": [_k(0.0, 0.5), _k(0.5, 0.6), _k(1.0, 0.5)],
+                                 "scale": [_k(0.0, 1.0), _k(1.0, 2.0)],
+                                 "alpha": [_k(0.0, 0.0), _k(1.0, 1.0)]})
+    var dest := _authoring_canvas({"pos_x": [_k(0.0, 0.2), _k(2.0, 0.4)], "scale": [_k(0.0, 0.5)]})
+    var box: ZenElement = dest.get_node("box")
+    var alpha0 := box.base_scalar("alpha")
+    check(ZenClipOps.suggest(dest, fx) == {"box": {"to": "box"}}, "a same-name, same-kind element is suggested")
+    check(ZenClipOps.names_for(dest, fx, "", {"box": {"to": "box"}}).is_empty(), "a mapped row adds no name")
+    check(ZenClipOps.targets_for(dest, fx.get_node("box")).size() == 1, "targets are the same kind")
+
+    # Relative onto the box at 1.0: the nudge starts from where the box is.
+    var made := ZenClipOps.paste(dest, fx, 1.0, "", {"box": {"to": "box", "relative": true}})
+    check(made.size() == 1 and made[0] == box and ZenElemOps.rows(dest).size() == 1,
+          "a mapped insert drives the existing element and adds none")
+    check_near(_samp(dest, "box:pos_x", 1.0), 0.3, "relative: position starts at the target's own", 1e-4)
+    check_near(_samp(dest, "box:pos_x", 1.5), 0.4, "...and moves by the effect's amount", 1e-4)
+    check_near(_samp(dest, "box:pos_x", 0.5), 0.25, "...the target's own keys before stay", 1e-4)
+    check_near(_samp(dest, "box:zen_scale", 2.0), 1.0, "relative: a size scales by the target's own", 1e-4)
+    check_near(_samp(dest, "box:alpha", 2.0), 1.0, "alpha plays as keyed", 1e-4)
+    check_near(_samp(dest, "box:alpha", 0.5), alpha0, "a new track is pinned at 0 to the old value", 1e-4)
+
+    # Absolute, and a skipped row.
+    var d2 := _authoring_canvas({"pos_x": [_k(0.0, 0.2)]})
+    ZenClipOps.paste(d2, fx, 1.0, "", {"box": {"to": "box", "relative": false}})
+    check_near(_samp(d2, "box:pos_x", 1.5), 0.6, "absolute: the effect's own values", 1e-4)
+    var d3 := _authoring_canvas({})
+    check(ZenClipOps.paste(d3, fx, 0.0, "", {"box": {"to": "-"}}).is_empty() and ZenElemOps.rows(d3).size() == 1,
+          "a skipped row writes nothing")
+
+    # Text onto text: the words stay the target's unless asked.
+    var sc := _authoring_canvas({})
+    var tx := ZenElemOps.add(sc, "text", "label")
+    ZenKeyOps.insert(sc, tx, "string", 0.0, float(ZenStringOps.add(sc, "ALPHA")))
+    ZenKeyOps.insert(sc, tx, "string", 0.5, float(ZenStringOps.add(sc, "BETA")))
+    ZenKeyOps.insert(sc, tx, "alpha", 0.0, 0.0)
+    ZenKeyOps.insert(sc, tx, "alpha", 0.5, 1.0)
+    var dc := _authoring_canvas({})
+    var lt := ZenElemOps.add(dc, "text", "label")
+    ZenClipOps.paste(dc, sc, 0.0, "", {"box": {"to": "-"}, "label": {"to": "label"}})
+    check(not ZenKeyOps.has_track(dc, lt, "string") and ZenKeyOps.has_track(dc, lt, "alpha"),
+          "a driven text keeps its own words, takes the motion")
+    ZenClipOps.paste(dc, sc, 0.0, "", {"box": {"to": "-"}, "label": {"to": "label", "stepped": true}})
+    var sk := ZenKeyOps.keys(dc, lt, "string")
+    check(sk.size() == 2 and ZenStringOps.pool(dc).at(int(sk[1]["v"])) == "BETA", "...or takes them when asked")
+
+    # Own keys inside the span: reported, and settled three ways.
+    var own := [_k(0.0, 0.2), _k(1.3, 0.9), _k(1.6, 0.1), _k(3.0, 0.2)]
+    var map := {"box": {"to": "box", "relative": false}}
+    var dm := _authoring_canvas({"pos_x": own})
+    ZenDocOps.set_duration(dm, 3.5)
+    var cf := ZenClipOps.conflicts(dm, fx, 1.0, map)
+    check(cf.has("box") and int(cf["box"]["keys"]) == 2 and cf["box"]["props"] == ["pos_x"],
+          "own keys inside the span are a conflict: %s" % [cf])
+    check_near(float(cf["box"]["first"]), 1.3, "...from the first", 1e-4)
+    check(ZenClipOps.conflicts(dm, fx, 1.7, map).is_empty(), "a span between own keys is clean")
+    check_near(ZenClipOps.clear_after(dm, fx, 1.0, map), 1.6, "the first clean start", 1e-4)
+    var times := func(c: ZenCanvas) -> Array:
+        return ZenKeyOps.keys(c, c.get_node("box"), "pos_x").map(func(k): return "%.2f" % float(k["t"]))
+    ZenClipOps.paste(dm, fx, 1.0, "", map)
+    check(times.call(dm) == ["0.00", "1.00", "1.30", "1.50", "1.60", "2.00", "3.00"], "merge interleaves: %s" % [times.call(dm)])
+    var dr := _authoring_canvas({"pos_x": own})
+    ZenDocOps.set_duration(dr, 3.5)
+    ZenClipOps.paste(dr, fx, 1.0, "", {"box": {"to": "box", "relative": false, "resolve": "replace"}})
+    check(times.call(dr) == ["0.00", "1.00", "1.50", "2.00", "3.00"], "replace drops them: %s" % [times.call(dr)])
+    var dp := _authoring_canvas({"pos_x": own})
+    ZenDocOps.set_duration(dp, 3.5)
+    ZenClipOps.paste(dp, fx, 1.0, "", {"box": {"to": "box", "relative": false, "resolve": "push"}})
+    check(times.call(dp) == ["0.00", "1.00", "1.50", "2.00", "2.30", "2.60", "4.00"], "push moves them after: %s" % [times.call(dp)])
+    check_near(dp.duration, 4.0, "...and the scene grows to keep them", 1e-4)
+    for c in [fx, dest, d2, d3, sc, dc, dm, dr, dp]: c.free()
 
 
 ## Retime scales the whole clock; trim cuts the still time off both ends.
