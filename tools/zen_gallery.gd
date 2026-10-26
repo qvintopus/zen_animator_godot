@@ -104,6 +104,13 @@ var _replay_hold := 0.0
 @onready var _title: Label = $Margin/Rows/Head/Title
 @onready var _hint: Label = $Margin/Rows/Foot/Hint
 @onready var _status: Label = $Margin/Rows/Head/Status
+## The top bar: what can be done with the selection (or the playing
+## animation) on the left, the always-there switches on the right.
+@onready var _bar: HBoxContainer = $Margin/Rows/Bar
+@onready var _bar_context: HBoxContainer = $Margin/Rows/Bar/Context
+@onready var _bar_global: HBoxContainer = $Margin/Rows/Bar/Global
+## The right-click menu of rows and of the playing stage.
+var _menu: PopupMenu
 
 ## H: every hotkey of the gallery. The footer shows only the
 ## essentials - one long legend Label widened the window past the screen.
@@ -119,6 +126,9 @@ func _ready() -> void:
 	_confirm.confirmed.connect(func(): if _confirm_action.is_valid(): _confirm_action.call())
 	add_child(_confirm)
 	_build_name_dialog()
+	_menu = PopupMenu.new()
+	_menu.id_pressed.connect(ZenUI.menu_pressed.bind(_menu))
+	add_child(_menu)
 	# A click on the playing animation continues it from a pause marker, like
 	# SPACE (zen_continue).
 	_screen.mouse_filter = Control.MOUSE_FILTER_STOP
@@ -217,7 +227,7 @@ func _describe(path: String, base: String) -> Dictionary:
 
 func _build_list() -> void:
 	_rows = list_rows(_entries, _folders, _open, _search.text)
-	ZenUI.fill_list(_list, _rows.map(_row_label), _on_row, _on_row_double)
+	ZenUI.fill_list(_list, _rows.map(_row_label), _on_row, _on_row_double, _on_row_context)
 	for i in _rows.size():
 		if _rows[i].has("folder"):
 			(_list.get_child(i) as Button).add_theme_color_override("font_color", ZenUI.LABEL)
@@ -344,7 +354,9 @@ func _select(i: int, shift := false, ctrl := false) -> void:
 ## Redraw the animations selection without changing it.
 func _refresh_anim_selection() -> void:
 	if _rows.is_empty():
-		if _section == Section.ANIMS: _info.text = "[color=#5c6370]no animation matches[/color]"
+		if _section == Section.ANIMS:
+			_info.text = "[color=#5c6370]no animation matches[/color]"
+			if _view == View.GALLERY: _refresh_bar()
 		return
 	_anim_sel.resize(_rows.size())
 	_sel = _anim_sel.cursor
@@ -353,7 +365,9 @@ func _refresh_anim_selection() -> void:
 		if _anim_sel.is_multi(): _info.text = _render_multi_info()
 		elif _cur_entry().is_empty(): _info.text = _render_folder_info(_folder_row(_sel))
 		else: _info.text = _render_info(_cur_entry())
-		if _view == View.GALLERY: _hint.text = _gallery_hint()
+		if _view == View.GALLERY:
+			_hint.text = _gallery_hint()
+			_refresh_bar()
 	ZenUI.scroll_to(_list_scroll, _list, _sel)
 
 
@@ -496,7 +510,7 @@ func _scan_assets() -> void:
 func _build_asset_list() -> void:
 	var labels: Array = [NEW_ASSET_ROW]
 	for a in _assets: labels.append(String(a["name"]))
-	ZenUI.fill_list(_asset_list, labels, _on_asset_row, _on_asset_double)
+	ZenUI.fill_list(_asset_list, labels, _on_asset_row, _on_asset_double, _on_asset_context)
 
 
 func _on_asset_row(i: int) -> void:
@@ -521,7 +535,9 @@ func _refresh_asset_selection() -> void:
 	ZenUI.show_selection(_asset_list, _asset_sel)
 	ZenUI.scroll_to(_asset_scroll, _asset_list, _sel_asset)
 	if _section != Section.ASSETS: return
-	if _view == View.GALLERY: _hint.text = _gallery_hint()
+	if _view == View.GALLERY:
+		_hint.text = _gallery_hint()
+		_refresh_bar()
 	if _asset_sel.is_multi():
 		_asset_preview.shape = null
 		_info.text = _render_multi_asset_info()
@@ -656,6 +672,173 @@ func _render_info(e: Dictionary) -> String:
 	return "\n".join(L)
 
 
+# ---------------------------------------------------------------- actions
+#
+# What can be done right now, as ZenUI actions. The top bar and the
+# right-click menus both read these, and every one calls the same function
+# its hotkey does, so the mouse never reaches something the keys cannot.
+
+static func _act(label: String, fn: Callable, key := "", enabled := true) -> Dictionary:
+	return {"label": label, "fn": fn, "key": key, "enabled": enabled}
+
+
+## The top bar's left half: the selection's (or the playing animation's)
+## actions.
+func _actions() -> Array:
+	if _view == View.PLAYING: return _playing_actions()
+	if _section == Section.ASSETS: return _asset_actions()
+	if _rows.is_empty(): return []
+	if _anim_sel.is_multi(): return _multi_actions()
+	if _cur_entry().is_empty(): return _folder_actions(_folder_row(_sel))
+	return _anim_actions()
+
+
+## On the animation under the cursor.
+func _anim_actions() -> Array:
+	return [_act("Play", _play.bind(_sel), "zen_play"),
+		_act("Edit", _open_scene_editor, "zen_edit_scene"), {},
+		_act("Rename", _ask_rename, "zen_rename"),
+		_act("Duplicate", _ask_duplicate, "zen_duplicate"),
+		_act("Move...", _ask_move, "zen_move"),
+		_act("Delete", _ask_delete, "zen_delete"), {},
+		_act("Export...", _open_export, "zen_export"),
+		_act("Queue", _queue_current, "zen_export_queue")]
+
+
+func _folder_actions(f: String) -> Array:
+	return [_act("Close" if _open.has(f) else "Open", _toggle_folder.bind(f), "zen_play"),
+		_act("New animation here", _open_scene_editor.bind(true)), {},
+		_act("Rename", _ask_rename_folder.bind(f), "zen_rename"),
+		_act("Delete", _ask_delete_folder.bind(f), "zen_delete",
+			not _entries.any(func(e): return String(e.get("folder", "")) == f))]
+
+
+func _multi_actions() -> Array:
+	var n := _marked_anims().size()
+	return [_act("Export %d as a chain..." % n, _open_export, "zen_export"),
+		_act("Queue %d" % n, _queue_current, "zen_export_queue"), {},
+		_act("Move %d..." % n, _ask_move, "zen_move"),
+		_act("Delete %d" % n, _ask_delete, "zen_delete"), {},
+		_act("Clear selection", _back, "zen_back")]
+
+
+func _playing_actions() -> Array:
+	var out: Array = []
+	if _playing != null and _playing.held_pause >= 0:
+		out.append(_act("Continue", _continue, "zen_continue"))
+	out.append(_act("Restart", _restart, "zen_restart"))
+	var names: Array = _playing.bus().names() if _playing != null and _playing.bus() != null else []
+	if not names.is_empty():
+		out.append({})
+		for i in mini(names.size(), 9):
+			out.append(_act("fire %s" % String(names[i]), _fire.bind(i), "zen_signal_%d" % (i + 1)))
+	out.append_array([{}, _act("Edit", _open_scene_editor, "zen_edit_scene"),
+		_act("Export...", _open_export, "zen_export"),
+		_act("Queue", _queue_current, "zen_export_queue"), {},
+		_act("Stop", _back, "zen_back")])
+	return out
+
+
+func _asset_actions() -> Array:
+	if _asset_sel.is_multi():
+		var n := _marked_assets().size()
+		return [_act("Delete %d" % n, _ask_delete, "zen_delete"), {},
+			_act("Clear selection", _back, "zen_back")]
+	if _sel_asset == 0: return [_act("Create", _open_shape_editor, "zen_play")]
+	return [_act("Edit", _open_shape_editor, "zen_play"), _act("Delete", _ask_delete, "zen_delete")]
+
+
+## The top bar's right half: creating things, the viewer toggles, and the
+## screens - there whatever is selected.
+func _global_actions() -> Array:
+	var out: Array = []
+	if _view == View.GALLERY:
+		if _section == Section.ANIMS:
+			out.append_array([_act("New animation", _open_scene_editor.bind(true), "zen_new"),
+				_act("New folder", _ask_new_folder, "zen_new_folder")])
+		else:
+			out.append(_act("New asset", _new_asset, "zen_new"))
+		out.append({})
+	var intro := _act("Intro", _toggle.bind("intro"), "zen_toggle_intro")
+	intro.merge({"toggle": true, "on": ZenSettings.play_intro()})
+	var loop := _act("Loop", _toggle.bind("loop"), "zen_toggle_loop")
+	loop.merge({"toggle": true, "on": ZenSettings.play_loop()})
+	out.append_array([intro, loop, {}])
+	if _view == View.GALLERY:
+		out.append_array([_act("Reload", _restart, "zen_restart"),
+			_act("Options", _open_options, "zen_options")])
+	out.append(_act("Help", _show_help, "zen_help"))
+	return out
+
+
+func _refresh_bar() -> void:
+	if _bar == null: return
+	_bar.visible = _view in [View.GALLERY, View.PLAYING]
+	if not _bar.visible: return
+	ZenUI.fill_bar(_bar_context, _actions())
+	ZenUI.fill_bar(_bar_global, _global_actions())
+
+
+func _new_asset() -> void:
+	_select_asset(0)
+	_open_shape_editor()
+
+
+func _continue() -> void:
+	if _playing == null or _playing.held_pause < 0: return
+	_playing.release_pause()
+	_update_status()
+
+
+## A right-click on list row `row`. On a row outside the selection it
+## selects that row first, as usual - except for a move: with a folder
+## selected, an animation offers to move into it; with animations selected,
+## a folder offers to take them. The selection is what moves, so it stays.
+func _on_row_context(at: Vector2, row: int) -> void:
+	var items := _row_menu(row)
+	if not items.is_empty(): ZenUI.popup_actions(_menu, items, at)
+
+
+func _row_menu(row: int) -> Array:
+	if row < 0 or row >= _rows.size(): return []
+	var marked := _marked_anims()
+	var e := _entry_at(row)
+	if e.is_empty():
+		var f := _folder_row(row)
+		var moving := marked.filter(func(nm): return ZenSceneOps.folder_of(nm) != f)
+		if row != _sel and not moving.is_empty():
+			return [_act("Move %s into %s" % [_what(moving), f], _move_into.bind(f, moving)), {},
+				_act("Select %s" % f, _select.bind(row))]
+		_select(row)
+		return _folder_actions(f)
+	var nm := String(e["name"])
+	if _anim_sel.is_multi() and marked.has(nm):
+		return _multi_actions() + [{}, _move_menu(marked)]
+	var cur := _folder_row(_sel)
+	if cur != "" and String(e.get("folder", "")) != cur:
+		return [_act("Move %s into %s" % [nm, cur], _move_into.bind(cur, [nm])), {},
+			_act("Play %s" % nm, _play.bind(row)), _act("Select %s" % nm, _select.bind(row))]
+	_select(row)
+	return _anim_actions() + [{}, _move_menu([nm])]
+
+
+## "Move to" with every other folder, the top level, and a typed new one.
+func _move_menu(names: Array) -> Dictionary:
+	var here := ""
+	if names.size() == 1: here = ZenSceneOps.folder_of(String(names[0]))
+	var sub: Array = []
+	if names.size() > 1 or here != "": sub.append(_act("top level", _move_into.bind("", names)))
+	for f in _folders:
+		if String(f) != here: sub.append(_act(String(f), _move_into.bind(String(f), names)))
+	sub.append_array([{}, _act("new folder...", _ask_move)])
+	return {"label": "Move to", "sub": sub}
+
+
+func _on_asset_context(at: Vector2, row: int) -> void:
+	if not _asset_sel.shows(row): _select_asset(row)
+	ZenUI.popup_actions(_menu, _asset_actions(), at)
+
+
 # ---------------------------------------------------------------- views
 
 func _show_gallery() -> void:
@@ -665,6 +848,7 @@ func _show_gallery() -> void:
 	_asset_preview.visible = _section == Section.ASSETS
 	_title.text = "Zen Animator"
 	_hint.text = _gallery_hint()
+	_refresh_bar()
 	if _section == Section.ASSETS:
 		_status.text = "%d assets%s" % [_assets.size(), _queue_suffix()]
 		return
@@ -712,6 +896,7 @@ func _show_playing(nm: String) -> void:
 	elif n > 1: pairs.append(["1-%d" % n, "fire signal"])
 	pairs.append_array([["zen_help", "help"], ["zen_back", "back"]])
 	_hint.text = ZenHotkeyHelp.footer(pairs)
+	_refresh_bar()
 
 
 func _signal_count() -> int:
@@ -727,19 +912,22 @@ func _show_help() -> void:
 	var n := _signal_count() if _view == View.PLAYING else 0
 	if n > 0: playing.append(["1" if n == 1 else "1-%d" % n, "fire signal (%s)" % ", ".join(_playing.bus().names())])
 	playing.append_array([["click a row", "switch to that animation"],
+		["right-click the stage", "the playback actions"],
 		["zen_toggle_intro", "intro on / off"], ["zen_toggle_loop", "loop on / off"],
 		["zen_tab", "switch to assets (stops playback)"],
 		["zen_export", "export..."], ["zen_export_queue", "add to the export queue"],
 		["zen_back", "back to the gallery"]])
 	var multi: Array = [["Shift+click, Shift+Up/Down", "select a range"],
-		["Ctrl+click", "add / remove one row"]]
+		["Ctrl+click", "add / remove one row"], ["right-click", "what can be done with that row"]]
 	var anims: Array = [["zen_play", "play"], ["double-click", "play"],
 		["zen_edit_scene", "edit in the scene editor"], ["zen_new", "new animation"],
 		["zen_rename", "rename"], ["zen_duplicate", "duplicate"],
 		["zen_prev", "previous"], ["zen_next", "next"],
 		["zen_search", "search (ESC clears, ENTER plays)"],
 		["zen_fold", "close the folder"], ["zen_unfold", "open the folder"],
-		["zen_move", "move the selection to a folder"], ["zen_new_folder", "new folder"]]
+		["zen_move", "move the selection to a folder"], ["zen_new_folder", "new folder"],
+		["right-click a folder", "move the selected animations into it"],
+		["right-click an animation", "with a folder selected: move it into that folder"]]
 	anims.append_array(multi)
 	anims.append_array([["zen_delete", "delete the selected animations"],
 		["zen_tab", "switch to assets"],
@@ -876,6 +1064,7 @@ func _open_options() -> void:
 	_options.closed.connect(_close_options)
 	add_child(_options)
 	_view = View.OPTIONS
+	_refresh_bar()
 
 
 func _close_options() -> void:
@@ -883,6 +1072,7 @@ func _close_options() -> void:
 		_options.queue_free()
 		_options = null
 	_view = View.GALLERY
+	_show_gallery()
 
 
 ## The shape editor: the same overlay-child pattern, on the selected asset
@@ -896,6 +1086,7 @@ func _open_shape_editor() -> void:
 	var nm := "" if _sel_asset == 0 or _assets.is_empty() else String(_assets[_sel_asset - 1]["name"])
 	_shape_editor.open(nm)
 	_view = View.SHAPE_EDITOR
+	_refresh_bar()
 
 
 func _close_shape_editor() -> void:
@@ -931,6 +1122,7 @@ func _open_scene_editor(new_scene := false) -> void:
 	# A new scene saves into the folder the cursor is in.
 	_scene_editor.open(path, _cur_folder() if new_scene else "")
 	_view = View.SCENE_EDITOR
+	_refresh_bar()
 
 
 func _close_scene_editor() -> void:
@@ -1080,15 +1272,27 @@ func _ask_new_folder() -> void:
 func _ask_move() -> void:
 	var names := _marked_anims()
 	if names.is_empty(): return
-	var what := names[0] if names.size() == 1 else "%d animations" % names.size()
-	var fn := func(f: String) -> void:
-		var failed: Array = []
-		for nm in names:
-			if ZenSceneOps.move(nm, f) != OK: failed.append(nm)
-		_reselect(names[0])
-		_status.text = "moved %s to %s" % [what, f if f != "" else "the top level"]
-		if not failed.is_empty(): _status.text = "could not move %s" % ", ".join(failed)
-	_ask_name("Move %s to folder" % what, _cur_folder(), fn, _move_folder_check)
+	_ask_name("Move %s to folder" % _what(names), _cur_folder(), _move_into.bind(names), _move_folder_check)
+
+
+## Move animations `names` into folder `f` ("" = the top level), shared by
+## M, the bar and the right-click menus. The folder opens so they stay in view.
+func _move_into(f: String, names: Array) -> void:
+	if names.is_empty(): return
+	var failed: Array = []
+	for nm in names:
+		if ZenSceneOps.move(String(nm), f) != OK: failed.append(nm)
+	if f != "" and not _open.has(f):
+		_open[f] = true
+		ZenSettings.set_open_folders(_open.keys())
+	_reselect(String(names[0]))
+	_status.text = "moved %s to %s" % [_what(names), f if f != "" else "the top level"]
+	if not failed.is_empty(): _status.text = "could not move %s" % ", ".join(failed)
+
+
+## "name" for one animation, "N animations" for several.
+static func _what(names: Array) -> String:
+	return String(names[0]) if names.size() == 1 else "%d animations" % names.size()
 
 
 ## Export is the same overlay-child pattern as Options - opening it from
@@ -1110,6 +1314,7 @@ func _open_export() -> void:
 	_prev_view = _view if _view in [View.GALLERY, View.PLAYING] else View.GALLERY
 	_export_dialog.open(_entries, chain)
 	_view = View.EXPORT
+	_refresh_bar()
 
 
 func _close_export() -> void:
@@ -1246,6 +1451,11 @@ func _delete_files(files: Array[String]) -> void:
 func _on_screen_input(ev: InputEvent) -> void:
 	if _view != View.PLAYING or _playing == null or not (ev is InputEventMouse): return
 	var mb := ev as InputEventMouseButton
+	if mb != null and mb.button_index == MOUSE_BUTTON_RIGHT:
+		if mb.pressed:
+			ZenUI.popup_actions(_menu, _playing_actions(), _screen.get_screen_transform() * mb.position)
+		_screen.accept_event()
+		return
 	if mb != null and mb.button_index != MOUSE_BUTTON_LEFT: return
 	if mb != null and mb.pressed and _playing.held_pause >= 0:
 		_playing.release_pause()

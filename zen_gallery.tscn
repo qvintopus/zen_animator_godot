@@ -59,6 +59,19 @@ clip_text = true
 text_overrun_behavior = 3
 theme_override_colors/font_color = Color(0.36, 0.39, 0.44, 1)
 
+[node name="Bar" type="HBoxContainer" parent="Margin/Rows"]
+layout_mode = 2
+theme_override_constants/separation = 2
+
+[node name="Context" type="HBoxContainer" parent="Margin/Rows/Bar"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 2
+
+[node name="Global" type="HBoxContainer" parent="Margin/Rows/Bar"]
+layout_mode = 2
+theme_override_constants/separation = 2
+
 [node name="Sep" type="HSeparator" parent="Margin/Rows"]
 layout_mode = 2
 

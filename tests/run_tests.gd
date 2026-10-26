@@ -121,6 +121,7 @@ func _run() -> void:
     await test_gallery_multi_select()
     test_scene_folders()
     await test_gallery_folders()
+    await test_gallery_actions()
     await test_shape_editor()
     test_zen_settings()
     test_export_dialog_preview()
@@ -3129,6 +3130,77 @@ func test_gallery_folders() -> void:
     g._search.text = ""
     g._on_search_changed()
     check(g._rows.size() == top + nf, "clearing the search restores the folded view")
+    g.queue_free()
+    await process_frame
+    ZenSettings.set_open_folders(saved)
+
+
+## The gallery's top bar and right-click menus come from one action table
+## per context; a right-click across a folder and an animation offers a move
+## and keeps the selection, since the selection is what moves.
+func test_gallery_actions() -> void:
+    var saved := ZenSettings.open_folders()
+    var g: Node = (load("res://zen_gallery.tscn") as PackedScene).instantiate()
+    root.add_child(g)
+    await process_frame
+    var labels := func(acts: Array) -> Array:
+        return acts.filter(func(a): return not (a as Dictionary).is_empty()) \
+                   .map(func(a): return String(a["label"]))
+    g._open = {}
+    g._build_list()
+    var nf := ZenSceneOps.folders().size()
+    var sd := ZenSceneOps.folders().find("signal_demo")
+    var first := String(g._entry_at(nf)["name"])
+    g._select(nf)
+    var al: Array = labels.call(g._actions())
+    check(al.has("Play") and al.has("Rename") and al.has("Move..."), "an animation's bar")
+    check(g._bar_context.get_child_count() == g._actions().size(), "the bar shows a button per action")
+    check(labels.call(g._global_actions()).has("New folder"), "the right half always offers a new folder")
+
+    g._select(sd)
+    var fa: Array = g._actions()
+    check(labels.call(fa)[0] == "Open", "a closed folder's bar opens it")
+    var del: Dictionary = fa.filter(func(a): return a.get("label", "") == "Delete")[0]
+    check(not bool(del["enabled"]), "a folder holding animations cannot be deleted")
+
+    var m: Array = g._row_menu(nf)
+    check(String(m[0]["label"]) == "Move %s into signal_demo" % first and g._sel == sd,
+          "folder selected, right-click an animation: move it in, the folder stays selected")
+    g._select(nf)
+    g._select(nf + 1, true)
+    m = g._row_menu(sd)
+    check(String(m[0]["label"]) == "Move 2 animations into signal_demo" and g._marked_anims().size() == 2,
+          "two animations selected, right-click a folder: move them in, still selected")
+    check(String(labels.call(g._actions())[0]).begins_with("Export 2"), "a multi-selection's bar")
+    m = g._row_menu(nf)
+    check(String(m[0]["label"]).begins_with("Export 2") and g._anim_sel.is_multi(),
+          "right-click inside a multi-selection acts on all of it")
+    g._row_menu(nf + 2)
+    check(g._sel == nf + 2 and not g._anim_sel.is_multi(), "a plain right-click selects that row")
+
+    var nm := ZenSceneOps.unique_name("zz_gallery_tmp")
+    var f := "zz_gallery_dir"
+    var c := ZenSceneOps.new_canvas(nm)
+    ZenSceneOps.save(c, nm)
+    c.free()
+    ZenSceneOps.make_folder(f)
+    g._reselect(nm)
+    g._move_into(f, [nm])
+    check(ZenSceneOps.folder_of(nm) == f and String(g._cur_entry().get("name", "")) == nm,
+          "move into a folder: it opens and the cursor follows")
+    var row: int = g._row_of_folder(f)
+    m = g._row_menu(g._sel)
+    var sub: Dictionary = m.filter(func(a): return a.get("label", "") == "Move to")[0]
+    check(labels.call(sub["sub"]).has("top level") and not labels.call(sub["sub"]).has(f),
+          "Move to lists the top level and the other folders")
+    g._move_into("", [nm])
+    check(ZenSceneOps.folder_of(nm) == "" and row >= 0, "and back to the top level")
+    DirAccess.remove_absolute(ProjectSettings.globalize_path(ZenSceneOps.path_of(nm)))
+    DirAccess.remove_absolute(ProjectSettings.globalize_path("%s/%s" % [ZenSceneOps.write_root(), f]))
+
+    g._set_section(1)
+    g._select_asset(0)
+    check(labels.call(g._actions()) == ["Create"], "the new-asset row's bar")
     g.queue_free()
     await process_frame
     ZenSettings.set_open_folders(saved)
