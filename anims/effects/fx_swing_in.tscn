@@ -1,10 +1,15 @@
 [gd_scene format=3]
 
-[ext_resource type="Script" path="res://addons/zen/runtime/zen_canvas.gd" id="1_5y50k"]
-[ext_resource type="Script" path="res://addons/zen/runtime/zen_shape.gd" id="2_ivb7u"]
-[ext_resource type="Resource" path="res://assets/shapes/book_icon.tres" id="3_kpm8p"]
+[ext_resource type="Script" path="res://addons/zen/runtime/zen_canvas.gd" id="1_rjqbh"]
+[ext_resource type="Script" path="res://addons/zen/runtime/zen_strings.gd" id="2_gw30q"]
+[ext_resource type="Script" path="res://addons/zen/runtime/zen_shape.gd" id="3_wbdkg"]
+[ext_resource type="Resource" path="res://assets/shapes/book_icon.tres" id="4_jwy8a"]
 
-[sub_resource type="Animation" id="Animation_yy2xf"]
+[sub_resource type="Resource" id="Resource_wac68"]
+script = ExtResource("2_gw30q")
+entries = PackedStringArray()
+
+[sub_resource type="Animation" id="Animation_m6530"]
 length = 2.001218
 step = 0.0166667
 tracks/0/type = "method"
@@ -91,26 +96,27 @@ tracks/6/keys = {
 "values": ["linear", "cubicInOut"]
 }
 
-[sub_resource type="AnimationLibrary" id="AnimationLibrary_mr8xs"]
+[sub_resource type="AnimationLibrary" id="AnimationLibrary_b273y"]
 _data = {
-&"zen": SubResource("Animation_yy2xf")
+&"zen": SubResource("Animation_m6530")
 }
 
-[node name="" type="Node2D" unique_id=1021862632]
-script = ExtResource("1_5y50k")
+[node name="fx_swing_in" type="Node2D" unique_id=1021862632]
+script = ExtResource("1_rjqbh")
+strings = SubResource("Resource_wac68")
 clear_color = Color(0.1, 0.12, 0.16, 1)
 
 [node name="AnimationPlayer" type="AnimationPlayer" parent="." unique_id=293611838]
 callback_mode_method = 1
-libraries/ = SubResource("AnimationLibrary_mr8xs")
+libraries/ = SubResource("AnimationLibrary_b273y")
 
 [node name="book" type="Node2D" parent="." unique_id=1611053019]
-script = ExtResource("2_ivb7u")
+script = ExtResource("3_wbdkg")
 shape_kind = 6
 size_frac = Vector2(88, 64)
 color_base = Color(0.93333334, 0.99215686, 0.7921569, 1)
 outline_color_base = Color(0.9607843, 0.9607843, 0.827451, 1)
-shape = ExtResource("3_kpm8p")
+shape = ExtResource("4_jwy8a")
 shape_name = "book_icon"
 elem_name = "book"
 unit_abs = true

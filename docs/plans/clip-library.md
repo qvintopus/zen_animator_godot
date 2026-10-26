@@ -1,8 +1,9 @@
 # Clip length, and a library of reusable clips
 
-**Status (2026-10-25):** length fix, `ZenClipOps` copy/paste, Ctrl+C/V/Shift+V, the Library
-panel (8) and the seeded `library/` are done. Not done: the gallery "clips" section, the
-timeline end-drag handle, retime, dimmed past-the-end keys.
+**Status (2026-10-26): superseded** by [effects-flow.md](effects-flow.md). The clipboard
+(Ctrl+C/V/Shift+V), merge-onto, relative paste, the Library panel and `library/` were
+removed in favour of guided Extract / Insert of ordinary effect animations. The length
+fix (`00c1dfb`) stays; retime landed as `ZenDocOps.retime` (Edit > Options > Length).
 
 ## Context
 

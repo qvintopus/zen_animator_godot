@@ -1,15 +1,15 @@
 [gd_scene format=3]
 
-[ext_resource type="Script" path="res://addons/zen/runtime/zen_canvas.gd" id="1_7h0p5"]
-[ext_resource type="Script" path="res://addons/zen/runtime/zen_strings.gd" id="2_3v8yv"]
-[ext_resource type="Script" path="res://addons/zen/runtime/zen_text.gd" id="3_q8ju1"]
-[ext_resource type="Script" path="res://addons/zen/runtime/zen_shape.gd" id="4_0lft3"]
+[ext_resource type="Script" path="res://addons/zen/runtime/zen_canvas.gd" id="1_jr1v6"]
+[ext_resource type="Script" path="res://addons/zen/runtime/zen_strings.gd" id="2_ddyxr"]
+[ext_resource type="Script" path="res://addons/zen/runtime/zen_text.gd" id="3_xgxjl"]
+[ext_resource type="Script" path="res://addons/zen/runtime/zen_shape.gd" id="4_357cy"]
 
-[sub_resource type="Resource" id="Resource_p0cd7"]
-script = ExtResource("2_3v8yv")
+[sub_resource type="Resource" id="Resource_vl4pf"]
+script = ExtResource("2_ddyxr")
 entries = PackedStringArray("....../.;\';..\';!@##$\n@#\":>$\"?@\">$:>\n@#:%@$>\"@#:>\n$\"#@:>%\"@:#>$")
 
-[sub_resource type="Animation" id="Animation_5bgr2"]
+[sub_resource type="Animation" id="Animation_oun8k"]
 length = 4.2287593
 step = 0.0166667
 tracks/0/type = "method"
@@ -324,23 +324,23 @@ tracks/26/keys = {
 "values": ["linear", "linear", "bop_n_bop", "bop_n_bop", "bop_n_bop", "bop_n_bop", "bop_n_bop", "bop_n_bop", "bop_n_bop", "bop_n_bop"]
 }
 
-[sub_resource type="AnimationLibrary" id="AnimationLibrary_8uugt"]
+[sub_resource type="AnimationLibrary" id="AnimationLibrary_ix61u"]
 _data = {
-&"zen": SubResource("Animation_5bgr2")
+&"zen": SubResource("Animation_oun8k")
 }
 
-[node name="" type="Node2D" unique_id=331156396]
-script = ExtResource("1_7h0p5")
-strings = SubResource("Resource_p0cd7")
+[node name="fx_orbit" type="Node2D" unique_id=331156396]
+script = ExtResource("1_jr1v6")
+strings = SubResource("Resource_vl4pf")
 clear_color = Color(0.1, 0.12, 0.16, 1)
 
 [node name="AnimationPlayer" type="AnimationPlayer" parent="." unique_id=1966825996]
 callback_mode_method = 1
-libraries/ = SubResource("AnimationLibrary_8uugt")
+libraries/ = SubResource("AnimationLibrary_ix61u")
 
 [node name="txt_scribble" type="Node2D" parent="." unique_id=2061416371]
-script = ExtResource("3_q8ju1")
-strings = SubResource("Resource_p0cd7")
+script = ExtResource("3_xgxjl")
+strings = SubResource("Resource_vl4pf")
 size_frac = Vector2(0.0475, 0.1)
 color_base = Color(0.9607843, 0.9607843, 0.9607843, 1)
 crumble_spin = -72.0
@@ -351,7 +351,7 @@ pos_frac = Vector2(0.5, 0.4555)
 
 [node name="ball" type="Node2D" parent="." unique_id=1520051354]
 z_index = 1
-script = ExtResource("4_0lft3")
+script = ExtResource("4_357cy")
 shape_kind = 1
 size_frac = Vector2(40, 36)
 scale_base = 0.6
