@@ -1,7 +1,8 @@
-[gd_scene load_steps=4 format=3]
+[gd_scene load_steps=5 format=3]
 
 [ext_resource type="Script" path="res://tools/zen_gallery.gd" id="1"]
 [ext_resource type="Script" path="res://tools/zen_shape_preview.gd" id="2"]
+[ext_resource type="Script" path="res://tools/zen_tip_label.gd" id="3"]
 
 [sub_resource type="StyleBoxFlat" id="bg"]
 bg_color = Color(0.0862745, 0.0941176, 0.1137255, 1)
@@ -52,6 +53,8 @@ theme_override_font_sizes/font_size = 22
 
 [node name="Status" type="Label" parent="Margin/Rows/Head"]
 layout_mode = 2
+mouse_filter = 1
+script = ExtResource("3")
 size_flags_horizontal = 3
 text = ""
 horizontal_alignment = 2

@@ -66,8 +66,12 @@ and keeps the selection, because the selection is what moves:
 - with a folder selected, right-click an animation to **move it into that folder**;
 - with one or more animations selected, right-click a folder to **move them into it**.
 
-The bar and the menus are built from one action table per context (`_actions()` in
-`zen_gallery.gd`), and each entry calls the same function as its key.
+Hover any bar button (or the status line) for a tooltip that says what it does, its keys and
+the live state: what is on the export queue, whether Intro/Loop are on, why a button is
+greyed out. Menu items show the same text. The bar and the menus are built from one action
+table per context (`_actions()` in `zen_gallery.gd`), and each entry calls the same function
+as its key. `ZenTooltip` (`tools/zen_tooltip.gd`) draws the tooltip; any Control can show
+one through `ZenTipButton` / `ZenTipLabel`, or by overriding `_make_custom_tooltip`.
 
 Each screen's footer names only its essential keys (a full legend in one Label set the
 window's minimum width and pushed the gallery off both sides of the screen). **H**

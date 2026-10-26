@@ -3156,12 +3156,33 @@ func test_gallery_actions() -> void:
     check(al.has("Play") and al.has("Rename") and al.has("Move..."), "an animation's bar")
     check(g._bar_context.get_child_count() == g._actions().size(), "the bar shows a button per action")
     check(labels.call(g._global_actions()).has("New folder"), "the right half always offers a new folder")
+    var tipped := func() -> bool:
+        var ok := true
+        for b in g._bar_context.get_children() + g._bar_global.get_children():
+            if b is Button: ok = ok and b is ZenTipButton and String(b.tip["text"]) != ""
+        return ok
+    check(tipped.call(), "every bar button explains itself")
+    var qa: Dictionary = g._actions().filter(func(a): return a.get("label", "") == "Queue")[0]
+    check(String(qa["note"]) == "The queue is empty.", "Queue's tooltip says the queue is empty")
+    g._queue_current()
+    qa = g._actions().filter(func(a): return a.get("label", "") == "Queue")[0]
+    check(String(qa["note"]).contains(first) and String(g._status.tip["note"]).contains(first),
+          "after queuing, the Queue and status tooltips list it")
+    g._export_queue.clear()
+    var tt: Control = ZenTooltip.build(ZenUI.action_tip(qa))
+    var texts: Array = []
+    for l in tt.get_child(0).get_children(): texts.append(String((l as Label).text))
+    check(texts.size() == 4 and texts[1].contains("export queue") and texts[3].begins_with("Key: "),
+          "a tooltip: title, what it does, the live note, the keys")
+    tt.free()
 
     g._select(sd)
     var fa: Array = g._actions()
     check(labels.call(fa)[0] == "Open", "a closed folder's bar opens it")
     var del: Dictionary = fa.filter(func(a): return a.get("label", "") == "Delete")[0]
     check(not bool(del["enabled"]), "a folder holding animations cannot be deleted")
+    check(String(del["note"]).begins_with("Holds 9 animations"), "and its tooltip says why")
+    check(tipped.call(), "a folder's bar buttons explain themselves")
 
     var m: Array = g._row_menu(nf)
     check(String(m[0]["label"]) == "Move %s into signal_demo" % first and g._sel == sd,
@@ -3172,6 +3193,7 @@ func test_gallery_actions() -> void:
     check(String(m[0]["label"]) == "Move 2 animations into signal_demo" and g._marked_anims().size() == 2,
           "two animations selected, right-click a folder: move them in, still selected")
     check(String(labels.call(g._actions())[0]).begins_with("Export 2"), "a multi-selection's bar")
+    check(tipped.call(), "a multi-selection's bar buttons explain themselves")
     m = g._row_menu(nf)
     check(String(m[0]["label"]).begins_with("Export 2") and g._anim_sel.is_multi(),
           "right-click inside a multi-selection acts on all of it")

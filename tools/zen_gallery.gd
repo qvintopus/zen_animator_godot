@@ -678,8 +678,8 @@ func _render_info(e: Dictionary) -> String:
 # right-click menus both read these, and every one calls the same function
 # its hotkey does, so the mouse never reaches something the keys cannot.
 
-static func _act(label: String, fn: Callable, key := "", enabled := true) -> Dictionary:
-	return {"label": label, "fn": fn, "key": key, "enabled": enabled}
+static func _act(label: String, fn: Callable, key := "", enabled := true, tip := "", note := "") -> Dictionary:
+	return {"label": label, "fn": fn, "key": key, "enabled": enabled, "tip": tip, "note": note}
 
 
 ## The top bar's left half: the selection's (or the playing animation's)
@@ -695,57 +695,100 @@ func _actions() -> Array:
 
 ## On the animation under the cursor.
 func _anim_actions() -> Array:
-	return [_act("Play", _play.bind(_sel), "zen_play"),
-		_act("Edit", _open_scene_editor, "zen_edit_scene"), {},
-		_act("Rename", _ask_rename, "zen_rename"),
-		_act("Duplicate", _ask_duplicate, "zen_duplicate"),
-		_act("Move...", _ask_move, "zen_move"),
-		_act("Delete", _ask_delete, "zen_delete"), {},
-		_act("Export...", _open_export, "zen_export"),
-		_act("Queue", _queue_current, "zen_export_queue")]
+	return [_act("Play", _play.bind(_sel), "zen_play", true,
+			"Play it here. A one-shot replays after a short hold while Loop is on; click another row to switch."),
+		_act("Edit", _open_scene_editor, "zen_edit_scene", true, "Open it in the scene editor."), {},
+		_act("Rename", _ask_rename, "zen_rename", true, "Rename the scene file. It stays in its folder."),
+		_act("Duplicate", _ask_duplicate, "zen_duplicate", true,
+			"Copy it to a new scene next to it, under a name you choose."),
+		_act("Move...", _ask_move, "zen_move", true, _MOVE_TIP),
+		_act("Delete", _ask_delete, "zen_delete", true,
+			"Move the scene file to the OS trash, after a confirmation that lists it."), {},
+		_act("Export...", _open_export, "zen_export", true, _EXPORT_TIP, _queue_note(true)),
+		_act("Queue", _queue_current, "zen_export_queue", true, _QUEUE_TIP, _queue_note())]
+
+
+const _MOVE_TIP := "Move into a folder: type its name, or leave it empty for the top level. A new name creates the folder. Right-click a folder to move straight into it."
+const _EXPORT_TIP := "Open the Export dialog to render video or frames. Several selected animations become one chain, played back to back."
+const _QUEUE_TIP := "Add to the export queue without opening Export. Queued animations render back to back as one chain the next time you open Export. All need the same canvas size."
+
+
+## The export queue as a note: what is on it, or that it is empty.
+## `for_export`: only worth saying when there is a queue to open with.
+func _queue_note(for_export := false) -> String:
+	if _export_queue.is_empty(): return "" if for_export else "The queue is empty."
+	var s := "Queued %d/%d: %s" % [_export_queue.size(), ZenExport.MAX_CHAIN, ", ".join(_export_queue)]
+	return s + (" - Export opens with it." if for_export else "")
 
 
 func _folder_actions(f: String) -> Array:
-	return [_act("Close" if _open.has(f) else "Open", _toggle_folder.bind(f), "zen_play"),
-		_act("New animation here", _open_scene_editor.bind(true)), {},
-		_act("Rename", _ask_rename_folder.bind(f), "zen_rename"),
-		_act("Delete", _ask_delete_folder.bind(f), "zen_delete",
-			not _entries.any(func(e): return String(e.get("folder", "")) == f))]
+	var n := _entries.filter(func(e): return String(e.get("folder", "")) == f).size()
+	return [_act("Close" if _open.has(f) else "Open", _toggle_folder.bind(f), "zen_play", true,
+			"Show or hide the animations in %s. Remembered across runs." % f),
+		_act("New animation here", _open_scene_editor.bind(true), "", true,
+			"Start a new animation in the scene editor; it saves into %s." % f), {},
+		_act("Rename", _ask_rename_folder.bind(f), "zen_rename", true,
+			"Rename the folder. Its animations move with it."),
+		_act("Delete", _ask_delete_folder.bind(f), "zen_delete", n == 0,
+			"Move the empty folder to the OS trash.",
+			"Holds %d animation%s - move or delete them first." % [n, "" if n == 1 else "s"] if n > 0 else "")]
 
 
 func _multi_actions() -> Array:
 	var n := _marked_anims().size()
-	return [_act("Export %d as a chain..." % n, _open_export, "zen_export"),
-		_act("Queue %d" % n, _queue_current, "zen_export_queue"), {},
-		_act("Move %d..." % n, _ask_move, "zen_move"),
-		_act("Delete %d" % n, _ask_delete, "zen_delete"), {},
-		_act("Clear selection", _back, "zen_back")]
+	var over := "Only the first %d go in a chain." % ZenExport.MAX_CHAIN if n > ZenExport.MAX_CHAIN else ""
+	return [_act("Export %d as a chain..." % n, _open_export, "zen_export", true,
+			"Open the Export dialog with these as one chain, in list order. It replaces the queue.", over),
+		_act("Queue %d" % n, _queue_current, "zen_export_queue", true, _QUEUE_TIP, _queue_note()), {},
+		_act("Move %d..." % n, _ask_move, "zen_move", true, _MOVE_TIP),
+		_act("Delete %d" % n, _ask_delete, "zen_delete", true,
+			"Move their scene files to the OS trash, after a confirmation that lists them."), {},
+		_act("Clear selection", _back, "zen_back", true, "Back to just the row under the cursor.")]
 
 
 func _playing_actions() -> Array:
 	var out: Array = []
 	if _playing != null and _playing.held_pause >= 0:
-		out.append(_act("Continue", _continue, "zen_continue"))
-	out.append(_act("Restart", _restart, "zen_restart"))
-	var names: Array = _playing.bus().names() if _playing != null and _playing.bus() != null else []
+		out.append(_act("Continue", _continue, "zen_continue", true,
+			"Carry on past the pause marker it is holding at. A click on the stage does the same."))
+	out.append(_act("Restart", _restart, "zen_restart", true, "Play it again from the start."))
+	var bus: ZenSignalBus = _playing.bus() if _playing != null else null
+	var names: Array = bus.names() if bus != null else []
 	if not names.is_empty():
 		out.append({})
 		for i in mini(names.size(), 9):
-			out.append(_act("fire %s" % String(names[i]), _fire.bind(i), "zen_signal_%d" % (i + 1)))
-	out.append_array([{}, _act("Edit", _open_scene_editor, "zen_edit_scene"),
-		_act("Export...", _open_export, "zen_export"),
-		_act("Queue", _queue_current, "zen_export_queue"), {},
-		_act("Stop", _back, "zen_back")])
+			out.append(_act("fire %s" % String(names[i]), _fire.bind(i), "zen_signal_%d" % (i + 1), true,
+				"Fire signal %s, as a game would from code. Signals never fire in an export." % String(names[i]),
+				_signal_note(String(names[i]))))
+	out.append_array([{}, _act("Edit", _open_scene_editor, "zen_edit_scene", true, "Open it in the scene editor."),
+		_act("Export...", _open_export, "zen_export", true, _EXPORT_TIP, _queue_note(true)),
+		_act("Queue", _queue_current, "zen_export_queue", true, _QUEUE_TIP, _queue_note()), {},
+		_act("Stop", _back, "zen_back", true, "Stop playback and go back to its details.")])
 	return out
+
+
+## How the playing animation's signal `nm` is triggered, from its data.
+func _signal_note(nm: String) -> String:
+	for ch in _playing.get_children():
+		if ch is ZenSignalBus:
+			for sd in (ch as ZenSignalBus).signals_data:
+				var d := ZenSignalData.normalize((sd as Dictionary).duplicate(true))
+				if String(d["name"]) == nm: return _signal_label(d)
+	return ""
 
 
 func _asset_actions() -> Array:
 	if _asset_sel.is_multi():
 		var n := _marked_assets().size()
-		return [_act("Delete %d" % n, _ask_delete, "zen_delete"), {},
-			_act("Clear selection", _back, "zen_back")]
-	if _sel_asset == 0: return [_act("Create", _open_shape_editor, "zen_play")]
-	return [_act("Edit", _open_shape_editor, "zen_play"), _act("Delete", _ask_delete, "zen_delete")]
+		return [_act("Delete %d" % n, _ask_delete, "zen_delete", true,
+				"Move their files to the OS trash. An animation still drawing one shows the missing-shape box."), {},
+			_act("Clear selection", _back, "zen_back", true, "Back to just the row under the cursor.")]
+	if _sel_asset == 0:
+		return [_act("Create", _open_shape_editor, "zen_play", true, "Draw a new pixel shape in the shape editor.")]
+	var users: Array = _users_of(String(_assets[_sel_asset - 1]["name"])) if _sel_asset - 1 < _assets.size() else []
+	return [_act("Edit", _open_shape_editor, "zen_play", true, "Open it in the shape editor."),
+		_act("Delete", _ask_delete, "zen_delete", true, "Move the file to the OS trash, after a confirmation.",
+			"Drawn by %s - it would show the missing-shape box." % ", ".join(users) if not users.is_empty() else "")]
 
 
 ## The top bar's right half: creating things, the viewer toggles, and the
@@ -754,20 +797,30 @@ func _global_actions() -> Array:
 	var out: Array = []
 	if _view == View.GALLERY:
 		if _section == Section.ANIMS:
-			out.append_array([_act("New animation", _open_scene_editor.bind(true), "zen_new"),
-				_act("New folder", _ask_new_folder, "zen_new_folder")])
+			var here := _cur_folder()
+			out.append_array([_act("New animation", _open_scene_editor.bind(true), "zen_new", true,
+					"Start a new animation in the scene editor.",
+					"It saves into %s, the folder under the cursor." % here if here != "" else ""),
+				_act("New folder", _ask_new_folder, "zen_new_folder", true,
+					"Make an empty folder to sort animations into.")])
 		else:
-			out.append(_act("New asset", _new_asset, "zen_new"))
+			out.append(_act("New asset", _new_asset, "zen_new", true, "Draw a new pixel shape in the shape editor."))
 		out.append({})
-	var intro := _act("Intro", _toggle.bind("intro"), "zen_toggle_intro")
+	var no_intro := _view == View.PLAYING and _playing != null and not _playing.has_intro()
+	var intro := _act("Intro", _toggle.bind("intro"), "zen_toggle_intro", true,
+		"Play the intro section before the body. A viewer setting: the scene is not changed.",
+		("On" if ZenSettings.play_intro() else "Off") + (" - this animation has no intro." if no_intro else "."))
 	intro.merge({"toggle": true, "on": ZenSettings.play_intro()})
-	var loop := _act("Loop", _toggle.bind("loop"), "zen_toggle_loop")
+	var loop := _act("Loop", _toggle.bind("loop"), "zen_toggle_loop", true,
+		"Keep playing: loops repeat, and a one-shot replays after holding its last frame. A viewer setting: the scene is not changed.",
+		"On." if ZenSettings.play_loop() else "Off - it stops on the last frame.")
 	loop.merge({"toggle": true, "on": ZenSettings.play_loop()})
 	out.append_array([intro, loop, {}])
 	if _view == View.GALLERY:
-		out.append_array([_act("Reload", _restart, "zen_restart"),
-			_act("Options", _open_options, "zen_options")])
-	out.append(_act("Help", _show_help, "zen_help"))
+		out.append_array([_act("Reload", _restart, "zen_restart", true,
+				"Rescan the animation and asset folders, for files changed outside the app."),
+			_act("Options", _open_options, "zen_options", true, "Settings: font, default canvas size and more.")])
+	out.append(_act("Help", _show_help, "zen_help", true, "Every hotkey, a page per screen."))
 	return out
 
 
@@ -851,9 +904,11 @@ func _show_gallery() -> void:
 	_refresh_bar()
 	if _section == Section.ASSETS:
 		_status.text = "%d assets%s" % [_assets.size(), _queue_suffix()]
+		_refresh_status_tip()
 		return
 	_status.text = "%d animations%s" % [_entries.size(), _queue_suffix()]
 	_status.text += "   " + _toggle_badges(null)
+	_refresh_status_tip()
 
 
 ## The gallery footer. A multi-selection swaps in its own keys - what can be
@@ -958,6 +1013,16 @@ func _toggle_badges(c: ZenCanvas) -> String:
 		if not c.has_intro(): intro = "INTRO n/a"
 		if not c.loop_play and ZenSettings.play_loop(): loop = "LOOP replay"
 	return "[%s]  [%s]" % [intro, loop]
+
+
+## The status line's tooltip: what its badges mean, and the queue.
+func _refresh_status_tip() -> void:
+	var t := {"title": "Status",
+		"text": "While playing: the time and the play range, then [signal] / [paused] states. "
+			+ "INTRO and LOOP are the viewer toggles (n/a: this animation has no intro; replay: a "
+			+ "one-shot restarts after it ends). [queued: N] counts the export queue.",
+		"note": _queue_note()}
+	if _status.tip != t: _status.tip = t
 
 
 func _queue_suffix() -> String:
@@ -1335,6 +1400,12 @@ func _close_export() -> void:
 ## so mixing sizes is refused rather than guessed at (ZenExport.plan_chain
 ## enforces the same rule when the chain actually runs).
 func _queue_current() -> void:
+	_queue_selection()
+	_refresh_bar()
+	_refresh_status_tip()
+
+
+func _queue_selection() -> void:
 	if _view == View.GALLERY and _anim_sel.is_multi():
 		for nm in _marked_anims():
 			if not _queue_name(nm): return
@@ -1538,6 +1609,7 @@ func _update_status() -> void:
 	else:
 		_replay_hold = 0.0
 	_status.text = "t %.2f / %.2fs%s   %s%s" % [t, tot, extra, _toggle_badges(_playing), _queue_suffix()]
+	_refresh_status_tip()
 
 
 ## I / L: flip a viewer toggle, persist it, and restart what is playing so

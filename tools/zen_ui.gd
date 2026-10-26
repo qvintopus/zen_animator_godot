@@ -97,19 +97,26 @@ static func _on_row_input(ev: InputEvent, b: Button, fn: Callable, ctx := Callab
 # ---------------------------------------------------------------- actions
 #
 # An action is {label, fn: Callable, key: hotkey action name or "",
-# enabled := true, toggle := false, on := false}; {} is a separator. One
+# enabled := true, toggle := false, on := false, tip: what it does,
+# note: live state}; {} is a separator. One
 # list of them can fill a button bar and a context menu alike, so a screen
 # describes what it can do once and the mouse and the keys stay in step.
 
-## A flat bar button for `a`. The hotkey, if any, goes in the tooltip.
+## The ZenTooltip of action `a`.
+static func action_tip(a: Dictionary) -> Dictionary:
+    return {"title": String(a["label"]), "text": String(a.get("tip", "")),
+            "key": String(a.get("key", "")), "note": String(a.get("note", "")),
+            "warn": not bool(a.get("enabled", true))}
+
+
+## A flat bar button for `a`, its tooltip saying what it does and its keys.
 static func bar_button(a: Dictionary) -> Button:
-    var b := Button.new()
+    var b := ZenTipButton.new()
     b.text = String(a["label"])
     b.flat = true
     b.focus_mode = Control.FOCUS_NONE
     b.disabled = not bool(a.get("enabled", true))
-    var key := String(a.get("key", ""))
-    if key != "": b.tooltip_text = ZenHotkeyHelp.key(key)
+    b.tip = action_tip(a)
     b.add_theme_color_override("font_color", TEXT)
     b.add_theme_color_override("font_hover_color", TITLE)
     b.add_theme_color_override("font_disabled_color", DIM)
@@ -157,7 +164,7 @@ static func popup_actions(pm: PopupMenu, actions: Array, at: Vector2) -> void:
             continue
         if key != "": label += "    (%s)" % ZenHotkeyHelp.key(key)
         pm.add_item(label, fns.size())
-        pm.set_item_disabled(pm.item_count - 1, not bool(a.get("enabled", true)))
+        _item_extras(pm, a)
         fns.append(a["fn"])
     pm.set_meta("fns", fns)
     pm.reset_size()
@@ -172,9 +179,20 @@ static func popup_fill(pm: PopupMenu, actions: Array) -> void:
             pm.add_separator()
             continue
         pm.add_item(String(a["label"]), fns.size())
-        pm.set_item_disabled(pm.item_count - 1, not bool(a.get("enabled", true)))
+        _item_extras(pm, a)
         fns.append(a["fn"])
     pm.set_meta("fns", fns)
+
+
+## Disabled state and a plain-text tooltip (PopupMenu has no custom one).
+static func _item_extras(pm: PopupMenu, a: Dictionary) -> void:
+    var i := pm.item_count - 1
+    pm.set_item_disabled(i, not bool(a.get("enabled", true)))
+    var t := action_tip(a)
+    t.erase("title")
+    t.erase("key")
+    var s := ZenTooltip.text(t)
+    if s != "": pm.set_item_tooltip(i, s)
 
 
 ## Connect to a PopupMenu's id_pressed (bound with the menu) to run the
