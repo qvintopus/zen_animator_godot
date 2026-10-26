@@ -1,7 +1,7 @@
 extends SceneTree
 ##
 ## Builds a set of 64x64 pixel-shape icons (assets/shapes/*.tres): general coding,
-## coding with AI, and a few unrelated ones. Each is painted as solid FILL from a
+## coding with AI, a few unrelated ones and the ZombieShooter set. Each is painted as solid FILL from a
 ## handful of primitives, then auto_outline() rims it - the line-art look of the
 ## ported icons. The results are plain ZenPixelShape assets, editable in the shape
 ## editor afterwards, so a re-run KEEPS a name that already exists; pass --force to
@@ -35,6 +35,10 @@ func _init() -> void:
         "heart": _heart, "star": _star, "coffee_cup": _coffee_cup, "rocket": _rocket,
         "cat": _cat, "tree": _tree, "sun": _sun, "moon": _moon, "music_note": _music_note,
         "house": _house,
+        # ZombieShooter (anims/ZombieShooter/)
+        "skull": _skull, "zombie_hand": _zombie_hand, "crosshair": _crosshair, "splat": _splat,
+        "bullet": _bullet, "pistol": _pistol, "shotgun": _shotgun, "hazard_stripes": _hazard_stripes,
+        "door": _door,
     }
     DirAccess.make_dir_recursive_absolute(DIR)
     for nm: String in shapes:
@@ -379,6 +383,92 @@ func _house() -> void:
     polyline([Vector2(13, 28), Vector2(13, 56), Vector2(51, 56), Vector2(51, 28)], 4)
     polyline([Vector2(6, 31), Vector2(32, 9), Vector2(58, 31)], 5)
     rect(Rect2(26, 38, 12, 18))
+
+
+# ---------------------------------------------------------------------------
+#  ZombieShooter
+# ---------------------------------------------------------------------------
+
+func _skull() -> void:
+    ellipse(Vector2(32, 27), 22, 20)
+    round_rect(Rect2(19, 38, 26, 16), 4)
+    ellipse(Vector2(23, 29), 6, 7, ZenPixelShape.EMPTY)
+    ellipse(Vector2(41, 29), 6, 7, ZenPixelShape.EMPTY)
+    poly([Vector2(32, 35), Vector2(28, 42), Vector2(36, 42)], ZenPixelShape.EMPTY)
+    for x in [25, 32, 39]: rect(Rect2(x - 1, 47, 2, 8), ZenPixelShape.EMPTY)
+
+
+## A rotting hand clawing up out of the ground.
+func _zombie_hand() -> void:
+    rect(Rect2(4, 54, 56, 6))
+    for b in [Vector2(10, 54), Vector2(50, 55), Vector2(20, 53)]: ellipse(b, 6, 3)
+    round_rect(Rect2(24, 30, 18, 26), 3)
+    polyline([Vector2(26, 32), Vector2(22, 20), Vector2(20, 10)], 4)
+    polyline([Vector2(31, 30), Vector2(30, 14), Vector2(31, 5)], 4)
+    polyline([Vector2(36, 30), Vector2(38, 15), Vector2(41, 8)], 4)
+    polyline([Vector2(40, 32), Vector2(45, 22), Vector2(49, 17)], 4)
+    polyline([Vector2(25, 42), Vector2(16, 36), Vector2(12, 30)], 4)
+    rect(Rect2(30, 40, 6, 4), ZenPixelShape.EMPTY)
+
+
+func _crosshair() -> void:
+    ring(Vector2(32, 32), 20, 4)
+    for d in [Vector2.UP, Vector2.DOWN, Vector2.LEFT, Vector2.RIGHT]:
+        line(Vector2(32, 32) + d * 10, Vector2(32, 32) + d * 29, 4)
+    disc(Vector2(32, 32), 2.5)
+
+
+## A blood splat: a body, lobes and loose drops.
+func _splat() -> void:
+    disc(Vector2(32, 32), 15)
+    var rng := RandomNumberGenerator.new()
+    rng.seed = 7
+    for i in 9:
+        var a := deg_to_rad(i * 40.0 + rng.randf_range(-12, 12))
+        var r := rng.randf_range(14, 20)
+        disc(Vector2(32, 32) + Vector2.from_angle(a) * r, rng.randf_range(5, 8))
+        disc(Vector2(32, 32) + Vector2.from_angle(a) * (r + 10), rng.randf_range(1.8, 3.2))
+
+
+func _bullet() -> void:
+    round_rect(Rect2(14, 25, 26, 14), 2)
+    ellipse(Vector2(40, 32), 12, 7)
+    rect(Rect2(10, 24, 5, 16))
+    rect(Rect2(15, 27, 2, 10), ZenPixelShape.EMPTY)
+
+
+func _pistol() -> void:
+    round_rect(Rect2(8, 18, 46, 12), 2)
+    poly([Vector2(14, 29), Vector2(30, 29), Vector2(27, 52), Vector2(13, 52)])
+    ring(Vector2(31, 33), 5, 3)
+    rect(Rect2(48, 15, 4, 4))
+    rect(Rect2(12, 21, 30, 2), ZenPixelShape.EMPTY)
+
+
+func _shotgun() -> void:
+    rect(Rect2(20, 22, 42, 5))
+    rect(Rect2(20, 28, 34, 4))
+    round_rect(Rect2(30, 31, 14, 6), 2)
+    poly([Vector2(2, 34), Vector2(22, 22), Vector2(26, 32), Vector2(8, 44)])
+    arc(Vector2(26, 37), 4, 2.5, 0, 180)
+
+
+## Diagonal warning bands, edge to edge, for sweeping across a banner.
+func _hazard_stripes() -> void:
+    for i in range(-4, 6):
+        var x := i * 16.0
+        poly([Vector2(x, 64), Vector2(x + 8, 64), Vector2(x + 40, 0), Vector2(x + 32, 0)])
+    rect(Rect2(0, 0, 64, 3))
+    rect(Rect2(0, 61, 64, 3))
+
+
+## A boarded-up doorway (rooms left to clear).
+func _door() -> void:
+    round_frame(Rect2(14, 6, 36, 54), 3, 4)
+    rect(Rect2(8, 58, 48, 4))
+    line(Vector2(12, 20), Vector2(52, 30), 6)
+    line(Vector2(12, 42), Vector2(52, 34), 6)
+    disc(Vector2(42, 34), 2)
 
 
 # ---------------------------------------------------------------------------
