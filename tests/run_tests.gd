@@ -142,9 +142,11 @@ func _run() -> void:
     test_string_ops()
     test_string_pool_shared()
     test_text_args()
+    test_zombie_shooter_scenes()
     await test_scene_editor()
     await test_scene_editor_strings()
     await test_scene_editor_effects()
+    await test_scene_editor_text_args()
     await test_canvas_game_api()
     test_godot_export_rewrite()
     test_godot_export_vendor_source()
@@ -4064,6 +4066,50 @@ func test_text_args() -> void:
     check(ZenSceneEditor._string_label(3, "WAVE %2 of %1", 1) == "#3  WAVE %2 of %1  ×1  {%1 %2}",
           "the Strings list marks entries with fields")
     for x in [o, back]: x.free()
+
+
+## The ZombieShooter set: every scene loads, names each text arg it uses and
+## shows its samples, never a bare %N.
+func test_zombie_shooter_scenes() -> void:
+    var names := ZenSceneOps.scene_paths().keys().filter(func(n): return String(n).begins_with("zs_"))
+    check(names.size() == 7, "the ZombieShooter set has 7 scenes (%d)" % names.size())
+    for nm in names:
+        var c := ZenSceneOps.open(ZenSceneOps.path_of(nm))
+        check(ZenSceneOps.folder_of_path(ZenSceneOps.path_of(nm)) == "ZombieShooter", "%s is in ZombieShooter/" % nm)
+        var n := c.strings.arg_count()
+        check(n > 0 and c.text_arg_names.size() >= n and c.text_args.size() >= n,
+              "%s names and samples all %d text args" % [nm, n])
+        check(c.design_size == Vector2(480, 270) and c.clear_color.a == 0.0,
+              "%s is a transparent 480x270 overlay" % nm)
+        c.pose(c.duration * 0.6)
+        for t in ZenStringOps.texts(c):
+            check(not RegEx.create_from_string("%[1-9]").search((t as ZenText).text),
+                  "%s/%s shows its samples (%s)" % [nm, (t as ZenText).elem_name, (t as ZenText).text])
+        c.free()
+
+
+## The Document panel's Text args rows: one per slot, edits go live and undo.
+func test_scene_editor_text_args() -> void:
+    var user_state := ZenSettings.editor_state()
+    ZenSettings.set_editor_state({})
+    var ed: ZenSceneEditor = (load("res://tools/zen_scene_editor.tscn") as PackedScene).instantiate()
+    root.add_child(ed)
+    await process_frame
+    ed.open(ZenSceneOps.path_of("zs_room_cleared"))
+    await process_frame
+    check(ed._args_box.get_child_count() == 2, "one Text args row per slot the pool uses")
+    var row := ed._args_box.get_child(1)
+    check((row.get_child(1) as LineEdit).text == "rooms_left" and (row.get_child(2) as LineEdit).text == "3",
+          "a row shows the slot's name and sample")
+    (row.get_child(2) as LineEdit).text = "9"
+    (row.get_child(2) as LineEdit).text_changed.emit("9")
+    var sub := ZenElemOps.find(ed._canvas, "sub") as ZenText
+    ed._canvas.pose(1.0)
+    check(ed._canvas.text_args[1] == "9" and sub.text.contains("WITH 9 ROOMS"), "editing the sample re-resolves the text")
+    ed.open("")
+    ed.queue_free()
+    await process_frame
+    ZenSettings.set_editor_state(user_state)
 
 
 ## Effects through the editor's own handlers: Length, Trim, Extract, Insert.
