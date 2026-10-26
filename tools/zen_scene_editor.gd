@@ -96,9 +96,8 @@ var _p_doc: ZenEditorPanel
 var _p_tl: ZenEditorPanel
 var _p_str: ZenEditorPanel
 var _p_keys: ZenEditorPanel
-var _p_lib: ZenEditorPanel
-var _lib_list: ItemList
-var _lib_name: LineEdit
+var _p_fx: ZenEditorPanel
+var _fx: ZenEffects                     ## effects: extract, insert, length, trim
 var _keys: ZenKeyPanel
 var _p_sig: ZenEditorPanel
 var _sigs: ZenSignalPanel
@@ -177,6 +176,7 @@ func open(path: String, folder := "") -> void:
     _saved_version = _undo.get_version()
     _key_sel.clear()
     _refresh_all()
+    _fx.scene_opened()
     _set_status("editing %s" % _name if _name != "" else "new scene - Ctrl+S saves it under a name")
     # Show the timeline and the elements on a first visit: an empty screen
     # does not say where anything is.
@@ -325,6 +325,9 @@ func _refresh_all() -> void:
 
 func _build_ui() -> void:
     var rows := ZenUI.build_shell(self, 4)
+    _fx = ZenEffects.new(self)
+    add_child(_fx)
+    _fx.build_dialogs()
 
     var bar := HBoxContainer.new()
     bar.add_theme_constant_override("separation", 6)
@@ -334,7 +337,7 @@ func _build_ui() -> void:
     bar.add_child(_menu)
     _build_menus()
     for spec in [["elements", "1"], ["inspector", "2"], ["document", "3"], ["timeline", "4"],
-                 ["strings", "5"], ["keys", "6"], ["signals", "7"], ["library", "8"]]:
+                 ["strings", "5"], ["keys", "6"], ["signals", "7"], ["effects", "8"]]:
         var b := ZenEditorPanel._tool_button(spec[0], "Show / hide the %s panel (%s)" % spec)
         b.flat = false
         b.toggle_mode = true
@@ -393,9 +396,10 @@ func _build_ui() -> void:
     _build_keys(_p_keys.body)
     _p_sig = _add_panel("signals", "Signals", ZenEditorPanel.Edge.RIGHT, 330)
     _build_signals(_p_sig.body)
-    _p_lib = _add_panel("library", "Library", ZenEditorPanel.Edge.LEFT, 260)
-    _build_library(_p_lib.body)
+    _p_fx = _add_panel("effects", "Effects", ZenEditorPanel.Edge.LEFT, 260)
+    _fx.build_panel(_p_fx.body)
 
+    rows.add_child(_fx.guide_strip())
     _status = ZenUI.label("", ZenUI.TEXT)
     _status.clip_text = true
     rows.add_child(_status)
@@ -417,42 +421,66 @@ func _add_panel(id: String, title: String, side: int, ext: float) -> ZenEditorPa
 
 
 func _build_menus() -> void:
-    var file := _popup("File", [
-        ["New", _ask_new], ["Open...", _ask_open], ["Save", _save],
-        ["Save as...", _ask_save_as], ["Rename...", _ask_rename], ["Delete...", _ask_delete_scene],
-        [], ["Back to gallery", _request_leave]])
-    _menu.add_child(file)
+    _menu.add_child(_popup("File", [
+        {"label": "New", "fn": _ask_new, "tip": "Start a new animation (asks before dropping unsaved changes)."},
+        {"label": "Open...", "fn": _ask_open, "tip": "Open another animation for editing."},
+        {"label": "Save", "fn": _save, "key": "zen_edit_save", "tip": "Save this animation."},
+        {"label": "Save as...", "fn": _ask_save_as, "key": "zen_edit_save_as",
+         "tip": "Save under a new name; the editor then edits the new one."},
+        {"label": "Rename...", "fn": _ask_rename, "tip": "Rename this animation's file."},
+        {"label": "Delete...", "fn": _ask_delete_scene, "tip": "Move this animation to the trash."},
+        {},
+        {"label": "Back to gallery", "fn": _request_leave, "key": "zen_back", "tip": "Close the editor."}]))
     _menu.add_child(_popup("Edit", [
-        ["Undo", _do_undo], ["Redo", _do_redo], [],
-        ["Toggle auto-key", func(): _set_autokey(not _autokey)],
-        ["Delete selection", _delete_selection]]))
+        {"label": "Undo", "fn": _do_undo, "key": "zen_edit_undo", "tip": "Undo the last change."},
+        {"label": "Redo", "fn": _do_redo, "key": "zen_edit_redo", "tip": "Redo what was undone."},
+        {},
+        {"label": "Toggle auto-key", "fn": func(): _set_autokey(not _autokey), "key": "zen_edit_autokey",
+         "tip": "On: every edit writes a key at the playhead. Off: edits change the base pose."},
+        {"label": "Delete selection", "fn": _delete_selection, "key": "zen_delete",
+         "tip": "Delete the picked keys, else the selected elements."},
+        {},
+        {"label": "Options", "tip": "The animation's own clock: its length, and its empty time.", "sub": [
+            {"label": "Length...", "fn": _fx.ask_length,
+             "tip": "Set how long the animation is, optionally scaling every key to fit."},
+            {"label": "Trim...", "fn": _fx.ask_trim,
+             "tip": "Cut the empty time - where nothing changes - off the start and the end."}]},
+        {},
+        {"label": "Extract effect...", "fn": _fx.ask_extract,
+         "tip": "Make a new effect animation from part of this one, step by step."},
+        {"label": "Insert effect...", "fn": _fx.ask_insert,
+         "tip": "Place another animation into this one: where, how fast, and how its elements are named."}]))
     _menu.add_child(_popup("Element", [
-        ["Add text", _add_element.bind("text")], ["Add shape", _add_element.bind("shape")],
-        ["Add global", _add_element.bind("global")], [],
-        ["Duplicate", _duplicate_elements], ["Delete", _delete_elements], [],
-        ["Move back (up the list)", _move_selected.bind(-1)],
-        ["Move forward (down the list)", _move_selected.bind(1)]]))
-    _menu.add_child(_popup("View", [
-        ["Elements", _toggle_panel.bind("elements")], ["Inspector", _toggle_panel.bind("inspector")],
-        ["Document", _toggle_panel.bind("document")], ["Timeline", _toggle_panel.bind("timeline")],
-        ["Strings", _toggle_panel.bind("strings")], ["Keys", _toggle_panel.bind("keys")],
-        ["Signals", _toggle_panel.bind("signals")], ["Library", _toggle_panel.bind("library")],
-        [], ["Fit timeline", func(): _tl.fit()], ["Unpin all panels", _unpin_all]]))
+        {"label": "Add text", "fn": _add_element.bind("text"), "tip": "Add a text element in front."},
+        {"label": "Add shape", "fn": _add_element.bind("shape"), "tip": "Add a shape element in front."},
+        {"label": "Add global", "fn": _add_element.bind("global"),
+         "tip": "Add a global: a whole-screen fade and background colour."},
+        {},
+        {"label": "Duplicate", "fn": _duplicate_elements, "key": "zen_duplicate",
+         "tip": "Copy the selected elements, keys and all."},
+        {"label": "Delete", "fn": _delete_elements, "tip": "Delete the selected elements and their keys."},
+        {},
+        {"label": "Move back (up the list)", "fn": _move_selected.bind(-1), "tip": "Draw it further back."},
+        {"label": "Move forward (down the list)", "fn": _move_selected.bind(1), "tip": "Draw it further in front."}]))
+    var view: Array = []
+    for spec in [["Elements", "elements", "1"], ["Inspector", "inspector", "2"], ["Document", "document", "3"],
+                 ["Timeline", "timeline", "4"], ["Strings", "strings", "5"], ["Keys", "keys", "6"],
+                 ["Signals", "signals", "7"], ["Effects", "effects", "8"]]:
+        view.append({"label": spec[0], "fn": _toggle_panel.bind(spec[1]), "key": "zen_edit_panel_%s" % spec[2],
+                     "tip": "Show or hide the %s panel." % spec[1]})
+    view.append_array([{},
+        {"label": "Fit timeline", "fn": func(): _tl.fit(), "key": "zen_edit_fit", "tip": "Zoom the timeline to show all of it."},
+        {"label": "Unpin all panels", "fn": _unpin_all, "tip": "Let every pinned panel float and auto-hide again."}])
+    _menu.add_child(_popup("View", view))
 
 
-## A PopupMenu for the MenuBar: entries are [label, Callable], [] separates.
-func _popup(title: String, entries: Array) -> PopupMenu:
+## A PopupMenu for the MenuBar from ZenUI actions ({label, fn, key, tip} or
+## {label, sub: [...]}; {} separates), each item carrying its tooltip.
+func _popup(title: String, actions: Array) -> PopupMenu:
     var pm := PopupMenu.new()
     pm.name = title
-    var fns: Array = []
-    for e in entries:
-        if (e as Array).is_empty():
-            pm.add_separator()
-            fns.append(Callable())
-            continue
-        pm.add_item(String(e[0]), fns.size())
-        fns.append(e[1])
-    pm.id_pressed.connect(func(id): if (fns[id] as Callable).is_valid(): (fns[id] as Callable).call())
+    ZenUI.popup_fill(pm, actions)
+    pm.id_pressed.connect(ZenUI.menu_pressed.bind(pm))
     return pm
 
 
@@ -619,88 +647,6 @@ func _build_dialogs() -> void:
     _leave_dialog.custom_action.connect(_on_leave_action)
     _leave_dialog.confirmed.connect(func(): closed.emit())
     add_child(_leave_dialog)
-
-
-# ---------------------------------------------------------------- clip library
-
-func _build_library(p: VBoxContainer) -> void:
-    _lib_list = ItemList.new()
-    _lib_list.size_flags_vertical = SIZE_EXPAND_FILL
-    _lib_list.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-    _lib_list.item_activated.connect(func(_i): _lib_paste(false))
-    p.add_child(_lib_list)
-    _lib_name = LineEdit.new()
-    _lib_name.placeholder_text = "name for the clipboard"
-    _lib_name.text_submitted.connect(func(_s): _lib_save())
-    p.add_child(_lib_name)
-    var g := HFlowContainer.new()
-    p.add_child(g)
-    for spec in [["save", "Save the clipboard (Ctrl+C first) into the library under this name", _lib_save],
-                 ["paste", "Paste the selected clip at the playhead as new elements (double-click)", _lib_paste.bind(false)],
-                 ["onto", "Merge the selected one-element clip into the selected element, positions relative", _lib_paste.bind(true)],
-                 ["copy", "Put the selected clip on the clipboard (Ctrl+V pastes it)", _lib_to_clipboard],
-                 ["delete", "Delete the selected clip from the library", _lib_delete]]:
-        var b := ZenEditorPanel._tool_button(spec[0], spec[1])
-        b.flat = false
-        b.pressed.connect(spec[2])
-        g.add_child(b)
-    p.add_child(ZenUI.label("Ctrl+C copies the picked keys or selected elements", ZenUI.DIM, 11))
-    _refresh_library()
-
-
-func _refresh_library() -> void:
-    var keep := _lib_selected()
-    _lib_list.clear()
-    for nm in ZenSceneOps.clip_names():
-        var ix := _lib_list.add_item(String(nm))
-        _lib_list.set_item_metadata(ix, nm)
-        if nm == keep: _lib_list.select(ix)
-
-
-func _lib_selected() -> String:
-    var s := _lib_list.get_selected_items()
-    return String(_lib_list.get_item_metadata(s[0])) if not s.is_empty() else ""
-
-
-func _lib_save() -> void:
-    var clip := ZenClipOps.clipboard
-    if clip == null or not is_instance_valid(clip):
-        _set_status("nothing to save: copy something first (Ctrl+C)")
-        return
-    var nm := ZenSceneOps.clean_name(_lib_name.text)
-    if nm.is_empty():
-        _set_status("name the clip first")
-        return
-    if ZenSceneOps.save_clip(clip, nm).is_empty():
-        _set_status("could not save the clip")
-        return
-    _lib_name.text = ""
-    _refresh_library()
-    _set_status("saved clip %s" % nm)
-
-
-## Load the selected library clip onto the clipboard.
-func _lib_to_clipboard() -> bool:
-    var nm := _lib_selected()
-    var clip := ZenSceneOps.open_clip(nm) if nm != "" else null
-    if clip == null:
-        _set_status("select a clip first")
-        return false
-    ZenClipOps.set_clipboard(clip)
-    _set_status("clipboard: %s (%.2fs)" % [nm, clip.duration])
-    return true
-
-
-func _lib_paste(onto: bool) -> void:
-    if _lib_to_clipboard(): _paste_clip(onto, onto)
-
-
-func _lib_delete() -> void:
-    var nm := _lib_selected()
-    if nm == "": return
-    _ask_confirm("Delete clip %s from the library?" % nm, func():
-        ZenSceneOps.delete_clip(nm)
-        _refresh_library())
 
 
 # ---------------------------------------------------------------- string pool
@@ -1036,51 +982,6 @@ func _duplicate_elements() -> void:
         var out: Array[String] = []
         for el in ns: out.append(ZenElemOps.duplicate_elem(_canvas, el).elem_name)
         _sel = out)
-    _on_selection_changed(true)
-
-
-## Ctrl+C: the picked keys if any are picked, else the selected elements.
-func _copy_selection() -> void:
-    var elems: Array = []
-    if not _key_sel.is_empty():
-        for id in _key_sel:
-            var node := _canvas.get_node_or_null(String(ZenKeyPanel.split_id(id)[0]).get_slice("|", 0))
-            if node is ZenElement and not elems.has(ZenElemOps.row_of(_canvas, node)):
-                elems.append(ZenElemOps.row_of(_canvas, node))
-    else:
-        elems = _selected_nodes()
-    if elems.is_empty():
-        _set_status("nothing to copy: select elements or keys")
-        return
-    var clip := ZenClipOps.copy(_canvas, elems, _key_sel)
-    if clip == null:
-        _set_status("nothing to copy")
-        return
-    ZenClipOps.set_clipboard(clip)
-    _set_status("copied %s (%.2fs)" % [
-        ("%d keys" % _key_sel.size()) if not _key_sel.is_empty() else "%d element(s)" % elems.size(),
-        clip.duration])
-
-
-## Ctrl+V pastes new elements at the playhead; `onto` merges the clip into the
-## selected element instead, `relative` re-basing its positions onto that element.
-func _paste_clip(onto := false, relative := false) -> void:
-    var clip := ZenClipOps.clipboard
-    if clip == null or not is_instance_valid(clip):
-        _set_status("the clipboard is empty: Ctrl+C copies")
-        return
-    var target := _primary() if onto else null
-    if onto and (target == null or ZenElemOps.rows(clip).size() != 1):
-        _set_status("paste onto needs one selected element and a one-element clip")
-        return
-    var made: Array = []
-    # A lambda captures `made` by value: fill the array, do not reassign it.
-    _command("paste", func(): made.assign(ZenClipOps.paste(_canvas, clip, _t, target, relative)))
-    if made.is_empty(): return
-    if not onto:
-        var out: Array[String] = []
-        for el in made: out.append((el as ZenElement).elem_name)
-        _sel = out
     _on_selection_changed(true)
 
 
@@ -1969,12 +1870,9 @@ func _on_context_ruler(t: float, at: Vector2) -> void:
     if _sig_edit != "":
         _ctx_show(at)
         return
-    var clip := ZenClipOps.clipboard
-    if clip != null and is_instance_valid(clip):
-        _ctx_add("paste here", func(): _paste_clip())
-        if _primary() != null and ZenElemOps.rows(clip).size() == 1:
-            _ctx_add("paste onto selection (relative)", func(): _paste_clip(true, true))
-            _ctx_add("paste onto selection (absolute)", func(): _paste_clip(true, false))
+    _ctx_add("insert effect here...", func():
+        _scrub_to(t)
+        _fx.ask_insert())
     _ctx_add("add pause here", func(): _command("add pause", func(): ZenDocOps.add_pause(_canvas, t)))
     _ctx_add("add pause (once) here", func(): _command("add pause", func(): ZenDocOps.add_pause(_canvas, t, true)))
     _ctx_add("intro ends here", func(): _command("intro_end", func(): ZenDocOps.set_intro_end(_canvas, t)))
@@ -2397,9 +2295,6 @@ func _show_help() -> void:
             ["zen_edit_fit", "fit the view (mouse over the canvas)"],
             ["zen_delete", "delete the selected elements"],
             ["zen_duplicate", "duplicate the selected elements"],
-            ["zen_copy", "copy the picked keys, else the selected elements"],
-            ["zen_paste", "paste at the playhead as new elements"],
-            ["zen_paste_onto", "paste onto the selected element (positions relative)"],
             ["zen_rename", "rename the selected element"]]},
         {"name": "Timeline & keys", "rows": [
             ["zen_edit_key_prev", "playhead to the previous key (picks the keys there)"],
@@ -2421,7 +2316,8 @@ func _show_help() -> void:
             ["zen_edit_panel_3", "document"], ["zen_edit_panel_4", "timeline"],
             ["zen_edit_panel_5", "string pool"], ["zen_edit_panel_6", "keys panel"],
             ["zen_edit_panel_7", "signals panel"],
-            ["zen_edit_panel_8", "library panel"],
+            ["zen_edit_panel_8", "effects panel: insert an animation, extract an effect"],
+            ["Edit > Options", "the animation's length, trim its empty time"],
             ["zen_edit_undo", "undo"], ["zen_edit_redo", "redo"],
             ["zen_edit_save", "save"], ["zen_edit_save_as", "save as"],
             ["zen_help", "this sheet on / off"],
@@ -2448,6 +2344,7 @@ func _unhandled_input(ev: InputEvent) -> void:
     if not (ev is InputEventKey) or not ev.is_pressed(): return
     for d in [_name_dialog, _confirm, _open_dialog, _leave_dialog]:
         if (d as Window).visible: return
+    if _fx.dialog_open(): return
     if _help.handle_key(ev):
         get_viewport().set_input_as_handled()
         return
@@ -2469,12 +2366,6 @@ func _unhandled_input(ev: InputEvent) -> void:
         if not echo: _duplicate_elements()
     elif ev.is_action_pressed("zen_edit_select_all"):
         if not echo: _select_all_keys()
-    elif ev.is_action_pressed("zen_copy"):
-        if not echo: _copy_selection()
-    elif ev.is_action_pressed("zen_paste_onto"):
-        if not echo: _paste_clip(true, true)
-    elif ev.is_action_pressed("zen_paste"):
-        if not echo: _paste_clip()
     elif (ev as InputEventKey).ctrl_pressed: pass
     elif ev.is_action_pressed("zen_play"):
         if not echo: _toggle_play()
@@ -2496,7 +2387,7 @@ func _unhandled_input(ev: InputEvent) -> void:
     elif ev.is_action_pressed("zen_edit_key_next", true): _jump_key(1)
     elif _playing and _sig_edit == "" and _fire_digit(ev): pass
     else:
-        var ids := ["elements", "inspector", "document", "timeline", "strings", "keys", "signals", "library"]
+        var ids := ["elements", "inspector", "document", "timeline", "strings", "keys", "signals", "effects"]
         for i in ids.size():
             if ev.is_action_pressed("zen_edit_panel_%d" % (i + 1)):
                 if not echo: _toggle_panel(ids[i])

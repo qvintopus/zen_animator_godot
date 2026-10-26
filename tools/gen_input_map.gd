@@ -9,7 +9,7 @@ extends SceneTree
 ## loaded settings and gets written straight back out. Retired actions are
 ## cleared explicitly before saving.
 
-const RETIRED := ["zen_scale_down", "zen_scale_up"]
+const RETIRED := ["zen_scale_down", "zen_scale_up", "zen_copy", "zen_paste", "zen_paste_onto"]
 
 const ACTIONS := {
     "zen_play": [KEY_ENTER, KEY_KP_ENTER, KEY_SPACE],
@@ -83,10 +83,6 @@ func _init() -> void:
     _set_action("zen_edit_save_as", [KEY_S], true, true)
     _set_action("zen_duplicate", [KEY_D], true)
     _set_action("zen_edit_select_all", [KEY_A], true)
-    _set_action("zen_copy", [KEY_C], true)
-    _set_action("zen_paste", [KEY_V], true)
-    # Checked before zen_paste, which a non-exact match also satisfies.
-    _set_action("zen_paste_onto", [KEY_V], true, true)
     # Checked before zen_play (ENTER) for the same reason.
     _set_action("zen_edit_scene", [KEY_ENTER, KEY_KP_ENTER], true)
     _set_action("zen_edit_undo", [KEY_Z], true)

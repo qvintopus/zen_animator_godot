@@ -148,37 +148,32 @@ static func popup_actions(pm: PopupMenu, actions: Array, at: Vector2) -> void:
     for ch in pm.get_children():
         pm.remove_child(ch)
         ch.queue_free()
+    popup_fill(pm, actions)
+    pm.reset_size()
+    pm.popup(Rect2i(Vector2i(at), Vector2i.ZERO))
+
+
+## Fill `pm` without popping it up: an item per action (its key after the
+## label), a separator per {} (never a leading one), a submenu per action
+## with `sub`. The caller connects id_pressed to `menu_pressed`.
+static func popup_fill(pm: PopupMenu, actions: Array) -> void:
     var fns: Array = []
     for a in actions:
         if (a as Dictionary).is_empty():
             if pm.item_count > 0: pm.add_separator()
             continue
         var label := String(a["label"])
-        var key := String(a.get("key", ""))
         if (a as Dictionary).has("sub"):
             var sub := PopupMenu.new()
             pm.add_child(sub)
             sub.id_pressed.connect(menu_pressed.bind(sub))
             popup_fill(sub, a["sub"])
             pm.add_submenu_node_item(label, sub)
+            _item_extras(pm, a)
             continue
+        var key := String(a.get("key", ""))
         if key != "": label += "    (%s)" % ZenHotkeyHelp.key(key)
         pm.add_item(label, fns.size())
-        _item_extras(pm, a)
-        fns.append(a["fn"])
-    pm.set_meta("fns", fns)
-    pm.reset_size()
-    pm.popup(Rect2i(Vector2i(at), Vector2i.ZERO))
-
-
-## Fill a submenu without popping it up.
-static func popup_fill(pm: PopupMenu, actions: Array) -> void:
-    var fns: Array = []
-    for a in actions:
-        if (a as Dictionary).is_empty():
-            pm.add_separator()
-            continue
-        pm.add_item(String(a["label"]), fns.size())
         _item_extras(pm, a)
         fns.append(a["fn"])
     pm.set_meta("fns", fns)

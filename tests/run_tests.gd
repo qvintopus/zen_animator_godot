@@ -135,12 +135,13 @@ func _run() -> void:
     test_doc_ops()
     test_scene_ops_roundtrip()
     test_clip_ops()
+    test_doc_retime_trim()
     test_string_pool_scenes()
     test_string_ops()
     test_string_pool_shared()
     await test_scene_editor()
     await test_scene_editor_strings()
-    await test_scene_editor_clip()
+    await test_scene_editor_effects()
     await test_canvas_game_api()
     test_godot_export_rewrite()
     test_godot_export_vendor_source()
@@ -3669,60 +3670,35 @@ func _samp(c: ZenCanvas, path: String, t: float) -> float:
     return anim.bezier_track_interpolate(anim.find_track(NodePath(path), Animation.TYPE_BEZIER), t)
 
 
+## Inserting an effect: its timing, eases and text, laid in at `t`.
 func test_clip_ops() -> void:
     var keys := [_k(0.5, 0.2), _k(1.0, 0.8, "bounceOut"), _k(1.5, 0.4, "cubicIn"), _k(1.8, 0.9)]
-    var src := _authoring_canvas({"pos_x": keys, "alpha": [_k(0.5, 0.0), _k(1.0, 1.0, "sineOut")]})
-    src.duration = 3.0
-    var box: ZenElement = src.get_node("box")
+    var fx := _authoring_canvas({"pos_x": keys, "alpha": [_k(0.5, 0.0), _k(1.0, 1.0, "sineOut")]})
 
-    # Whole-element copy: rebased to 0, values, eases and the curve between keys survive.
-    var clip := ZenClipOps.copy(src, [box])
-    check(clip != null and ZenElemOps.find(clip, "box") != null, "a clip carries the element")
-    var cb := ZenElemOps.find(clip, "box")
-    var ck := ZenKeyOps.keys(clip, cb, "pos_x")
-    check(ck.size() == 4 and absf(float(ck[0]["t"])) < 1e-5, "the first key is rebased to 0")
-    check(ck.map(func(k): return k["ease"]) == ["linear", "bounceOut", "cubicIn", "linear"],
-          "eases survive the copy: %s" % [ck.map(func(k): return k["ease"])])
-    check_near(clip.duration, 1.3, "the clip is as long as the copied keys", 1e-4)
-    for tt in [0.1, 0.3, 0.6, 0.9, 1.2]:
-        check_near(_samp(clip, "box:pos_x", tt), _samp(src, "box:pos_x", tt + 0.5),
-                   "the copied curve matches the source at %.1f" % tt, 1e-4)
-
-    # Paste as a new element at t=2: same curve, shifted exactly 2s; the scene grows to fit.
+    # As new elements at t=2: the effect's own times shifted exactly 2s; the scene grows to fit.
     var dest := _authoring_canvas({})
     ZenDocOps.set_outro_start(dest, dest.duration)
-    var made := ZenClipOps.paste(dest, clip, 2.0)
-    check(made.size() == 1 and (made[0] as ZenElement).elem_name == "box_2", "pasting a taken name renames it")
-    for tt in [0.1, 0.6, 1.2]:
-        check_near(_samp(dest, "box_2:pos_x", 2.0 + tt), _samp(src, "box:pos_x", 0.5 + tt),
-                   "the pasted curve is the source shifted (%.1f)" % tt, 1e-4)
-    check_near(dest.duration, 3.3, "pasting past the end lengthens the clip", 1e-4)
+    check(ZenClipOps.names_for(dest, fx) == ["box_2"], "names_for previews the de-duplicated name")
+    var made := ZenClipOps.paste(dest, fx, 2.0)
+    check(made.size() == 1 and (made[0] as ZenElement).elem_name == "box_2", "inserting a taken name renames it")
+    var pk := ZenKeyOps.keys(dest, made[0], "pos_x")
+    check(pk.map(func(k): return k["ease"]) == ["linear", "bounceOut", "cubicIn", "linear"],
+          "eases survive the insert: %s" % [pk.map(func(k): return k["ease"])])
+    check_near(float(pk[0]["t"]), 2.5, "the effect's leading time is kept", 1e-4)
+    for tt in [0.6, 0.9, 1.2, 1.7]:
+        check_near(_samp(dest, "box_2:pos_x", 2.0 + tt), _samp(fx, "box:pos_x", tt),
+                   "the inserted curve is the effect shifted (%.1f)" % tt, 1e-4)
+    check_near(dest.duration, 3.8, "inserting past the end lengthens the scene", 1e-4)
     check_near(dest.outro_start, dest.duration, "...and an end-of-clip outro stays at the end", 1e-4)
 
-    # Key-only copy: exactly the picked keys, the rest dropped.
-    var one := ZenClipOps.copy(src, [box], {"box|pos_x|1": true, "box|pos_x|3": true})
-    var ok := ZenKeyOps.keys(one, ZenElemOps.find(one, "box"), "pos_x")
-    check(ok.size() == 2 and absf(float(ok[0]["t"])) < 1e-5 and absf(float(ok[1]["t"]) - 0.8) < 1e-4,
-          "a key copy carries only the picked keys: %s" % [ok])
-    check(not ZenKeyOps.has_track(one, ZenElemOps.find(one, "box"), "alpha"), "...and not the other props")
-    check_near(float(ok[1]["v"]), 0.9, "...with their values")
-
-    # Merge onto an existing element: keys interleave, the same time replaces.
-    var d2 := _authoring_canvas({"pos_x": [_k(0.0, 0.5), _k(2.0, 0.5)]})
-    var tgt: ZenElement = d2.get_node("box")
-    ZenClipOps.paste(d2, one, 0.5, tgt)
-    var mk := ZenKeyOps.keys(d2, tgt, "pos_x")
-    check(mk.map(func(k): return snappedf(float(k["t"]), 0.01)) == [0.0, 0.5, 1.3, 2.0],
-          "merged keys are in time order: %s" % [mk.map(func(k): return k["t"])])
-    check_near(float(mk[1]["v"]), 0.8, "the merged key's value")
-    check_near(float(mk[3]["v"]), 0.5, "an untouched key keeps its value")
-    check_near(_samp(d2, "box:pos_x", 0.0), 0.5, "the key before the merge is untouched")
-
-    # Relative merge: position re-based to where the target is at the paste time.
-    var d3 := _authoring_canvas({"pos_x": [_k(0.0, 0.1), _k(2.0, 0.1)]})
-    ZenClipOps.paste(d3, one, 1.0, d3.get_node("box"), true)
-    check_near(_samp(d3, "box:pos_x", 1.0), 0.1, "relative: the first key starts at the target's own value")
-    check_near(_samp(d3, "box:pos_x", 1.8), 0.1 + (0.9 - 0.8), "relative: the offset carries to the later key", 1e-4)
+    # A prefix, and a speed ratio applied to the opened effect first.
+    var d2 := _authoring_canvas({})
+    ZenDocOps.retime(fx, 0.5)
+    var m2 := ZenClipOps.paste(d2, fx, 0.0, "fx_")
+    check(m2.size() == 1 and (m2[0] as ZenElement).elem_name == "fx_box", "the prefix goes in front of the name")
+    var k2 := ZenKeyOps.keys(d2, m2[0], "pos_x")
+    check_near(float(k2[k2.size() - 1]["t"]), 0.9, "a ratio of 0.5 plays the effect twice as fast", 1e-4)
+    check_near(_samp(d2, "fx_box:pos_x", 0.45), _samp(fx, "box:pos_x", 0.45), "...along the same curve", 1e-4)
 
     # Text: the words follow into the destination pool, whatever its indices.
     var sc := _authoring_canvas({})
@@ -3731,37 +3707,56 @@ func test_clip_ops() -> void:
     var i1 := ZenStringOps.add(sc, "BETA")
     ZenKeyOps.insert(sc, tx, "string", 0.0, float(i0))
     ZenKeyOps.insert(sc, tx, "string", 1.0, float(i1))
-    var tclip := ZenClipOps.copy(sc, [tx])
     var dc := _authoring_canvas({})
     ZenStringOps.add(dc, "OTHER")
-    var pasted := ZenClipOps.paste(dc, tclip, 0.5)
-    var pk := ZenKeyOps.keys(dc, pasted[0], "string")
+    var pasted := ZenClipOps.paste(dc, sc, 0.5)
+    var tl: ZenElement = pasted[pasted.size() - 1]
+    var sk := ZenKeyOps.keys(dc, tl, "string")
     var pool := ZenStringOps.pool(dc)
-    check(pk.size() == 2 and pool.at(int(pk[0]["v"])) == "ALPHA" and pool.at(int(pk[1]["v"])) == "BETA",
+    check(sk.size() == 2 and pool.at(int(sk[0]["v"])) == "ALPHA" and pool.at(int(sk[1]["v"])) == "BETA",
           "string keys point at the same words in the new pool")
-    check(absf(float(pk[0]["t"]) - 0.5) < 1e-4 and absf(float(pk[1]["t"]) - 1.5) < 1e-4,
+    check(absf(float(sk[0]["t"]) - 0.5) < 1e-4 and absf(float(sk[1]["t"]) - 1.5) < 1e-4,
           "...at the shifted times")
-    check((pasted[0] as ZenText).strings == pool, "a pasted text uses the destination's pool")
+    check((tl as ZenText).strings == pool, "an inserted text uses the destination's pool")
+    for c in [fx, dest, d2, sc, dc]: c.free()
 
-    # The clip is a scene: it survives save and open.
-    var path := ZenSceneOps.save(clip, "zz_test_clip")
-    var back := ZenSceneOps.open(path)
-    check(back != null and ZenKeyOps.keys(back, ZenElemOps.find(back, "box"), "pos_x").size() == 4,
-          "a clip round-trips as a scene")
-    if back != null: back.free()
-    ZenSceneOps.delete("zz_test_clip")
 
-    # The library keeps clips apart from the animations.
-    var lp := ZenSceneOps.save_clip(clip, "ZZ Test Clip")
-    check(not lp.is_empty() and lp.begins_with(ZenSceneOps.clip_save_root()), "a clip saves into the library")
-    check(ZenSceneOps.clip_names().has("zz_test_clip") and not ZenSceneOps.scene_paths().has("zz_test_clip"),
-          "...and is a clip, not an animation")
-    var lc := ZenSceneOps.open_clip("zz_test_clip")
-    check(lc != null and ZenElemOps.find(lc, "box") != null, "a library clip opens")
-    if lc != null: lc.free()
-    check(ZenSceneOps.delete_clip("zz_test_clip") == OK and not ZenSceneOps.clip_names().has("zz_test_clip"),
-          "a library clip deletes")
-    for c in [src, clip, one, dest, d2, d3, sc, tclip, dc]: c.free()
+## Retime scales the whole clock; trim cuts the still time off both ends.
+func test_doc_retime_trim() -> void:
+    var c := _authoring_canvas({"pos_x": [_k(0.0, 0.3), _k(0.5, 0.3), _k(1.0, 0.8, "cubicOut"), _k(1.5, 0.4)],
+                                "alpha": [_k(0.0, 1.0), _k(1.8, 1.0)]})
+    ZenDocOps.set_duration(c, 3.0)
+    ZenDocOps.add_pause(c, 0.2)
+    ZenDocOps.add_pause(c, 1.2)
+    ZenSignalOps.add(c, "tap")
+    var sig_len := ZenAnimBuilder.signal_anim(c, "tap").length
+    var span := ZenDocOps.key_span(c)
+    check_near(span.x, 0.5, "the span starts where the first value changes (holds do not count)", 1e-4)
+    check_near(span.y, 1.5, "...and ends where the last change ends", 1e-4)
+    var before := _samp(c, "box:pos_x", 0.8)
+
+    ZenDocOps.retime(c, 2.0)
+    check_near(c.duration, 6.0, "retime x2 doubles the length", 1e-4)
+    check_near(_samp(c, "box:pos_x", 1.6), before, "...and the curve plays at half speed", 1e-4)
+    check_near(float(c.pauses[1]["t"]), 2.4, "...and moves the pauses", 1e-4)
+    check_near(ZenAnimBuilder.signal_anim(c, "tap").length, sig_len, "...but not a signal's own clock", 1e-4)
+    ZenDocOps.retime(c, 0.5)
+    check_near(c.duration, 3.0, "retime back", 1e-4)
+
+    check(ZenDocOps.trim(c, true, true), "trim cuts something")
+    check_near(c.duration, 1.0, "trimmed to the moving part", 1e-4)
+    var ks := ZenKeyOps.keys(c, c.get_node("box"), "pos_x")
+    check(ks.size() == 3 and absf(float(ks[0]["t"])) < 1e-4, "the leading hold collapses onto 0: %s" % [ks])
+    check_near(_samp(c, "box:pos_x", 0.3), before, "the curve plays the same, earlier", 1e-4)
+    check(c.pauses.size() == 1 and absf(float(c.pauses[0]["t"]) - 0.7) < 1e-4,
+          "a pause inside the cut goes, a later one moves (%s)" % [c.pauses])
+    var ak := ZenKeyOps.keys(c, c.get_node("box"), "alpha")
+    check(ak.size() >= 1 and float(ak[ak.size() - 1]["t"]) <= 1.0 + 1e-4, "a hold past the end is cut back")
+    check_near(c.outro_start, c.duration, "the outro stays at the end", 1e-4)
+    check(not ZenDocOps.trim(c, true, true), "trimming again finds nothing to cut")
+    var still := _authoring_canvas({})
+    check(ZenDocOps.key_span(still).x < 0.0 and not ZenDocOps.trim(still, true, true), "nothing keyed: nothing to trim")
+    for x in [c, still]: x.free()
 
 
 func test_scene_ops_roundtrip() -> void:
@@ -3937,69 +3932,111 @@ func test_string_pool_shared() -> void:
     for x in [cached, o, snap, back]: x.free()
 
 
-## Ctrl+C / Ctrl+V through the editor's own handlers, on a real scene.
-func test_scene_editor_clip() -> void:
+## Effects through the editor's own handlers: Length, Trim, Extract, Insert.
+func test_scene_editor_effects() -> void:
     var user_state := ZenSettings.editor_state()
     ZenSettings.set_editor_state({})
-    ZenClipOps.set_clipboard(null)
     var ed: ZenSceneEditor = (load("res://tools/zen_scene_editor.tscn") as PackedScene).instantiate()
     root.add_child(ed)
     await process_frame
-    ed.open("res://anims/ma_prog/ma_prog_02_coding.tscn")
-    await process_frame
-    var n0 := ZenElemOps.rows(ed._canvas).size()
-    ed._paste_clip()
-    check(ZenElemOps.rows(ed._canvas).size() == n0, "pasting an empty clipboard does nothing")
+    var fx := ed._fx
+    check(ed._panel("effects") != null, "the editor has an Effects panel")
+    check(not ZenSceneOps.scene_paths().has("zz_fx_src") and not ZenSceneOps.scene_paths().has("zz_fx_out"),
+          "(no leftovers from an earlier run)")
 
-    ed._sel.assign(["sh_book"])
-    ed._copy_selection()
-    check(ZenClipOps.clipboard != null and ZenElemOps.find(ZenClipOps.clipboard, "sh_book") != null,
-          "Ctrl+C puts the selection on the clipboard")
-    var dur: float = ed._canvas.duration
-    ed._t = 1.0
-    ed._paste_clip()
-    var made := ZenElemOps.find(ed._canvas, "sh_book_2")
-    check(made != null and ed._sel.size() == 1 and ed._sel[0] == "sh_book_2", "Ctrl+V adds the copy and selects it (%s)" % [ed._sel])
-    var src := ZenElemOps.find(ed._canvas, "sh_book")
-    var a := ZenKeyOps.keys(ed._canvas, src, "pos_x")
-    var b := ZenKeyOps.keys(ed._canvas, made, "pos_x")
-    check(a.size() == b.size() and not a.is_empty(), "the copy has the same keys (%d)" % b.size())
-    if not a.is_empty():
-        check_near(float(b[0]["t"]), 1.0, "...starting at the playhead", 1e-4)
-        check_near(float(b[b.size() - 1]["t"]) - float(b[0]["t"]),
-                   float(a[a.size() - 1]["t"]) - float(a[0]["t"]), "...with the same spacing", 1e-4)
-    check(ed._canvas.duration >= dur, "the scene is not shortened by a paste")
+    # A source scene with two elements and a signal, saved.
+    ed.open("")
+    ed._name = "zz_fx_src"
+    var c: ZenCanvas = ed._canvas
+    var ring := ZenElemOps.add(c, "shape", "ring")
+    ZenKeyOps.insert(c, ring, "pos_x", 0.0, 0.2)
+    ZenKeyOps.insert(c, ring, "pos_x", 0.8, 0.2)
+    ZenKeyOps.insert(c, ring, "pos_x", 1.4, 0.7)
+    ZenSignalOps.add(c, "tap")
+    ed._save()
+    check(not ed._dirty() and ZenSceneOps.scene_paths().has("zz_fx_src"), "the source is saved")
+
+    # Length: plain, then scaled; each one undo step.
+    ed._fx.ask_length()
+    fx._len_spin.value = 3.0
+    fx._apply_length()
+    fx._len_dialog.hide()
+    check_near(ed._canvas.duration, 3.0, "Length sets the length")
     ed._do_undo()
-    check(ZenElemOps.find(ed._canvas, "sh_book_2") == null, "one undo removes the paste")
+    check_near(ed._canvas.duration, 2.0, "...in one undo step")
+    fx.ask_length()
+    fx._len_spin.value = 4.0
+    fx._len_scale.button_pressed = true
+    fx._apply_length()
+    fx._len_dialog.hide()
+    var rk := ZenKeyOps.keys(ed._canvas, ZenElemOps.find(ed._canvas, "ring"), "pos_x")
+    check_near(float(rk[rk.size() - 1]["t"]), 2.8, "scaled Length stretches the keys", 1e-3)
+    ed._do_undo()
 
-    # A key copy, merged onto another element.
-    var ks := ZenKeyOps.keys(ed._canvas, src, "pos_x")
-    var id := "%s|pos_x|0" % src.name
-    ed._key_sel = {id: true}
-    ed._copy_selection()
-    ed._sel.assign(["sh_page1"])
-    ed._t = 2.0
-    ed._paste_clip(true, false)
-    var pk := ZenKeyOps.keys(ed._canvas, ZenElemOps.find(ed._canvas, "sh_page1"), "pos_x")
-    check(pk.any(func(k): return absf(float(k["t"]) - 2.0) < 1e-4), "a one-key clip merges onto the selection")
-    check(ks.size() > 0, "(the source keys exist)")
+    # Extract: copy (signals cut), keep one element, trim, saved.
+    ed._sel.assign(["ring"])
+    fx.ask_extract()
+    check(fx._name_dialog.visible, "a saved scene goes straight to the name step")
+    fx._name_edit.text = "zz_fx_out"
+    fx._name_sigs.button_pressed = false
+    fx._name_dialog.hide()
+    fx._copy_for_extract()
+    check(ed._name == "zz_fx_out" and ZenSceneOps.folder_of("zz_fx_out") == ZenSceneOps.EFFECTS_FOLDER,
+          "the effect is a copy in effects/ (%s, %s)" % [ed._name, ZenSceneOps.folder_of("zz_fx_out")])
+    check(ZenSignalOps.names(ed._canvas).is_empty(), "signals are cut off when not kept")
+    check(fx._elem_dialog.visible and fx._elem_box.get_child_count() == ZenElemOps.rows(ed._canvas).size(),
+          "the element step lists every element")
+    fx._elem_dialog.hide()
+    fx._keep_elements()
+    check(ZenElemOps.rows(ed._canvas).size() == 1 and ZenElemOps.find(ed._canvas, "ring") != null,
+          "only the elements selected before extract are kept")
+    check(fx._guide.visible and fx._step == 3, "the key step shows the guide strip")
+    fx._guide.hide()
+    fx.ask_trim()
+    check(fx._trim_dialog.visible and fx._trim_lead.button_pressed and fx._trim_tail.button_pressed,
+          "the trim step offers both cuts")
+    fx._trim_dialog.hide()
+    fx._apply_trim()
+    check_near(ed._canvas.duration, 0.6, "the effect is trimmed to its moving part", 1e-3)
+    check(not ed._dirty() and fx._step == 0 and not fx._guide.visible, "the trim step saves and ends the guide")
+    var src := ZenSceneOps.open(ZenSceneOps.path_of("zz_fx_src"))
+    check(ZenElemOps.rows(src).size() == 2, "the source animation keeps both its elements")
+    check(not ZenSignalOps.names(src).is_empty(), "...and keeps its signal")
+    src.free()
 
-    # The Library panel: save the clipboard, list it, paste it back from the file.
-    check(ed._panel("library") != null, "the editor has a Library panel")
-    ed._lib_name.text = "ZZ Panel Clip"
-    ed._lib_save()
-    check(ZenSceneOps.clip_names().has("zz_panel_clip") and ed._lib_list.item_count > 0, "save puts the clip in the list")
-    ZenClipOps.set_clipboard(null)
-    for i in ed._lib_list.item_count:
-        if ed._lib_list.get_item_metadata(i) == "zz_panel_clip": ed._lib_list.select(i)
-    var before := ZenElemOps.rows(ed._canvas).size()
-    ed._t = 0.5
-    ed._lib_paste(false)
-    check(ZenElemOps.rows(ed._canvas).size() == before + 1, "a library clip pastes at the playhead")
-    ZenSceneOps.delete_clip("zz_panel_clip")
+    # Insert into the source: at a second, half speed, prefixed.
+    ed.open(ZenSceneOps.path_of("zz_fx_src"))
+    fx.ask_insert(ZenSceneOps.path_of("zz_fx_out"))
+    check(fx._ins_dialog.visible and fx._ins_fx != null, "Insert opens on the chosen effect")
+    fx._ins_sec.value = 1.5
+    check(fx._ins_at_sec.button_pressed, "typing a second picks 'at second'")
+    fx._ins_ratio.value = 2.0
+    fx._ins_prefix.text = "pre_"
+    fx._ins_prefix.text_changed.emit("pre_")          # what typing sends
+    check(fx.insert_prefix() == "pre_", "typing a prefix turns it on")
+    check(fx._ins_info.text.contains("1.20s"), "the dialog shows the length after the ratio: %s" % fx._ins_info.text)
+    fx._ins_dialog.hide()
+    var n0 := ZenElemOps.rows(ed._canvas).size()
+    fx._apply_insert()
+    var made := ZenElemOps.find(ed._canvas, "pre_ring")
+    check(made != null and ZenElemOps.rows(ed._canvas).size() == n0 + 1, "Insert adds the prefixed element")
+    if made != null:
+        var mk := ZenKeyOps.keys(ed._canvas, made, "pos_x")
+        check_near(float(mk[0]["t"]), 1.5, "...from the chosen second", 1e-3)
+        check_near(float(mk[mk.size() - 1]["t"]), 2.7, "...at the chosen ratio", 1e-3)
+    check(ed._sel.size() == 1 and ed._sel[0] == "pre_ring", "the inserted elements are selected")
+    ed._do_undo()
+    check(ZenElemOps.find(ed._canvas, "pre_ring") == null, "one undo removes the insert")
+
+    # The playhead option scrubs the editor as it changes.
+    fx.ask_insert(ZenSceneOps.path_of("zz_fx_out"))
+    fx._ins_head.value = 0.75
+    check(fx._ins_at_head.button_pressed and absf(ed._t - 0.75) < 1e-3, "the playhead field moves the playhead")
+    fx._ins_dialog.hide()
+
+    for nm in ["zz_fx_src", "zz_fx_out"]: ZenSceneOps.delete(nm)
     ed.queue_free()
     await process_frame
-    ZenClipOps.set_clipboard(null)
     ZenSettings.set_editor_state(user_state)
 
 

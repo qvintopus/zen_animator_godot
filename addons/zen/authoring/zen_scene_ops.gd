@@ -26,6 +26,8 @@ const DIRS := ["res://anims", "user://anims"]
 ## The C editor's new-document clock (AnimDocInit, anim.c:90-105).
 const NEW_DURATION := 2.0
 const NEW_BLEND := 0.3
+## The gallery folder effects are extracted into (and listed first for insert).
+const EFFECTS_FOLDER := "effects"
 
 
 ## Every scene name mapped to the path that wins (user over shipped).
@@ -256,53 +258,6 @@ static func _save_to(canvas: ZenCanvas, path: String) -> String:
     return path
 
 
-# ---------------------------------------------------------------------------
-#  The clip library: scenes of copied elements (ZenClipOps), kept apart from
-#  the animations so they never show up as one.
-# ---------------------------------------------------------------------------
-
-const CLIP_DIRS := ["res://library", "user://library"]
-
-
-## Every clip name mapped to its path (user over shipped), flat: no folders.
-static func clip_paths() -> Dictionary:
-    var out := {}
-    for root in CLIP_DIRS:
-        if not DirAccess.dir_exists_absolute(root): continue
-        for f in DirAccess.get_files_at(root):
-            var file := f.trim_suffix(".remap")
-            if file.ends_with(".tscn"): out[file.get_basename()] = "%s/%s" % [root, file]
-    return out
-
-
-static func clip_names() -> Array:
-    var out := clip_paths().keys()
-    out.sort_custom(func(a, b): return String(a).naturalnocasecmp_to(String(b)) < 0)
-    return out
-
-
-static func clip_save_root() -> String:
-    return CLIP_DIRS[0] if OS.has_feature("editor") else CLIP_DIRS[1]
-
-
-## Save `clip` into the library as `nm` (cleaned). Returns the path, or "".
-static func save_clip(clip: ZenCanvas, nm: String) -> String:
-    nm = clean_name(nm)
-    if nm.is_empty(): return ""
-    return _save_to(clip, "%s/%s.tscn" % [clip_save_root(), nm])
-
-
-static func open_clip(nm: String) -> ZenCanvas:
-    var p := String(clip_paths().get(nm, ""))
-    return open(p) if not p.is_empty() else null
-
-
-static func delete_clip(nm: String) -> Error:
-    var p := String(clip_paths().get(nm, ""))
-    if p.is_empty(): return ERR_FILE_NOT_FOUND
-    return DirAccess.remove_absolute(ProjectSettings.globalize_path(p))
-
-
 ## Rename scene `from` to `to` on disk. Fails when `to` is taken.
 static func rename(from: String, to: String) -> Error:
     var src := path_of(from)
@@ -313,15 +268,15 @@ static func rename(from: String, to: String) -> Error:
         ProjectSettings.globalize_path(dst))
 
 
-## Copy scene `from` to a new scene `to` (saved where saves go).
-static func duplicate_scene(from: String, to: String) -> Error:
+## Copy scene `from` to a new scene `to`, in `folder` (null: next to `from`).
+static func duplicate_scene(from: String, to: String, folder: Variant = null) -> Error:
     var src := path_of(from)
     if src.is_empty(): return ERR_FILE_NOT_FOUND
     if not is_name_free(to): return ERR_ALREADY_EXISTS
     var canvas := open(src)
     if canvas == null: return ERR_CANT_OPEN
     canvas.name = ZenElemFactory.node_name(to)
-    var ok := not save(canvas, to, folder_of_path(src)).is_empty()
+    var ok := not save(canvas, to, folder_of_path(src) if folder == null else String(folder)).is_empty()
     canvas.free()
     return OK if ok else ERR_CANT_CREATE
 

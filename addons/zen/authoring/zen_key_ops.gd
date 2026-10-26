@@ -441,6 +441,24 @@ static func key_at_playhead(canvas: ZenCanvas, el: ZenElement, prop: String, t: 
     return insert(canvas, el, prop, t, v)
 
 
+## Scale every key time of `an`, and every bezier handle's reach, by `k`.
+## The length is the caller's.
+static func scale_anim(an: Animation, k: float) -> void:
+    if an == null or is_equal_approx(k, 1.0) or k <= 0.0: return
+    for tr in an.get_track_count():
+        var n := an.track_get_key_count(tr)
+        # Growing moves the last key first, shrinking the first, so no key is
+        # ever moved onto a neighbour that has not moved yet.
+        var order := range(n - 1, -1, -1) if k > 1.0 else range(n)
+        for i in order:
+            an.track_set_key_time(tr, i, an.track_get_key_time(tr, i) * k)
+            if an.track_get_type(tr) == Animation.TYPE_BEZIER:
+                var hi := an.bezier_track_get_key_in_handle(tr, i)
+                var ho := an.bezier_track_get_key_out_handle(tr, i)
+                an.bezier_track_set_key_in_handle(tr, i, Vector2(hi.x * k, hi.y))
+                an.bezier_track_set_key_out_handle(tr, i, Vector2(ho.x * k, ho.y))
+
+
 # ---------------------------------------------------------------------------
 #  Stepped props: a discrete value track, no segments.
 # ---------------------------------------------------------------------------

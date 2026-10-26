@@ -96,6 +96,19 @@ static func remove(canvas: ZenCanvas, signal_name: String) -> void:
     canvas.timeline_dirty()
 
 
+## Remove every signal and the bus itself: the scene keeps only its timeline.
+static func remove_all(canvas: ZenCanvas) -> void:
+    for nm in names(canvas): remove(canvas, String(nm))
+    var bus := canvas.bus()
+    if bus != null:
+        canvas.remove_child(bus)
+        bus.free()
+    var ap := ZenAnimBuilder.find_player(canvas)
+    if ap != null and ap.has_animation_library(ZenAnimBuilder.SIG_LIB):
+        ap.remove_animation_library(ZenAnimBuilder.SIG_LIB)
+    canvas.timeline_dirty()
+
+
 ## Rename, keeping the Animation and every `then` pointing at it. False when
 ## `to` is empty or taken.
 static func rename(canvas: ZenCanvas, from: String, to: String) -> bool:
@@ -247,18 +260,7 @@ static func _span(length: float) -> float:
 static func _rescale(an: Animation, a: float, b: float) -> void:
     if an == null or is_equal_approx(a, b): return
     var k := b / a
-    for tr in an.get_track_count():
-        var n := an.track_get_key_count(tr)
-        # Growing moves the last key first, shrinking the first, so no key is
-        # ever moved onto a neighbour that has not moved yet.
-        var order := range(n - 1, -1, -1) if k > 1.0 else range(n)
-        for i in order:
-            an.track_set_key_time(tr, i, an.track_get_key_time(tr, i) * k)
-            if an.track_get_type(tr) == Animation.TYPE_BEZIER:
-                var hi := an.bezier_track_get_key_in_handle(tr, i)
-                var ho := an.bezier_track_get_key_out_handle(tr, i)
-                an.bezier_track_set_key_in_handle(tr, i, Vector2(hi.x * k, hi.y))
-                an.bezier_track_set_key_out_handle(tr, i, Vector2(ho.x * k, ho.y))
+    ZenKeyOps.scale_anim(an, k)
     an.length = b
     var cap: Dictionary = an.get_meta(ZenTimeline.META_CAPTURE, {})
     for p in cap: cap[p] = [float(cap[p][0]) * k, cap[p][1]]
