@@ -4072,7 +4072,7 @@ func test_text_args() -> void:
 ## shows its samples, never a bare %N.
 func test_zombie_shooter_scenes() -> void:
     var names := ZenSceneOps.scene_paths().keys().filter(func(n): return String(n).begins_with("zs_"))
-    check(names.size() == 7, "the ZombieShooter set has 7 scenes (%d)" % names.size())
+    check(names.size() == 10, "the ZombieShooter set has 10 scenes (%d)" % names.size())
     for nm in names:
         var c := ZenSceneOps.open(ZenSceneOps.path_of(nm))
         check(ZenSceneOps.folder_of_path(ZenSceneOps.path_of(nm)) == "ZombieShooter", "%s is in ZombieShooter/" % nm)

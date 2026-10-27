@@ -2,8 +2,9 @@ extends SceneTree
 ##
 ## Builds the ZombieShooter set (anims/ZombieShooter/zs_*.tscn): HUD moments for
 ## variant-ZombieShooter - wave start / cleared, boss wave, room cleared, game
-## over, victory and a weapon pickup card. Re-run after changing a design here;
-## the scenes are plain Zen scenes and stay editable in the scene editor.
+## over, victory and weapon pickup cards (katana, pistol, shotgun, rifle). Re-run
+## after changing a design here; the scenes are plain Zen scenes and stay
+## editable in the scene editor.
 ##
 ##   Godot --headless --path . --script res://tools/gen_zombie_shooter.gd
 ##
@@ -25,11 +26,13 @@ const BLOOD := Color(0.78, 0.1, 0.1, 1)
 const TOXIC := Color(0.55, 0.95, 0.3, 1)
 const DARK := Color(0.078, 0.122, 0.09, 1)       # victory.tscn's background
 const GOLD := Color(1.0, 0.8, 0.3, 1)
+## How far left of the weapon card's centre the icon sits, in px.
+const ICON_DX := 110.0
 
 
 func _init() -> void:
     for fn in [_wave_start, _wave_cleared, _boss_wave, _room_cleared, _game_over, _victory,
-               _weapon_pickup]:
+               _weapon_katana, _weapon_pistol, _weapon_shotgun, _weapon_rifle]:
         var doc: Dictionary = fn.call()
         var path := _save(doc)
         print("%s  %s" % ["wrote" if not path.is_empty() else "FAILED", doc["name"]])
@@ -206,28 +209,88 @@ func _victory() -> Dictionary:
 
 
 ## A lower-third card slides in over the weapon bar: icon, weapon name and a
-## one-line description, then slides out the other way. The samples are
-## placeholder copy; the game passes the real name and description.
-func _weapon_pickup() -> Dictionary:
+## one-line description, then slides out the other way. One scene per weapon
+## (the icon and how it moves differ); the samples are placeholder copy, the
+## game passes the real name and description.
+func _weapon_card(nm: String, icon_shape: String, icon_px: float, samples: Array,
+        icon_tracks: Dictionary, extra: Array = []) -> Dictionary:
     var cy := 0.8
-    var slide := func(x: float) -> Array:
-        return [k(0.0, x + 0.8), k(0.35, x, "backOut"), k(2.2, x), k(2.6, x - 0.8, "backIn")]
-    var card := shape("card", "rect", Vector2(0.5, cy), Vector2(240, 44),
+    var card := shape("card", "rect", Vector2(0.5, cy), Vector2(280, 44),
         {"color": Color(DARK, 0.9), "outline_color": TOXIC, "outline": 1.0},
-        {"pos_x": slide.call(0.5)})
-    var icon_x := 0.5 - 92.0 / SIZE.x
-    var icon := shape("icon", "custom", Vector2(icon_x, cy), Vector2(32, 32),
-        {"shape_name": "shotgun", "color": BONE, "outline_color": BLOOD},
-        {"pos_x": slide.call(icon_x),
-         "rot": [k(0.35, -25.0), k(0.7, 0.0, "elasticOut")]})
-    var text_x := 0.5 + 18.0 / SIZE.x
-    var nm := text("weapon", "%1", Vector2(text_x, cy - 8.0 / SIZE.y), 20.0, TOXIC,
-        {"pos_x": slide.call(text_x)})
+        {"pos_x": _card_slide(0.5)})
+    var icon_x := 0.5 - ICON_DX / SIZE.x
+    var tracks := {"pos_x": _card_slide(icon_x)}
+    tracks.merge(icon_tracks)
+    var icon := shape("icon", "custom", Vector2(icon_x, cy), Vector2(icon_px, icon_px),
+        {"shape_name": icon_shape, "color": BONE, "outline_color": BLOOD}, tracks)
+    var text_x := 0.5 + 26.0 / SIZE.x
+    var title := text("weapon", "%1", Vector2(text_x, cy - 8.0 / SIZE.y), 20.0, TOXIC,
+        {"pos_x": _card_slide(text_x)})
     var desc := text("desc", "%2", Vector2(text_x, cy + 11.0 / SIZE.y), 10.0, BONE,
-        {"pos_x": slide.call(text_x),
+        {"pos_x": _card_slide(text_x),
          "alpha": [k(0.35, 0.0), k(0.55, 1.0)]})
-    return scene("zs_weapon_pickup", 2.6, [card, icon, nm, desc], ["weapon_name", "description"],
-        ["SHOTGUN", "WIDE SPREAD, SLOW RELOAD"])
+    return scene(nm, 2.6, [card, icon] + extra + [title, desc], ["weapon_name", "description"],
+        samples)
+
+
+## pos_x keys for a card part at `x`: in from the right, hold, out to the left.
+func _card_slide(x: float) -> Array:
+    return [k(0.0, x + 0.8), k(0.35, x, "backOut"), k(2.2, x), k(2.6, x - 0.8, "backIn")]
+
+
+## A muzzle flash `off` px from the icon's centre, popping at each shot time.
+func _muzzle(off: Vector2, shots: Array) -> Dictionary:
+    var x := 0.5 - ICON_DX / SIZE.x + off.x / SIZE.x
+    var sc: Array = [k(0.0, 0.0)]
+    for t: float in shots:
+        sc += [k(t, 0.0), k(t + 0.03, 1.0, "quadOut"), k(t + 0.1, 0.0, "quadIn")]
+    return shape("flash", "custom", Vector2(x, 0.8 + off.y / SIZE.y), Vector2(14, 14),
+        {"shape_name": "star", "color": GOLD, "outline_color": BLOOD},
+        {"pos_x": _card_slide(x), "scale": sc})
+
+
+## The icon's rot kicking up at each shot and settling.
+func _recoil(shots: Array, kick: float) -> Array:
+    var rot: Array = [k(0.35, -25.0), k(0.5, 0.0, "backOut")]
+    for t: float in shots:
+        rot += [k(t, 0.0), k(t + 0.04, -kick, "quadOut"), k(t + 0.12, 0.0, "sineInOut")]
+    return rot
+
+
+## The game's Sword as a katana: it swings in, and a slash streak cuts across
+## the card behind the text.
+func _weapon_katana() -> Dictionary:
+    var slash := shape("slash", "rect", Vector2(0.5, 0.8), Vector2(0.0, 0.008),
+        {"color": BONE, "rot": -8.0},
+        {"w": [k(0.45, 0.0), k(0.6, 0.5, "cubicOut")],
+         "pos_x": [k(0.45, 0.3), k(0.6, 0.5, "cubicOut")],
+         "alpha": [k(0.6, 1.0), k(0.95, 0.0, "quadIn")]})
+    return _weapon_card("zs_weapon_katana", "katana", 36.0,
+        ["KATANA", "FAST SLASHES, CLOSE RANGE"],
+        {"rot": [k(0.25, -110.0), k(0.55, 10.0, "cubicOut"), k(0.8, 0.0, "sineInOut")]},
+        [slash])
+
+
+## The game's Gun: one shot, a flash at the muzzle and the kick.
+func _weapon_pistol() -> Dictionary:
+    var shots := [0.7]
+    return _weapon_card("zs_weapon_pistol", "pistol", 32.0,
+        ["PISTOL", "RELIABLE, QUICK TO AIM"],
+        {"rot": _recoil(shots, 22.0)}, [_muzzle(Vector2(13, -5), shots)])
+
+
+func _weapon_shotgun() -> Dictionary:
+    return _weapon_card("zs_weapon_shotgun", "shotgun", 32.0,
+        ["SHOTGUN", "WIDE SPREAD, LOW DAMAGE"],
+        {"rot": [k(0.35, -25.0), k(0.7, 0.0, "elasticOut")]})
+
+
+## The game's Assault Riffle: a three-round burst.
+func _weapon_rifle() -> Dictionary:
+    var shots := [0.65, 0.77, 0.89]
+    return _weapon_card("zs_weapon_rifle", "rifle", 40.0,
+        ["ASSAULT RIFLE", "FULL AUTO, HIGH FIRE RATE"],
+        {"rot": _recoil(shots, 8.0)}, [_muzzle(Vector2(21, -4), shots)])
 
 
 # ---------------------------------------------------------------------------

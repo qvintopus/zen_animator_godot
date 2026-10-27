@@ -38,7 +38,7 @@ func _init() -> void:
         # ZombieShooter (anims/ZombieShooter/)
         "skull": _skull, "zombie_hand": _zombie_hand, "crosshair": _crosshair, "splat": _splat,
         "bullet": _bullet, "pistol": _pistol, "shotgun": _shotgun, "hazard_stripes": _hazard_stripes,
-        "door": _door,
+        "door": _door, "katana": _katana, "rifle": _rifle,
     }
     DirAccess.make_dir_recursive_absolute(DIR)
     for nm: String in shapes:
@@ -451,6 +451,37 @@ func _shotgun() -> void:
     round_rect(Rect2(30, 31, 14, 6), 2)
     poly([Vector2(2, 34), Vector2(22, 22), Vector2(26, 32), Vector2(8, 44)])
     arc(Vector2(26, 37), 4, 2.5, 0, 180)
+
+
+## The game's Sword (sword_0.png: a white blade on a maroon grip) drawn as a
+## katana, hilt low-left, the slightly curved blade rising to the upper right.
+func _katana() -> void:
+    var base := Vector2(21, 43)
+    var tip := Vector2(60, 4)
+    var n := Vector2(1, 1).normalized()       # across the blade; +n is the edge side
+    var mid := base.lerp(tip, 0.55) - n * 1.5   # the curve bows toward the spine
+    poly([base + n * 3.6, mid + n * 3.4, tip.lerp(mid, 0.12) + n * 2.0, tip,
+          mid - n * 3.0, base - n * 3.2])
+    line(Vector2(15, 39), Vector2(25, 49), 4)  # guard (tsuba)
+    line(Vector2(18, 46), Vector2(7, 57), 5)   # grip
+    for i in 3:
+        var c := Vector2(16, 48).lerp(Vector2(9, 55), i / 2.0)
+        rect(Rect2(c - Vector2(0.5, 0.5), Vector2(1, 1)), ZenPixelShape.EMPTY)
+    disc(Vector2(5.5, 58.5), 2.5)              # pommel (kashira)
+
+
+## The game's Assault Riffle (gun_3.png): stock, receiver, long barrel, curved
+## magazine and a pistol grip, pointing right.
+func _rifle() -> void:
+    poly([Vector2(1, 24), Vector2(18, 23), Vector2(18, 33), Vector2(4, 39), Vector2(1, 39)])
+    rect(Rect2(17, 21, 30, 11))
+    rect(Rect2(46, 24, 17, 4))
+    rect(Rect2(44, 21, 6, 2))
+    rect(Rect2(26, 17, 9, 4))
+    poly([Vector2(21, 31), Vector2(28, 31), Vector2(25, 45), Vector2(18, 45)])
+    poly([Vector2(35, 31), Vector2(42, 31), Vector2(46, 45), Vector2(39, 46)])
+    rect(Rect2(5, 28, 9, 2), ZenPixelShape.EMPTY)
+    for x in [38, 42]: rect(Rect2(x, 24, 2, 4), ZenPixelShape.EMPTY)
 
 
 ## Diagonal warning bands, edge to edge, for sweeping across a banner.
